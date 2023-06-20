@@ -6,7 +6,16 @@
 
 #include "simd_platform.h"
 
-constexpr uint32_t TotalSymbolCountBits = 10;
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
+uint64_t GetCurrentTimeTicks();
+uint64_t TicksToNs(const uint64_t ticks);
+
+constexpr uint32_t TotalSymbolCountBits = 12;
 constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
 
 struct hist_t
@@ -49,7 +58,7 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size)
 
     for (size_t i = 0; i < 256; i++)
     {
-      capped[i] = ((pHist->symbolCount[i] + add) / div) | (pHist->symbolCount[i]);
+      capped[i] = ((pHist->symbolCount[i] + add) / div) | (uint32_t)!!(pHist->symbolCount[i]);
       cappedSum += capped[i];
     }
   }
@@ -64,15 +73,10 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size)
     }
   }
 
+  printf("make_hist archived sum on try 1: %" PRIu32 " (from %" PRIu64 ", target %" PRIu32 ")\n\n", cappedSum, size, TotalSymbolCount);
+
   if (cappedSum != TotalSymbolCount)
   {
-    float realProb[256];
-
-    for (size_t i = 0; i < 256; i++)
-      realProb[i] = pHist->symbolCount[i] / (float)size;
-
-    (void)realProb;
-
     while (cappedSum > TotalSymbolCount) // Start stealing.
     {
       size_t target = 2;
@@ -304,56 +308,99 @@ int32_t main(const int64_t argc, char **pArgv)
     return 1;
   }
 
-  puts("Hist:");
+  size_t symCount = 0;
 
   for (size_t i = 0; i < 256; i++)
-    if (hist.symbolCount[i])
-      printf("0x%02" PRIX8 "(%c): %" PRIu32 " (%" PRIu32 ")\n", (uint8_t)i, (char)i, hist.symbolCount[i], hist.cumul[i]);
+    symCount += (size_t)!!hist.symbolCount[i];
 
-  const size_t compressedLength = encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
-
-  printf("\n%" PRIu64 " bytes from %" PRIu64 " bytes.\n", compressedLength, fileSize);
-
-  puts("");
-
-  printf("Compressed: (state: %" PRIu32 ")\n\n", *reinterpret_cast<const uint32_t *>(pCompressedData));
-
-  for (size_t i = 0; i < compressedLength; i += 32)
+  if (symCount < 8)
   {
-    const size_t max = i + 32 > compressedLength ? compressedLength : i + 32;
-    size_t j;
+    puts("Hist:");
 
-    for (j = i; j < max; j++)
-      printf("%02" PRIX8 " ", pCompressedData[j]);
+    for (size_t i = 0; i < 256; i++)
+      if (hist.symbolCount[i])
+        printf("0x%02" PRIX8 "(%c): %" PRIu32 " (%" PRIu32 ")\n", (uint8_t)i, (char)i, hist.symbolCount[i], hist.cumul[i]);
 
     puts("");
   }
 
-  puts("");
+  size_t compressedLength = 0;
 
-  hist_dec_t histDec;
-  make_dec_hist(&histDec, &hist);
-
-  puts("DecHist:");
-
-  for (size_t i = 0; i < TotalSymbolCount;)
+  for (size_t run = 0; run < 10; run++)
   {
-    const uint8_t sym = histDec.cumulInv[i];
+    const uint64_t startTick = GetCurrentTimeTicks();
+    const uint64_t startClock = __rdtsc();
+    compressedLength = encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
+    const uint64_t endClock = __rdtsc();
+    const uint64_t endTick = GetCurrentTimeTicks();
 
-    size_t j = i + 1;
+    _mm_mfence();
 
-    for (; j < TotalSymbolCount; j++)
-      if (histDec.cumulInv[j] != sym)
-        break;
-
-    printf("%02" PRIX8 "(%c): %" PRIu64 " ~ %" PRIu64 "\n", sym, (char)sym, i, j - 1);
-
-    i = j;
+    printf("%" PRIu64 " bytes from %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
   }
 
   puts("");
 
-  const size_t decompressedLength = decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+  if (compressedLength < 32 * 8)
+  {
+    printf("Compressed: (state: %" PRIu32 ")\n\n", *reinterpret_cast<const uint32_t *>(pCompressedData));
+
+    for (size_t i = 0; i < compressedLength; i += 32)
+    {
+      const size_t max = i + 32 > compressedLength ? compressedLength : i + 32;
+      size_t j;
+
+      for (j = i; j < max; j++)
+        printf("%02" PRIX8 " ", pCompressedData[j]);
+
+      puts("");
+    }
+
+    puts("");
+  }
+
+  hist_dec_t histDec;
+  make_dec_hist(&histDec, &hist);
+
+  if (symCount < 12)
+  {
+    puts("DecHist:");
+
+    for (size_t i = 0; i < TotalSymbolCount;)
+    {
+      const uint8_t sym = histDec.cumulInv[i];
+
+      size_t j = i + 1;
+
+      for (; j < TotalSymbolCount; j++)
+        if (histDec.cumulInv[j] != sym)
+          break;
+
+      printf("%02" PRIX8 "(%c): %" PRIu64 " ~ %" PRIu64 "\n", sym, (char)sym, i, j - 1);
+
+      i = j;
+    }
+
+    puts("");
+  }
+
+
+  size_t decompressedLength = 0;
+
+  for (size_t run = 0; run < 10; run++)
+  {
+    const uint64_t startTick = GetCurrentTimeTicks();
+    const uint64_t startClock = __rdtsc();
+    decompressedLength = decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+    const uint64_t endClock = __rdtsc();
+    const uint64_t endTick = GetCurrentTimeTicks();
+
+    _mm_mfence();
+
+    printf("decompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+  }
+
+  puts("");
 
   if (decompressedLength != fileSize)
   {
@@ -361,33 +408,17 @@ int32_t main(const int64_t argc, char **pArgv)
     return 1;
   }
 
-  puts("Input:                                              Output:\n");
-
-  for (size_t i = 0; i < fileSize; i += 16)
+  if (fileSize < 32 * 8)
   {
-    const size_t max = i + 16 > fileSize ? fileSize : i + 16;
-    size_t j;
+    puts("Input:                                              Output:\n");
 
-    for (j = i; j < max; j++)
-      printf("%02" PRIX8 " ", pUncompressedData[j]);
-
-    for (; j < i + 16; j++)
-      printf("   ");
-
-    printf(" |  ");
-
-    for (j = i; j < max; j++)
-      printf("%02" PRIX8 " ", pDecompressedData[j]);
-
-    for (; j < i + 16; j++)
-      printf("   ");
-
-    puts("");
-
-    if (memcmp(pUncompressedData + i, pUncompressedData + i, max - i) != 0)
+    for (size_t i = 0; i < fileSize; i += 16)
     {
+      const size_t max = i + 16 > fileSize ? fileSize : i + 16;
+      size_t j;
+
       for (j = i; j < max; j++)
-        printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
+        printf("%02" PRIX8 " ", pUncompressedData[j]);
 
       for (; j < i + 16; j++)
         printf("   ");
@@ -395,14 +426,70 @@ int32_t main(const int64_t argc, char **pArgv)
       printf(" |  ");
 
       for (j = i; j < max; j++)
-        printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
+        printf("%02" PRIX8 " ", pDecompressedData[j]);
 
       for (; j < i + 16; j++)
         printf("   ");
 
       puts("");
+
+      if (memcmp(pUncompressedData + i, pUncompressedData + i, max - i) != 0)
+      {
+        for (j = i; j < max; j++)
+          printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
+
+        for (; j < i + 16; j++)
+          printf("   ");
+
+        printf(" |  ");
+
+        for (j = i; j < max; j++)
+          printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
+
+        for (; j < i + 16; j++)
+          printf("   ");
+
+        puts("");
+      }
     }
   }
 
+  if (memcmp(pDecompressedData, pUncompressedData, fileSize) != 0)
+  {
+    puts("Failed to decompress correctly.");
+    return 1;
+  }
+  else
+  {
+    puts("Success!");
+  }
+
   return 0;
+}
+
+uint64_t GetCurrentTimeTicks()
+{
+#ifdef WIN32
+  LARGE_INTEGER now;
+  QueryPerformanceCounter(&now);
+
+  return now.QuadPart;
+#else
+  struct timespec time;
+  clock_gettime(CLOCK_REALTIME, &time);
+
+  return (uint64_t)time.tv_sec * 1000000000 + (uint64_t)time.tv_nsec;
+#endif
+}
+
+uint64_t TicksToNs(const uint64_t ticks)
+{
+#ifdef WIN32
+  LARGE_INTEGER freq;
+  QueryPerformanceFrequency(&freq);
+
+  return (ticks * 1000 * 1000 * 1000) / freq.QuadPart;
+#else
+  return ticks;
+#endif
 }
