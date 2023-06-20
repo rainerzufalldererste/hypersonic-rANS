@@ -6,7 +6,7 @@
 
 #include "simd_platform.h"
 
-constexpr uint32_t TotalSymbolCountBits = 5;
+constexpr uint32_t TotalSymbolCountBits = 10;
 constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
 
 struct hist_t
@@ -165,14 +165,14 @@ void make_dec_hist(hist_dec_t *pHistDec, const hist_t *pHist)
   }
 }
 
-uint32_t encode_symbol(const uint8_t symbol, hist_t *pHist, const uint32_t state)
+uint32_t encode_symbol(const uint8_t symbol, const hist_t *pHist, const uint32_t state)
 {
   const uint32_t symbolCount = pHist->symbolCount[symbol];
 
   return (state / symbolCount) * TotalSymbolCount + pHist->cumul[symbol] + (state % symbolCount);
 }
 
-uint8_t decode_symbol(uint32_t *pState, hist_dec_t *pHist)
+uint8_t decode_symbol(uint32_t *pState, const hist_dec_t *pHist)
 {
   const uint32_t slot = *pState % TotalSymbolCount;
   const uint8_t symbol = pHist->cumulInv[slot];
@@ -181,6 +181,58 @@ uint8_t decode_symbol(uint32_t *pState, hist_dec_t *pHist)
   *pState = previousState;
 
   return symbol;
+}
+
+constexpr size_t LowLevel = 1 << 23;
+constexpr size_t RangeFactor = ((LowLevel >> TotalSymbolCountBits) << 8);
+
+size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
+{
+  if (outCapacity < length + sizeof(uint32_t) * (256 + 1))
+    return 0;
+
+  uint32_t state = LowLevel; // technically `n * TotalSymbolCount`.
+  uint8_t *pWrite = pOutData + outCapacity - 1;
+
+  for (int64_t i = length - 1; i >= 0; i--)
+  {
+    const uint8_t in = pInData[i];
+    const uint32_t max = RangeFactor * pHist->symbolCount[in];
+   
+    while (state >= max)
+    {
+      *pWrite = (uint8_t)(state & 0xFF);
+      pWrite--;
+      state >>= 8;
+    }
+
+    state = encode_symbol(in, pHist, state);
+  }
+
+  *reinterpret_cast<uint32_t *>(pOutData) = state;
+
+  const size_t writtenSize = (pOutData + outCapacity - 1) - pWrite;
+  memmove(pOutData + sizeof(uint32_t), pWrite + 1, writtenSize);
+
+  return writtenSize + sizeof(uint32_t);
+}
+
+size_t decode(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec_t *pHist)
+{
+  (void)inLength;
+
+  uint32_t state = *reinterpret_cast<const uint32_t *>(pInData);
+  size_t inIndex = sizeof(uint32_t);
+
+  for (size_t i = 0; i < outLength; i++)
+  {
+    pOutData[i] = decode_symbol(&state, pHist);
+
+    while (state < LowLevel)
+      state = state << 8 | pInData[inIndex++];
+  }
+
+  return outLength;
 }
 
 int32_t main(const int64_t argc, char **pArgv)
@@ -192,7 +244,10 @@ int32_t main(const int64_t argc, char **pArgv)
   }
 
   size_t fileSize = 0;
+  size_t compressedDataCapacity = 0;
+
   uint8_t *pUncompressedData = nullptr;
+  uint8_t *pCompressedData = nullptr;
   uint8_t *pDecompressedData = nullptr;
 
   // Read File.
@@ -220,14 +275,17 @@ int32_t main(const int64_t argc, char **pArgv)
     pUncompressedData = (uint8_t *)malloc(fileSize);
     pDecompressedData = (uint8_t *)malloc(fileSize);
 
-    if (pUncompressedData == nullptr || pDecompressedData == nullptr)
+    compressedDataCapacity = fileSize + sizeof(uint32_t) * (256 + 1);
+    pCompressedData = (uint8_t *)malloc(compressedDataCapacity);
+
+    if (pUncompressedData == nullptr || pDecompressedData == nullptr || pCompressedData == nullptr)
     {
       puts("Memory allocation failure.");
       fclose(pFile);
       return 1;
     }
 
-    if (fileSize != fread(pUncompressedData, 1, (size_t)fileSize, pFile))
+    if (fileSize != fread(pUncompressedData, 1, fileSize, pFile))
     {
       puts("Failed to read file.");
       fclose(pFile);
@@ -252,23 +310,24 @@ int32_t main(const int64_t argc, char **pArgv)
     if (hist.symbolCount[i])
       printf("0x%02" PRIX8 "(%c): %" PRIu32 " (%" PRIu32 ")\n", (uint8_t)i, (char)i, hist.symbolCount[i], hist.cumul[i]);
 
+  const size_t compressedLength = encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
+
+  printf("\n%" PRIu64 " bytes from %" PRIu64 " bytes.\n", compressedLength, fileSize);
+
   puts("");
 
-  uint32_t state = 0;
+  printf("Compressed: (state: %" PRIu32 ")\n\n", *reinterpret_cast<const uint32_t *>(pCompressedData));
 
-  for (int64_t i = fileSize - 1; i >= 0; i--)
+  for (size_t i = 0; i < compressedLength; i += 32)
   {
-    printf("%02" PRIX8 " (%c) ", pUncompressedData[i], (char)pUncompressedData[i]);
+    const size_t max = i + 32 > compressedLength ? compressedLength : i + 32;
+    size_t j;
 
-    state = encode_symbol(pUncompressedData[i], &hist, state);
+    for (j = i; j < max; j++)
+      printf("%02" PRIX8 " ", pCompressedData[j]);
 
-    printf("=> %" PRIu32 "\n", state);
+    puts("");
   }
-
-  unsigned long bits;
-  _BitScanReverse(&bits, state);
-
-  printf("\n%4.2f bytes (%" PRIu32 " bits) from %" PRIu64 " bytes.\n", bits / 8.0, bits, fileSize);
 
   puts("");
 
@@ -294,13 +353,55 @@ int32_t main(const int64_t argc, char **pArgv)
 
   puts("");
 
-  for (size_t i = 0; i < fileSize; i++)
+  const size_t decompressedLength = decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+
+  if (decompressedLength != fileSize)
   {
-    printf("%" PRIu32 " ", state);
+    puts("Decompressed Length differs from initial file size.");
+    return 1;
+  }
 
-    pDecompressedData[i] = decode_symbol(&state, &histDec);
+  puts("Input:                                              Output:\n");
 
-    printf("=> %02" PRIX8 " (%c)\n", pDecompressedData[i], (char)pDecompressedData[i]);
+  for (size_t i = 0; i < fileSize; i += 16)
+  {
+    const size_t max = i + 16 > fileSize ? fileSize : i + 16;
+    size_t j;
+
+    for (j = i; j < max; j++)
+      printf("%02" PRIX8 " ", pUncompressedData[j]);
+
+    for (; j < i + 16; j++)
+      printf("   ");
+
+    printf(" |  ");
+
+    for (j = i; j < max; j++)
+      printf("%02" PRIX8 " ", pDecompressedData[j]);
+
+    for (; j < i + 16; j++)
+      printf("   ");
+
+    puts("");
+
+    if (memcmp(pUncompressedData + i, pUncompressedData + i, max - i) != 0)
+    {
+      for (j = i; j < max; j++)
+        printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
+
+      for (; j < i + 16; j++)
+        printf("   ");
+
+      printf(" |  ");
+
+      for (j = i; j < max; j++)
+        printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
+
+      for (; j < i + 16; j++)
+        printf("   ");
+
+      puts("");
+    }
   }
 
   return 0;
