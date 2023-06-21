@@ -206,14 +206,26 @@ void make_dec_hist(hist_dec_t *pHistDec, const hist_t *pHist)
   }
 }
 
-inline uint32_t encode_symbol(const uint8_t symbol, const hist_t *pHist, const uint32_t state)
+inline uint8_t decode_symbol(uint32_t *pState, const hist_dec_t *pHist)
+{
+  const uint32_t state = *pState;
+  const uint32_t slot = state & (TotalSymbolCount - 1);
+  const uint8_t symbol = pHist->cumulInv[slot];
+  const uint32_t previousState = (state >> TotalSymbolCountBits) * pHist->symbolCount[symbol] + slot - pHist->cumul[symbol];
+
+  *pState = previousState;
+
+  return symbol;
+}
+
+inline uint32_t encode_symbol_basic(const uint8_t symbol, const hist_t *pHist, const uint32_t state)
 {
   const uint32_t symbolCount = pHist->symbolCount[symbol];
 
   return ((state / symbolCount) << TotalSymbolCountBits) + pHist->cumul[symbol] + (state % symbolCount);
 }
 
-inline uint8_t decode_symbol(uint32_t *pState, const hist_dec_t *pHist)
+inline uint8_t decode_symbol_basic(uint32_t *pState, const hist_dec_t *pHist)
 {
   const uint32_t state = *pState;
   const uint32_t slot = state & (TotalSymbolCount - 1);
@@ -228,7 +240,7 @@ inline uint8_t decode_symbol(uint32_t *pState, const hist_dec_t *pHist)
 #ifdef _MSC_VER
 __declspec(noinline)
 #endif
-size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
+size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_enc_t *pHist)
 {
   if (outCapacity < length + sizeof(uint32_t) * (256 + 1))
     return 0;
@@ -239,7 +251,10 @@ size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, co
   for (int64_t i = length - 1; i >= 0; i--)
   {
     const uint8_t in = pInData[i];
-    const uint32_t max = EncodeEmitPoint * pHist->symbolCount[in];
+    const enc_sym_t symInfo = pHist->symbols[in];
+
+    const uint32_t freq = symInfo.freq;
+    const uint32_t max = EncodeEmitPoint * freq;
    
     while (state >= max)
     {
@@ -248,7 +263,16 @@ size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, co
       state >>= 8;
     }
 
-    state = encode_symbol(in, pHist, state);
+#ifndef _MSC_VER
+    const uint32_t stateDivFreq = state / freq;
+    const uint32_t stateModFreq = state % freq;
+#else
+
+    uint32_t stateDivFreq, stateModFreq;
+    stateDivFreq = _udiv64(state, freq, &stateModFreq);
+#endif
+
+    state = (stateDivFreq << TotalSymbolCountBits) + symInfo.cumul + stateModFreq;
   }
 
   *reinterpret_cast<uint32_t *>(pOutData) = state;
@@ -272,6 +296,61 @@ size_t decode(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, 
   for (size_t i = 0; i < outLength; i++)
   {
     pOutData[i] = decode_symbol(&state, pHist);
+
+    while (state < DecodeConsumePoint)
+      state = state << 8 | pInData[inIndex++];
+  }
+
+  return outLength;
+}
+
+#ifdef _MSC_VER
+__declspec(noinline)
+#endif
+size_t encode_basic(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
+{
+  if (outCapacity < length + sizeof(uint32_t) * (256 + 1))
+    return 0;
+
+  uint32_t state = DecodeConsumePoint; // technically `n * TotalSymbolCount`.
+  uint8_t *pWrite = pOutData + outCapacity - 1;
+
+  for (int64_t i = length - 1; i >= 0; i--)
+  {
+    const uint8_t in = pInData[i];
+    const uint32_t max = EncodeEmitPoint * pHist->symbolCount[in];
+
+    while (state >= max)
+    {
+      *pWrite = (uint8_t)(state & 0xFF);
+      pWrite--;
+      state >>= 8;
+    }
+
+    state = encode_symbol_basic(in, pHist, state);
+  }
+
+  *reinterpret_cast<uint32_t *>(pOutData) = state;
+
+  const size_t writtenSize = (pOutData + outCapacity - 1) - pWrite;
+  memmove(pOutData + sizeof(uint32_t), pWrite + 1, writtenSize);
+
+  return writtenSize + sizeof(uint32_t);
+}
+
+#ifdef _MSC_VER
+__declspec(noinline)
+#endif
+size_t decode_basic(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec_t *pHist)
+{
+  (void)inLength;
+
+  uint32_t state = *reinterpret_cast<const uint32_t *>(pInData);
+  size_t inIndex = sizeof(uint32_t);
+
+  for (size_t i = 0; i < outLength; i++)
+  {
+    pOutData[i] = decode_symbol_basic(&state, pHist);
 
     while (state < DecodeConsumePoint)
       state = state << 8 | pInData[inIndex++];
@@ -374,13 +453,28 @@ int32_t main(const int64_t argc, char **pArgv)
   {
     const uint64_t startTick = GetCurrentTimeTicks();
     const uint64_t startClock = __rdtsc();
-    compressedLength = encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
+    compressedLength = encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
     const uint64_t endClock = __rdtsc();
     const uint64_t endTick = GetCurrentTimeTicks();
 
     _mm_mfence();
 
-    printf("%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    printf("encode: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+  }
+
+  puts("");
+
+  for (size_t run = 0; run < 10; run++)
+  {
+    const uint64_t startTick = GetCurrentTimeTicks();
+    const uint64_t startClock = __rdtsc();
+    compressedLength = encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
+    const uint64_t endClock = __rdtsc();
+    const uint64_t endTick = GetCurrentTimeTicks();
+
+    _mm_mfence();
+
+    printf("encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
   }
 
   puts("");

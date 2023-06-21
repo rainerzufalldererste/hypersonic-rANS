@@ -12,8 +12,10 @@ project(ProjectName)
     buildoptions { '/MP' }
 
     ignoredefaultlibraries { "msvcrt" }
+    exceptionhandling "On" -- nobody wants this, but msvc is to incompetent otherwise because codegen workaround require workarounds for which this is the workaround.
   filter { "system:linux" }
     buildoptions { "-mxsave" }
+    exceptionhandling "Off"
   filter { }
   
   filter { "configurations:Release" }
@@ -50,7 +52,6 @@ filter {"configurations:Debug"}
 
 filter {}
 flags { "NoMinimalRebuild", "NoPCH" }
-exceptionhandling "Off"
 rtti "Off"
 floatingpoint "Fast"
 
