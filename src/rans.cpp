@@ -76,6 +76,17 @@ struct hist_dec_t : hist_t
   uint8_t cumulInv[TotalSymbolCount];
 };
 
+struct dec_sym_t
+{
+  uint16_t freq, cumul;
+};
+
+struct hist_dec2_t
+{
+  dec_sym_t symbols[256];
+  uint8_t cumulInv[TotalSymbolCount];
+};
+
 void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size)
 {
   uint32_t hist[256];
@@ -243,6 +254,25 @@ void make_dec_hist(hist_dec_t *pHistDec, const hist_t *pHist)
   }
 }
 
+void make_dec2_hist(hist_dec2_t *pHistDec, const hist_t *pHist)
+{
+  for (size_t i = 0; i < 256; i++)
+  {
+    pHistDec->symbols[i].cumul = pHist->cumul[i];
+    pHistDec->symbols[i].freq = pHist->symbolCount[i];
+  }
+
+  uint8_t sym = 0;
+
+  for (size_t i = 0; i < TotalSymbolCount; i++)
+  {
+    while (sym != 0xFF && (!pHist->symbolCount[sym] || pHist->cumul[sym + 1] <= i))
+      sym++;
+
+    pHistDec->cumulInv[i] = sym;
+  }
+}
+
 inline uint8_t decode_symbol(uint32_t *pState, const hist_dec_t *pHist)
 {
   const uint32_t state = *pState;
@@ -324,7 +354,7 @@ size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, co
 #ifdef _MSC_VER
 __declspec(noinline)
 #endif
-size_t decode(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec_t *pHist)
+size_t decode(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec2_t *pHist)
 {
   (void)inLength;
 
@@ -335,7 +365,12 @@ size_t decode(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, 
   {
     const uint32_t slot = state & (TotalSymbolCount - 1);
     const uint8_t symbol = pHist->cumulInv[slot];
-    state = (state >> TotalSymbolCountBits) * (uint32_t)pHist->symbolCount[symbol] + slot - (uint32_t)pHist->cumul[symbol];
+
+    const dec_sym_t pack = pHist->symbols[symbol];
+    const uint32_t freq = pack.freq;
+    const uint32_t cumul = pack.cumul;
+
+    state = (state >> TotalSymbolCountBits) * freq + slot - cumul;
 
     pOutData[i] = symbol;
 
@@ -508,8 +543,6 @@ int32_t main(const int32_t argc, char **pArgv)
     print_perf_info(fileSize);
   }
 
-  puts("");
-
   {
     compressedLength = encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
 
@@ -532,8 +565,6 @@ int32_t main(const int32_t argc, char **pArgv)
     print_perf_info(fileSize);
   }
 
-  puts("");
-
   if (compressedLength < 32 * 8)
   {
     printf("Compressed: (state: %" PRIu32 ")\n\n", *reinterpret_cast<const uint32_t *>(pCompressedData));
@@ -554,6 +585,9 @@ int32_t main(const int32_t argc, char **pArgv)
 
   hist_dec_t histDec;
   make_dec_hist(&histDec, &hist);
+
+  hist_dec2_t histDec2;
+  make_dec2_hist(&histDec2, &hist);
 
   if (symCount < 12)
   {
@@ -602,16 +636,14 @@ int32_t main(const int32_t argc, char **pArgv)
     print_perf_info(fileSize);
   }
 
-  puts("");
-
   {
-    decompressedLength = decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+    decompressedLength = decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
 
     for (size_t run = 0; run < RunCount; run++)
     {
       const uint64_t startTick = GetCurrentTimeTicks();
       const uint64_t startClock = __rdtsc();
-      decompressedLength = decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+      decompressedLength = decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
       const uint64_t endClock = __rdtsc();
       const uint64_t endTick = GetCurrentTimeTicks();
 
@@ -625,8 +657,6 @@ int32_t main(const int32_t argc, char **pArgv)
 
     print_perf_info(fileSize);
   }
-
-  puts("");
 
   if (decompressedLength != fileSize)
   {
