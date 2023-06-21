@@ -20,18 +20,15 @@ constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
 constexpr size_t DecodeConsumePoint = 1 << 23;
 constexpr size_t EncodeEmitPoint = ((DecodeConsumePoint >> TotalSymbolCountBits) << 8);
 
+static_assert(TotalSymbolCountBits <= 16);
+
 struct hist_t
 {
-  uint32_t symbolCount[256];
-  uint32_t cumul[256];
-  uint32_t total;
+  uint16_t symbolCount[256];
+  uint16_t cumul[256];
 };
 
-struct enc_sym_t
-{
-  uint16_t freq;
-  uint16_t cumul;
-};
+typedef uint32_t enc_sym_t;
 
 struct hist_enc_t
 {
@@ -45,23 +42,19 @@ struct hist_dec_t : hist_t
 
 void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size)
 {
-  memset(pHist, 0, sizeof(hist_t));
+  uint32_t hist[256];
+  memset(hist, 0, sizeof(hist));
 
   for (size_t i = 0; i < size; i++)
-    pHist->symbolCount[pData[i]]++;
+    hist[pData[i]]++;
 
   uint32_t counter = 0;
 
   for (size_t i = 0; i < 256; i++)
-  {
-    pHist->cumul[i] = counter;
-    counter += pHist->symbolCount[i];
-  }
+    counter += hist[i];
 
-  pHist->total = counter;
-
-  uint32_t capped[256];
-  uint32_t cappedSum = 0;
+  uint16_t capped[256];
+  size_t cappedSum = 0;
 
   constexpr bool FloatingPointHistLimit = false;
 
@@ -71,7 +64,7 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size)
 
     for (size_t i = 0; i < 256; i++)
     {
-      capped[i] = (uint32_t)(pHist->symbolCount[i] * mul + 0.5f) | (uint32_t)!!(pHist->symbolCount[i]);
+      capped[i] = (uint16_t)((uint32_t)(hist[i] * mul + 0.5f) | (uint32_t)!!(hist[i]));
       cappedSum += capped[i];
     }
   }
@@ -85,7 +78,7 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size)
 
       for (size_t i = 0; i < 256; i++)
       {
-        capped[i] = ((pHist->symbolCount[i] + add) / div) | (uint32_t)!!(pHist->symbolCount[i]);
+        capped[i] = (uint16_t)((uint32_t)(((hist[i] + add) / div) | (uint32_t)!!(hist[i])));
         cappedSum += capped[i];
       }
     }
@@ -95,13 +88,13 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size)
 
       for (size_t i = 0; i < 256; i++)
       {
-        capped[i] = pHist->symbolCount[i] * mul;
+        capped[i] = (uint16_t)(hist[i] * mul);
         cappedSum += capped[i];
       }
     }
   }
 
-  printf("make_hist archived sum on try 1: %" PRIu32 " (from %" PRIu64 ", target %" PRIu32 ")\n\n", cappedSum, size, TotalSymbolCount);
+  printf("make_hist archived sum on try 1: %" PRIu64 " (from %" PRIu64 ", target %" PRIu32 ")\n\n", cappedSum, size, TotalSymbolCount);
 
   if (cappedSum != TotalSymbolCount)
   {
@@ -169,26 +162,26 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size)
   }
 
 hist_ready:
+  if (cappedSum != TotalSymbolCount)
+  {
+    puts("Invalid Symbol Count.");
+    __debugbreak();
+  }
 
   counter = 0;
 
   for (size_t i = 0; i < 256; i++)
   {
-    pHist->cumul[i] = counter;
+    pHist->cumul[i] = (uint16_t)counter;
     pHist->symbolCount[i] = capped[i];
     counter += capped[i];
   }
-
-  pHist->total = counter;
 }
 
 void make_enc_hist(hist_enc_t *pHistEnc, const hist_t *pHist)
 {
   for (size_t i = 0; i < 256; i++)
-  {
-    pHistEnc->symbols[i].cumul = (uint16_t)pHist->cumul[i];
-    pHistEnc->symbols[i].freq = (uint16_t)pHist->symbolCount[i];
-  }
+    pHistEnc->symbols[i] = pHist->cumul[i] << 16 | pHist->symbolCount[i];
 }
 
 void make_dec_hist(hist_dec_t *pHistDec, const hist_t *pHist)
@@ -230,7 +223,7 @@ inline uint8_t decode_symbol_basic(uint32_t *pState, const hist_dec_t *pHist)
   const uint32_t state = *pState;
   const uint32_t slot = state & (TotalSymbolCount - 1);
   const uint8_t symbol = pHist->cumulInv[slot];
-  const uint32_t previousState = (state >> TotalSymbolCountBits) * pHist->symbolCount[symbol] + slot - pHist->cumul[symbol];
+  const uint32_t previousState = (state >> TotalSymbolCountBits) * (uint32_t)pHist->symbolCount[symbol] + slot - (uint32_t)pHist->cumul[symbol];
 
   *pState = previousState;
 
@@ -251,9 +244,10 @@ size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, co
   for (int64_t i = length - 1; i >= 0; i--)
   {
     const uint8_t in = pInData[i];
-    const enc_sym_t symInfo = pHist->symbols[in];
+    const enc_sym_t pack = pHist->symbols[in];
 
-    const uint32_t freq = symInfo.freq;
+    const uint32_t freq = pack & 0xFFFF;
+    const uint32_t cumul = pack >> 16;
     const uint32_t max = EncodeEmitPoint * freq;
    
     while (state >= max)
@@ -272,7 +266,7 @@ size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, co
     stateDivFreq = _udiv64(state, freq, &stateModFreq);
 #endif
 
-    state = (stateDivFreq << TotalSymbolCountBits) + (uint32_t)symInfo.cumul + stateModFreq;
+    state = (stateDivFreq << TotalSymbolCountBits) + cumul + stateModFreq;
   }
 
   *reinterpret_cast<uint32_t *>(pOutData) = state;
@@ -295,7 +289,11 @@ size_t decode(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, 
 
   for (size_t i = 0; i < outLength; i++)
   {
-    pOutData[i] = decode_symbol(&state, pHist);
+    const uint32_t slot = state & (TotalSymbolCount - 1);
+    const uint8_t symbol = pHist->cumulInv[slot];
+    state = (state >> TotalSymbolCountBits) * (uint32_t)pHist->symbolCount[symbol] + slot - (uint32_t)pHist->cumul[symbol];
+
+    pOutData[i] = symbol;
 
     while (state < DecodeConsumePoint)
       state = state << 8 | pInData[inIndex++];
@@ -328,7 +326,7 @@ size_t encode_basic(const uint8_t *pInData, const size_t length, uint8_t *pOutDa
       state >>= 8;
     }
 
-    state = ((state / symbolCount) << TotalSymbolCountBits) + pHist->cumul[in] + (state % symbolCount);
+    state = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
   }
 
   *reinterpret_cast<uint32_t *>(pOutData) = state;
@@ -423,12 +421,6 @@ int32_t main(const int64_t argc, char **pArgv)
   hist_t hist;
   make_hist(&hist, pUncompressedData, fileSize);
 
-  if (hist.total != TotalSymbolCount)
-  {
-    puts("Ahhhh! Not `TotalSymbolCount`!");
-    return 1;
-  }
-
   size_t symCount = 0;
 
   for (size_t i = 0; i < 256; i++)
@@ -440,7 +432,7 @@ int32_t main(const int64_t argc, char **pArgv)
 
     for (size_t i = 0; i < 256; i++)
       if (hist.symbolCount[i])
-        printf("0x%02" PRIX8 "(%c): %" PRIu32 " (%" PRIu32 ")\n", (uint8_t)i, (char)i, hist.symbolCount[i], hist.cumul[i]);
+        printf("0x%02" PRIX8 "(%c): %" PRIu16 " (%" PRIu16 ")\n", (uint8_t)i, (char)i, hist.symbolCount[i], hist.cumul[i]);
 
     puts("");
   }
@@ -454,13 +446,13 @@ int32_t main(const int64_t argc, char **pArgv)
   {
     const uint64_t startTick = GetCurrentTimeTicks();
     const uint64_t startClock = __rdtsc();
-    compressedLength = encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
+    compressedLength = encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
     const uint64_t endClock = __rdtsc();
     const uint64_t endTick = GetCurrentTimeTicks();
 
     _mm_mfence();
 
-    printf("encode: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    printf("encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
   }
 
   puts("");
@@ -469,13 +461,13 @@ int32_t main(const int64_t argc, char **pArgv)
   {
     const uint64_t startTick = GetCurrentTimeTicks();
     const uint64_t startClock = __rdtsc();
-    compressedLength = encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
+    compressedLength = encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
     const uint64_t endClock = __rdtsc();
     const uint64_t endTick = GetCurrentTimeTicks();
 
     _mm_mfence();
 
-    printf("encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    printf("encode: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
   }
 
   puts("");
@@ -530,13 +522,28 @@ int32_t main(const int64_t argc, char **pArgv)
   {
     const uint64_t startTick = GetCurrentTimeTicks();
     const uint64_t startClock = __rdtsc();
+    decompressedLength = decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+    const uint64_t endClock = __rdtsc();
+    const uint64_t endTick = GetCurrentTimeTicks();
+
+    _mm_mfence();
+
+    printf("decode_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+  }
+
+  puts("");
+
+  for (size_t run = 0; run < 10; run++)
+  {
+    const uint64_t startTick = GetCurrentTimeTicks();
+    const uint64_t startClock = __rdtsc();
     decompressedLength = decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
     const uint64_t endClock = __rdtsc();
     const uint64_t endTick = GetCurrentTimeTicks();
 
     _mm_mfence();
 
-    printf("decompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    printf("decode: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
   }
 
   puts("");
