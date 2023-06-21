@@ -15,7 +15,7 @@
 uint64_t GetCurrentTimeTicks();
 uint64_t TicksToNs(const uint64_t ticks);
 
-constexpr uint32_t TotalSymbolCountBits = 14;
+constexpr uint32_t TotalSymbolCountBits = 16;
 constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
 constexpr size_t DecodeConsumePoint = 1 << 23;
 constexpr size_t EncodeEmitPoint = ((DecodeConsumePoint >> TotalSymbolCountBits) << 8);
@@ -29,8 +29,8 @@ struct hist_t
 
 struct enc_sym_t
 {
-  uint32_t freq;
-  uint32_t cumul;
+  uint16_t freq;
+  uint16_t cumul;
 };
 
 struct hist_enc_t
@@ -186,8 +186,8 @@ void make_enc_hist(hist_enc_t *pHistEnc, const hist_t *pHist)
 {
   for (size_t i = 0; i < 256; i++)
   {
-    pHistEnc->symbols[i].cumul = pHist->cumul[i];
-    pHistEnc->symbols[i].freq = pHist->symbolCount[i];
+    pHistEnc->symbols[i].cumul = (uint16_t)pHist->cumul[i];
+    pHistEnc->symbols[i].freq = (uint16_t)pHist->symbolCount[i];
   }
 }
 
@@ -272,7 +272,7 @@ size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, co
     stateDivFreq = _udiv64(state, freq, &stateModFreq);
 #endif
 
-    state = (stateDivFreq << TotalSymbolCountBits) + symInfo.cumul + stateModFreq;
+    state = (stateDivFreq << TotalSymbolCountBits) + (uint32_t)symInfo.cumul + stateModFreq;
   }
 
   *reinterpret_cast<uint32_t *>(pOutData) = state;
@@ -318,7 +318,8 @@ size_t encode_basic(const uint8_t *pInData, const size_t length, uint8_t *pOutDa
   for (int64_t i = length - 1; i >= 0; i--)
   {
     const uint8_t in = pInData[i];
-    const uint32_t max = EncodeEmitPoint * pHist->symbolCount[in];
+    const uint32_t symbolCount = pHist->symbolCount[in];
+    const uint32_t max = EncodeEmitPoint * symbolCount;
 
     while (state >= max)
     {
@@ -327,7 +328,7 @@ size_t encode_basic(const uint8_t *pInData, const size_t length, uint8_t *pOutDa
       state >>= 8;
     }
 
-    state = encode_symbol_basic(in, pHist, state);
+    state = ((state / symbolCount) << TotalSymbolCountBits) + pHist->cumul[in] + (state % symbolCount);
   }
 
   *reinterpret_cast<uint32_t *>(pOutData) = state;
