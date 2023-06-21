@@ -9,18 +9,18 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include <unistd.h>
+#include <time.h>
 #endif
 
 uint64_t GetCurrentTimeTicks();
 uint64_t TicksToNs(const uint64_t ticks);
 
-constexpr uint32_t TotalSymbolCountBits = 16;
+constexpr uint32_t TotalSymbolCountBits = 15;
 constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
 constexpr size_t DecodeConsumePoint = 1 << 23;
 constexpr size_t EncodeEmitPoint = ((DecodeConsumePoint >> TotalSymbolCountBits) << 8);
 
-static_assert(TotalSymbolCountBits <= 16);
+static_assert(TotalSymbolCountBits < 16);
 
 constexpr size_t RunCount = 10;
 static uint64_t _ClocksPerRun[RunCount];
@@ -209,7 +209,7 @@ hist_ready:
   if (cappedSum != TotalSymbolCount)
   {
     puts("Invalid Symbol Count.");
-    __debugbreak();
+    exit(1);
   }
 
   counter = 0;
@@ -402,7 +402,7 @@ size_t decode_basic(const uint8_t *pInData, const size_t inLength, uint8_t *pOut
   return outLength;
 }
 
-int32_t main(const int64_t argc, char **pArgv)
+int32_t main(const int32_t argc, char **pArgv)
 {
   if (argc == 0)
   {
@@ -678,6 +678,8 @@ int32_t main(const int64_t argc, char **pArgv)
         puts("");
       }
     }
+
+    puts("");
   }
 
   if (memcmp(pDecompressedData, pUncompressedData, fileSize) != 0)
