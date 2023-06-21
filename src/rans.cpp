@@ -15,14 +15,27 @@
 uint64_t GetCurrentTimeTicks();
 uint64_t TicksToNs(const uint64_t ticks);
 
-constexpr uint32_t TotalSymbolCountBits = 12;
+constexpr uint32_t TotalSymbolCountBits = 14;
 constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
+constexpr size_t DecodeConsumePoint = 1 << 23;
+constexpr size_t EncodeEmitPoint = ((DecodeConsumePoint >> TotalSymbolCountBits) << 8);
 
 struct hist_t
 {
   uint32_t symbolCount[256];
   uint32_t cumul[256];
   uint32_t total;
+};
+
+struct enc_sym_t
+{
+  uint32_t freq;
+  uint32_t cumul;
+};
+
+struct hist_enc_t
+{
+  enc_sym_t symbols[256];
 };
 
 struct hist_dec_t : hist_t
@@ -47,29 +60,44 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size)
 
   pHist->total = counter;
 
-  const uint32_t div = counter / TotalSymbolCount;
-
   uint32_t capped[256];
   uint32_t cappedSum = 0;
 
-  if (div)
+  constexpr bool FloatingPointHistLimit = false;
+
+  if constexpr (FloatingPointHistLimit)
   {
-    const uint32_t add = div / 2;
+    const float mul = (float)TotalSymbolCount / counter;
 
     for (size_t i = 0; i < 256; i++)
     {
-      capped[i] = ((pHist->symbolCount[i] + add) / div) | (uint32_t)!!(pHist->symbolCount[i]);
+      capped[i] = (uint32_t)(pHist->symbolCount[i] * mul + 0.5f) | (uint32_t)!!(pHist->symbolCount[i]);
       cappedSum += capped[i];
     }
   }
   else
   {
-    const uint32_t mul = TotalSymbolCount / counter;
+    const uint32_t div = counter / TotalSymbolCount;
 
-    for (size_t i = 0; i < 256; i++)
+    if (div)
     {
-      capped[i] = pHist->symbolCount[i] * mul;
-      cappedSum += capped[i];
+      const uint32_t add = div / 2;
+
+      for (size_t i = 0; i < 256; i++)
+      {
+        capped[i] = ((pHist->symbolCount[i] + add) / div) | (uint32_t)!!(pHist->symbolCount[i]);
+        cappedSum += capped[i];
+      }
+    }
+    else
+    {
+      const uint32_t mul = TotalSymbolCount / counter;
+
+      for (size_t i = 0; i < 256; i++)
+      {
+        capped[i] = pHist->symbolCount[i] * mul;
+        cappedSum += capped[i];
+      }
     }
   }
 
@@ -154,6 +182,15 @@ hist_ready:
   pHist->total = counter;
 }
 
+void make_enc_hist(hist_enc_t *pHistEnc, const hist_t *pHist)
+{
+  for (size_t i = 0; i < 256; i++)
+  {
+    pHistEnc->symbols[i].cumul = pHist->cumul[i];
+    pHistEnc->symbols[i].freq = pHist->symbolCount[i];
+  }
+}
+
 void make_dec_hist(hist_dec_t *pHistDec, const hist_t *pHist)
 {
   memcpy(pHistDec, pHist, sizeof(hist_t));
@@ -169,39 +206,40 @@ void make_dec_hist(hist_dec_t *pHistDec, const hist_t *pHist)
   }
 }
 
-uint32_t encode_symbol(const uint8_t symbol, const hist_t *pHist, const uint32_t state)
+inline uint32_t encode_symbol(const uint8_t symbol, const hist_t *pHist, const uint32_t state)
 {
   const uint32_t symbolCount = pHist->symbolCount[symbol];
 
-  return (state / symbolCount) * TotalSymbolCount + pHist->cumul[symbol] + (state % symbolCount);
+  return ((state / symbolCount) << TotalSymbolCountBits) + pHist->cumul[symbol] + (state % symbolCount);
 }
 
-uint8_t decode_symbol(uint32_t *pState, const hist_dec_t *pHist)
+inline uint8_t decode_symbol(uint32_t *pState, const hist_dec_t *pHist)
 {
-  const uint32_t slot = *pState % TotalSymbolCount;
+  const uint32_t state = *pState;
+  const uint32_t slot = state & (TotalSymbolCount - 1);
   const uint8_t symbol = pHist->cumulInv[slot];
-  const uint32_t previousState = (*pState / TotalSymbolCount) * pHist->symbolCount[symbol] + slot - pHist->cumul[symbol];
+  const uint32_t previousState = (state >> TotalSymbolCountBits) * pHist->symbolCount[symbol] + slot - pHist->cumul[symbol];
 
   *pState = previousState;
 
   return symbol;
 }
 
-constexpr size_t LowLevel = 1 << 23;
-constexpr size_t RangeFactor = ((LowLevel >> TotalSymbolCountBits) << 8);
-
+#ifdef _MSC_VER
+__declspec(noinline)
+#endif
 size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
 {
   if (outCapacity < length + sizeof(uint32_t) * (256 + 1))
     return 0;
 
-  uint32_t state = LowLevel; // technically `n * TotalSymbolCount`.
+  uint32_t state = DecodeConsumePoint; // technically `n * TotalSymbolCount`.
   uint8_t *pWrite = pOutData + outCapacity - 1;
 
   for (int64_t i = length - 1; i >= 0; i--)
   {
     const uint8_t in = pInData[i];
-    const uint32_t max = RangeFactor * pHist->symbolCount[in];
+    const uint32_t max = EncodeEmitPoint * pHist->symbolCount[in];
    
     while (state >= max)
     {
@@ -221,6 +259,9 @@ size_t encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, co
   return writtenSize + sizeof(uint32_t);
 }
 
+#ifdef _MSC_VER
+__declspec(noinline)
+#endif
 size_t decode(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec_t *pHist)
 {
   (void)inLength;
@@ -232,7 +273,7 @@ size_t decode(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, 
   {
     pOutData[i] = decode_symbol(&state, pHist);
 
-    while (state < LowLevel)
+    while (state < DecodeConsumePoint)
       state = state << 8 | pInData[inIndex++];
   }
 
@@ -324,6 +365,9 @@ int32_t main(const int64_t argc, char **pArgv)
     puts("");
   }
 
+  hist_enc_t histEnc;
+  make_enc_hist(&histEnc, &hist);
+
   size_t compressedLength = 0;
 
   for (size_t run = 0; run < 10; run++)
@@ -336,7 +380,7 @@ int32_t main(const int64_t argc, char **pArgv)
 
     _mm_mfence();
 
-    printf("%" PRIu64 " bytes from %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    printf("%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
   }
 
   puts("");
