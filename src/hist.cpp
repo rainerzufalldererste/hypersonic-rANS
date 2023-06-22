@@ -181,3 +181,57 @@ void make_dec2_hist(hist_dec2_t *pHistDec, const hist_t *pHist)
     pHistDec->cumulInv[i] = sym;
   }
 }
+
+bool inplace_make_hist_dec(hist_dec_t *pHist)
+{
+  uint16_t counter = 0;
+
+  for (size_t i = 0; i < 256; i++)
+  {
+    pHist->cumul[i] = (uint16_t)counter;
+    counter += pHist->symbolCount[i];
+  }
+
+  if (counter != TotalSymbolCount)
+    return false;
+
+
+  uint8_t sym = 0;
+
+  for (size_t i = 0; i < TotalSymbolCount; i++)
+  {
+    while (sym != 0xFF && (!pHist->symbolCount[sym] || pHist->cumul[sym + 1] <= i))
+      sym++;
+
+    pHist->cumulInv[i] = sym;
+  }
+
+  return true;
+}
+
+bool inplace_make_hist_dec2(hist_dec2_t *pHist)
+{
+  uint16_t counter = 0;
+
+  for (size_t i = 0; i < 256; i++)
+  {
+    pHist->symbols[i].cumul = (uint16_t)counter;
+    counter += pHist->symbols[i].freq;
+  }
+
+  if (counter != TotalSymbolCount)
+    return false;
+
+
+  uint8_t sym = 0;
+
+  for (size_t i = 0; i < TotalSymbolCount; i++)
+  {
+    while (sym != 0xFF && (!pHist->symbols[sym].freq || pHist->symbols[sym + 1].cumul <= i))
+      sym++;
+
+    pHist->cumulInv[i] = sym;
+  }
+
+  return true;
+}

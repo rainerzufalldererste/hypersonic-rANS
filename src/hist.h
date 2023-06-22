@@ -41,4 +41,7 @@ void make_enc_hist(hist_enc_t *pHistEnc, const hist_t *pHist);
 void make_dec_hist(hist_dec_t *pHistDec, const hist_t *pHist);
 void make_dec2_hist(hist_dec2_t *pHistDec, const hist_t *pHist);
 
+bool inplace_make_hist_dec(hist_dec_t *pHist);
+bool inplace_make_hist_dec2(hist_dec2_t *pHist);
+
 #endif // hist_h__

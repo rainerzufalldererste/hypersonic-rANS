@@ -7,7 +7,7 @@ constexpr size_t StateCount = 32;
 
 size_t rANS32x32_capacity(const size_t inputSize)
 {
-  return inputSize + StateCount + sizeof(uint16_t) * 256 + sizeof(uint32_t) * StateCount; // buffer + histogram + state
+  return inputSize + StateCount + sizeof(uint16_t) * 256 + sizeof(uint32_t) * StateCount * 2 + sizeof(uint64_t) * 2; // buffer + histogram + state
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -32,11 +32,24 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
     return 0;
 
   uint32_t states[StateCount];
-  
-  for (size_t i = 0; i < StateCount; i++)
-    states[i]  = DecodeConsumePoint;
+  uint8_t *pEnd[StateCount];
+  uint8_t *pStart[StateCount];
 
-  uint8_t *pWrite = pOutData + outCapacity - 1;
+  // Init Pointers & States.
+  {
+    uint8_t *pWrite = pOutData + outCapacity - 1;
+    const size_t blockSize = (length + StateCount - 1) / StateCount;
+
+    for (int64_t i = StateCount - 1; i >= 0; i--)
+    {
+      states[i] = DecodeConsumePoint;
+      pStart[i] = pEnd[i] = pWrite;
+      pWrite -= blockSize;
+    }
+  }
+
+  const uint8_t idx2idx[] = { 0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0A, 0x0B, 0x10, 0x11, 0x12, 0x13, 0x18, 0x19, 0x1A, 0x1B, 0x04, 0x05, 0x06, 0x07, 0x0C, 0x0D, 0x0E, 0x0F, 0x14, 0x15, 0x16, 0x17, 0x1C, 0x1D, 0x1E, 0x1F };
+  static_assert(sizeof(idx2idx) == StateCount);
 
   int64_t i = length - 1;
 
@@ -44,7 +57,9 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
   {
     for (size_t j = 0; j < StateCount; j++)
     {
-      const uint8_t in = pInData[i - j];
+      const uint8_t index = idx2idx[j];
+
+      const uint8_t in = pInData[i - index];
       const uint32_t symbolCount = pHist->symbolCount[in];
       const uint32_t max = EncodeEmitPoint * symbolCount;
 
@@ -52,8 +67,8 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
 
       while (state >= max)
       {
-        *pWrite = (uint8_t)(state & 0xFF);
-        pWrite--;
+        *pStart[j] = (uint8_t)(state & 0xFF);
+        pStart[j]--;
         state >>= 8;
       }
 
@@ -71,34 +86,109 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
 
     while (state >= max)
     {
-      *pWrite = (uint8_t)(state & 0xFF);
-      pWrite--;
+      *pStart[j] = (uint8_t)(state & 0xFF);
+      pStart[j]--;
       state >>= 8;
     }
 
     states[StateCount - 1 - j] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
   }
 
+  uint8_t *pWrite = pOutData;
+  size_t outIndex = 0;
+
+  *reinterpret_cast<uint64_t *>(pWrite + outIndex) = (uint64_t)length;
+  outIndex += sizeof(uint64_t);
+
+  // compressed expected length.
+  outIndex += sizeof(uint64_t);
+
+  for (size_t j = 0; j < 256; j++)
+  {
+    *reinterpret_cast<uint16_t *>(pWrite + outIndex) = pHist->symbolCount[j];
+    outIndex += sizeof(uint16_t);
+  }
+
   for (size_t j = 0; j < StateCount; j++)
-    reinterpret_cast<uint32_t *>(pOutData)[j] = states[j];
+  {
+    *reinterpret_cast<uint32_t *>(pWrite + outIndex) = states[j];
+    outIndex += sizeof(uint32_t);
+  }
 
-  const size_t writtenSize = (pOutData + outCapacity - 1) - pWrite;
-  memmove(pOutData + sizeof(uint32_t) * StateCount, pWrite + 1, writtenSize);
+  size_t outIndexBlockSizes = outIndex;
+  outIndex += (StateCount - 1) * sizeof(uint32_t);
 
-  return writtenSize + sizeof(uint32_t) * StateCount;
+  for (size_t j = 0; j < StateCount; j++)
+  {
+    const size_t size = pEnd[j] - pStart[j];
+
+    if (j < StateCount - 1) // we don't need size info for the last one.
+    {
+      *reinterpret_cast<uint32_t *>(pWrite + outIndexBlockSizes) = (uint32_t)size;
+      outIndexBlockSizes += sizeof(uint32_t);
+    }
+
+    memmove(pWrite + outIndex, pStart[j] + 1, size);
+    outIndex += size;
+  }
+
+  *reinterpret_cast<uint64_t *>(pOutData + sizeof(uint64_t)) = outIndex; // write total output length.
+
+  return outIndex;
 }
 
-size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec_t *pHist)
+size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
 {
-  if (inLength == 0)
+  if (inLength <= sizeof(uint32_t) * StateCount * 2 + sizeof(uint64_t) * 2 * sizeof(uint16_t) * 256)
+    return 0;
+
+  size_t inputIndex = 0;
+  const uint64_t expectedOutputLength = *reinterpret_cast<const uint64_t *>(pInData + inputIndex);
+  inputIndex += sizeof(uint64_t);
+
+  if (expectedOutputLength > outCapacity)
+    return 0;
+
+  const uint64_t expectedInputLength = *reinterpret_cast<const uint64_t *>(pInData + inputIndex);
+  inputIndex += sizeof(uint64_t);
+
+  if (inLength < expectedInputLength)
+    return 0;
+
+  hist_dec_t hist;
+
+  for (size_t i = 0; i < 256; i++)
+  {
+    hist.symbolCount[i] = *reinterpret_cast<const uint16_t *>(pInData + inputIndex);
+    inputIndex += sizeof(uint16_t);
+  }
+
+  if (!inplace_make_hist_dec(&hist))
     return 0;
 
   uint32_t states[StateCount];
   
   for (size_t i = 0; i < StateCount; i++)
-    states[i] = reinterpret_cast<const uint32_t *>(pInData)[i];
-  
-  const size_t outLengthInStates = outLength - StateCount + 1;
+  {
+    states[i] = *reinterpret_cast<const uint32_t *>(pInData + inputIndex);
+    inputIndex += sizeof(uint32_t);
+  }
+
+  const uint8_t *pReadHead[StateCount];
+  pReadHead[0] = pInData + inputIndex + sizeof(uint32_t) * (StateCount - 1);
+
+  for (size_t i = 1; i < StateCount; i++)
+  {
+    const uint32_t blockSize = *reinterpret_cast<const uint32_t *>(pInData + inputIndex);
+    inputIndex += sizeof(uint32_t);
+
+    pReadHead[i] = pReadHead[i - 1] + blockSize;
+  }
+
+  const uint8_t idx2idx[] = { 0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0A, 0x0B, 0x10, 0x11, 0x12, 0x13, 0x18, 0x19, 0x1A, 0x1B, 0x04, 0x05, 0x06, 0x07, 0x0C, 0x0D, 0x0E, 0x0F, 0x14, 0x15, 0x16, 0x17, 0x1C, 0x1D, 0x1E, 0x1F };
+  static_assert(sizeof(idx2idx) == StateCount);
+
+  const size_t outLengthInStates = expectedOutputLength - StateCount + 1;
   size_t inIndex = sizeof(uint32_t) * StateCount;
   size_t i = 0;
 
@@ -106,22 +196,26 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
   {
     for (size_t j = 0; j < StateCount; j++)
     {
+      const uint8_t index = idx2idx[j];
       uint32_t state = states[j];
 
-      pOutData[i + j] = decode_symbol_basic(&state, pHist);
+      pOutData[i + index] = decode_symbol_basic(&state, &hist);
 
       while (state < DecodeConsumePoint)
-        state = state << 8 | pInData[inIndex++];
+      {
+        state = state << 8 | *pReadHead[j];
+        pReadHead[j]++;
+      }
 
       states[j] = state;
     }
   }
 
-  for (size_t j = 0; i < outLength; i++, j++) // yes, the `i` comparison is intentional.
+  for (size_t j = 0; i < expectedOutputLength; i++, j++) // yes, the `i` comparison is intentional.
   {
     uint32_t state = states[j];
 
-    pOutData[i] = decode_symbol_basic(&state, pHist);
+    pOutData[i] = decode_symbol_basic(&state, &hist);
 
     while (state < DecodeConsumePoint)
       state = state << 8 | pInData[inIndex++];
@@ -129,21 +223,59 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
     states[j] = state;
   }
 
-  return outLength;
+  return expectedOutputLength;
 }
 
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
-size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec2_t *pHist)
+size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
 {
   if (inLength == 0)
+    return 0;
+
+  size_t inputIndex = 0;
+  const uint64_t expectedOutputLength = *reinterpret_cast<const uint64_t *>(pInData + inputIndex);
+  inputIndex += sizeof(uint64_t);
+
+  if (expectedOutputLength > outCapacity)
+    return 0;
+
+  const uint64_t expectedInputLength = *reinterpret_cast<const uint64_t *>(pInData + inputIndex);
+  inputIndex += sizeof(uint64_t);
+
+  if (inLength < expectedInputLength)
+    return 0;
+
+  hist_dec2_t hist;
+
+  for (size_t i = 0; i < 256; i++)
+  {
+    hist.symbols[i].freq = *reinterpret_cast<const uint16_t *>(pInData + inputIndex);
+    inputIndex += sizeof(uint16_t);
+  }
+
+  if (!inplace_make_hist_dec2(&hist))
     return 0;
 
   uint32_t states[StateCount];
 
   for (size_t i = 0; i < StateCount; i++)
-    states[i] = reinterpret_cast<const uint32_t *>(pInData)[i];
+  {
+    states[i] = *reinterpret_cast<const uint32_t *>(pInData + inputIndex);
+    inputIndex += sizeof(uint32_t);
+  }
+
+  const uint8_t *pReadHead[StateCount];
+  pReadHead[0] = pInData + inputIndex + sizeof(uint32_t) * (StateCount - 1);
+
+  for (size_t i = 1; i < StateCount; i++)
+  {
+    const uint32_t blockSize = *reinterpret_cast<const uint32_t *>(pInData + inputIndex);
+    inputIndex += sizeof(uint32_t);
+
+    pReadHead[i] = pReadHead[i - 1] + blockSize;
+  }
 
   typedef __m256i simd_t;
   simd_t statesX8[StateCount / (sizeof(simd_t) / sizeof(uint32_t))];
@@ -151,7 +283,7 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
   for (size_t i = 0; i < sizeof(statesX8) / sizeof(simd_t); i++)
     statesX8[i] = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(pInData + i * sizeof(simd_t)));
 
-  const size_t outLengthInStates = outLength - StateCount + 1;
+  const size_t outLengthInStates = expectedOutputLength - StateCount + 1;
   size_t inIndex = sizeof(uint32_t) * StateCount;
   size_t i = 0;
 
@@ -168,10 +300,10 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
     const simd_t slot3 = _mm256_and_si256(statesX8[3], symCountMask);
 
     // const uint8_t symbol = pHist->cumulInv[slot];
-    simd_t symbol0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(pHist->cumulInv), slot0, sizeof(uint8_t));
-    simd_t symbol1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(pHist->cumulInv), slot1, sizeof(uint8_t));
-    simd_t symbol2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(pHist->cumulInv), slot2, sizeof(uint8_t));
-    simd_t symbol3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(pHist->cumulInv), slot3, sizeof(uint8_t));
+    simd_t symbol0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&hist.cumulInv), slot0, sizeof(uint8_t));
+    simd_t symbol1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&hist.cumulInv), slot1, sizeof(uint8_t));
+    simd_t symbol2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&hist.cumulInv), slot2, sizeof(uint8_t));
+    simd_t symbol3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&hist.cumulInv), slot3, sizeof(uint8_t));
 
     // since they were int32_t turn into uint8_t
     symbol0 = _mm256_and_si256(symbol0, lower8);
@@ -183,6 +315,11 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
     const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
 
+#ifndef DECODE_IN_ORDER
+    const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // 00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F
+
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
+#else
     // we could simply encode in lane-order, but then it might be a bit messy to implement the encoder.
 #ifdef VARIANT_128
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23);
@@ -208,12 +345,13 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
 
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
 #endif
+#endif
 
     // retrieve pack.
-    const simd_t pack0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(pHist->symbols), symbol0, sizeof(uint32_t));
-    const simd_t pack1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(pHist->symbols), symbol1, sizeof(uint32_t));
-    const simd_t pack2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(pHist->symbols), symbol2, sizeof(uint32_t));
-    const simd_t pack3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(pHist->symbols), symbol3, sizeof(uint32_t));
+    const simd_t pack0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&hist.symbols), symbol0, sizeof(uint32_t));
+    const simd_t pack1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&hist.symbols), symbol1, sizeof(uint32_t));
+    const simd_t pack2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&hist.symbols), symbol2, sizeof(uint32_t));
+    const simd_t pack3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&hist.symbols), symbol3, sizeof(uint32_t));
 
     // freq, cumul.
     const simd_t cumul0 = _mm256_srli_epi32(pack0, 16);
@@ -224,6 +362,8 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
     const simd_t freq2 = _mm256_and_si256(pack2, lower16);
     const simd_t cumul3 = _mm256_srli_epi32(pack3, 16);
     const simd_t freq3 = _mm256_and_si256(pack3, lower16);
+
+    // (state >> TotalSymbolCountBits);
 
     // state = (state >> TotalSymbolCountBits) * freq + slot - cumul;
     const simd_t state0 = _mm256_add_epi32(_mm256_mul_epu32(_mm256_srli_epi32(statesX8[0], TotalSymbolCountBits), freq0), _mm256_sub_epi32(slot0, cumul0));
@@ -238,11 +378,11 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
       uint32_t state = states[j];
 
       const uint32_t slot = state & (TotalSymbolCount - 1);
-      const uint8_t symbol = pHist->cumulInv[slot];
+      const uint8_t symbol = hist.cumulInv[slot];
 
-      const uint32_t freq = pHist->symbols[symbol].freq;
-      const uint32_t cumul = pHist->symbols[symbol].cumul;
-      
+      const uint32_t freq = hist.symbols[symbol].freq;
+      const uint32_t cumul = hist.symbols[symbol].cumul;
+
       state = (state >> TotalSymbolCountBits) * freq + slot - cumul;
 
       //pOutData[i + j] = symbol;
@@ -257,15 +397,15 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
   for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)
     _mm256_storeu_si256(reinterpret_cast<simd_t *>(reinterpret_cast<uint8_t *>(states) + j * sizeof(simd_t)), statesX8[j]);
 
-  for (size_t j = 0; i < outLength; i++, j++) // yes, the `i` comparison is intentional.
+  for (size_t j = 0; i < expectedOutputLength; i++, j++) // yes, the `i` comparison is intentional.
   {
     uint32_t state = states[j];
 
     const uint32_t slot = state & (TotalSymbolCount - 1);
-    const uint8_t symbol = pHist->cumulInv[slot];
+    const uint8_t symbol = hist.cumulInv[slot];
 
-    const uint32_t freq = pHist->symbols[symbol].freq;
-    const uint32_t cumul = pHist->symbols[symbol].cumul;
+    const uint32_t freq = hist.symbols[symbol].freq;
+    const uint32_t cumul = hist.symbols[symbol].cumul;
 
     state = (state >> TotalSymbolCountBits) * freq + slot - cumul;
 
@@ -277,5 +417,5 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
     states[j] = state;
   }
 
-  return outLength;
+  return expectedOutputLength;
 }

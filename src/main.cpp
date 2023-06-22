@@ -219,13 +219,13 @@ void profile_rans32x32_decode(hist_t *pHist)
   size_t decompressedLength = 0;
 
   {
-    decompressedLength = rANS32x32_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+    decompressedLength = rANS32x32_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
 
     for (size_t run = 0; run < RunCount; run++)
     {
       const uint64_t startTick = GetCurrentTimeTicks();
       const uint64_t startClock = __rdtsc();
-      decompressedLength = rANS32x32_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+      decompressedLength = rANS32x32_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
       const uint64_t endClock = __rdtsc();
       const uint64_t endTick = GetCurrentTimeTicks();
 
@@ -241,13 +241,13 @@ void profile_rans32x32_decode(hist_t *pHist)
   }
 
   //{
-  //  decompressedLength = rANS32x32_decode_avx2_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
+  //  decompressedLength = rANS32x32_decode_avx2_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
   //
   //  for (size_t run = 0; run < RunCount; run++)
   //  {
   //    const uint64_t startTick = GetCurrentTimeTicks();
   //    const uint64_t startClock = __rdtsc();
-  //    decompressedLength = rANS32x32_decode_avx2_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
+  //    decompressedLength = rANS32x32_decode_avx2_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
   //    const uint64_t endClock = __rdtsc();
   //    const uint64_t endTick = GetCurrentTimeTicks();
   //
