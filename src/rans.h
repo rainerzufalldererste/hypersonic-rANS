@@ -2,6 +2,7 @@
 #define rans_h__
 
 #include <stdint.h>
+#include <stddef.h>
 
 constexpr uint32_t TotalSymbolCountBits = 15;
 constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);

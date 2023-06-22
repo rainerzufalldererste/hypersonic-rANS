@@ -19,6 +19,8 @@
 uint64_t GetCurrentTimeTicks();
 uint64_t TicksToNs(const uint64_t ticks);
 
+inline size_t rans_max(const size_t a, const size_t b) { return a > b ? a : b; }
+
 //////////////////////////////////////////////////////////////////////////
 
 constexpr size_t RunCount = 1;
@@ -81,7 +83,7 @@ size_t compressedLength = 0;
 
 void profile_rans32x1_encode(hist_t *pHist)
 {
-  hist_enc_t histEnc;
+  static hist_enc_t histEnc;
   make_enc_hist(&histEnc, pHist);
 
   {
@@ -159,10 +161,10 @@ void profile_rans32x32_encode(hist_t *pHist)
 
 void profile_rans32x1_decode(hist_t *pHist)
 {
-  hist_dec_t histDec;
+  static hist_dec_t histDec;
   make_dec_hist(&histDec, pHist);
 
-  hist_dec2_t histDec2;
+  static hist_dec2_t histDec2;
   make_dec2_hist(&histDec2, pHist);
 
   size_t decompressedLength = 0;
@@ -222,10 +224,10 @@ void profile_rans32x1_decode(hist_t *pHist)
 
 void profile_rans32x32_decode(hist_t *pHist)
 {
-  hist_dec_t histDec;
+  static hist_dec_t histDec;
   make_dec_hist(&histDec, pHist);
 
-  hist_dec2_t histDec2;
+  static hist_dec2_t histDec2;
   make_dec2_hist(&histDec2, pHist);
 
   size_t decompressedLength = 0;
@@ -318,7 +320,7 @@ int32_t main(const int32_t argc, char **pArgv)
     pUncompressedData = (uint8_t *)malloc(fileSize);
     pDecompressedData = (uint8_t *)malloc(fileSize);
 
-    compressedDataCapacity = max(rANS32x1_capacity(fileSize), rANS32x32_capacity(fileSize));
+    compressedDataCapacity = rans_max(rANS32x1_capacity(fileSize), rANS32x32_capacity(fileSize));
     pCompressedData = (uint8_t *)malloc(compressedDataCapacity);
 
     if (pUncompressedData == nullptr || pDecompressedData == nullptr || pCompressedData == nullptr)
@@ -338,7 +340,7 @@ int32_t main(const int32_t argc, char **pArgv)
     fclose(pFile);
   }
 
-  hist_t hist;
+  static hist_t hist;
   make_hist(&hist, pUncompressedData, fileSize);
 
   size_t symCount = 0;
@@ -357,7 +359,7 @@ int32_t main(const int32_t argc, char **pArgv)
     puts("");
   }
 
-  hist_dec_t histDec;
+  static hist_dec_t histDec;
   make_dec_hist(&histDec, &hist);
 
   if (symCount < 12)
@@ -474,6 +476,10 @@ int32_t main(const int32_t argc, char **pArgv)
       puts("Success!");
     }
   }
+
+  free(pUncompressedData);
+  free(pCompressedData);
+  free(pDecompressedData);
 
   return 0;
 }
