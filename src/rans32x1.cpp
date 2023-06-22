@@ -78,7 +78,8 @@ size_t rANS32x1_encode(const uint8_t *pInData, const size_t length, uint8_t *pOu
 
 size_t rANS32x1_decode(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec2_t *pHist)
 {
-  (void)inLength;
+  if (inLength == 0)
+    return 0;
 
   uint32_t state = *reinterpret_cast<const uint32_t *>(pInData);
   size_t inIndex = sizeof(uint32_t);
@@ -139,7 +140,8 @@ size_t rANS32x1_encode_basic(const uint8_t *pInData, const size_t length, uint8_
 
 size_t rANS32x1_decode_basic(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec_t *pHist)
 {
-  (void)inLength;
+  if (inLength == 0)
+    return 0;
 
   uint32_t state = *reinterpret_cast<const uint32_t *>(pInData);
   size_t inIndex = sizeof(uint32_t);
