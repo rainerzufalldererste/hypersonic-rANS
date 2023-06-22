@@ -26,6 +26,8 @@ struct dec_sym_t
   uint16_t freq, cumul;
 };
 
+static_assert(sizeof(dec_sym_t) == sizeof(uint32_t));
+
 struct hist_dec2_t
 {
   dec_sym_t symbols[256];

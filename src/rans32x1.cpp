@@ -7,7 +7,7 @@
 
 size_t rANS32x1_capacity(const size_t inputSize)
 {
-  return inputSize + sizeof(uint32_t) * (256 + 1);
+  return inputSize + sizeof(uint16_t) * 256 + sizeof(uint32_t); // buffer + histogram + state
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -35,7 +35,7 @@ inline uint8_t decode_symbol_basic(uint32_t *pState, const hist_dec_t *pHist)
 
 size_t rANS32x1_encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_enc_t *pHist)
 {
-  if (outCapacity < length + sizeof(uint32_t) * (256 + 1))
+  if (outCapacity < rANS32x1_capacity(length))
     return 0;
 
   uint32_t state = DecodeConsumePoint; // technically `n * TotalSymbolCount`.
@@ -107,7 +107,7 @@ size_t rANS32x1_decode(const uint8_t *pInData, const size_t inLength, uint8_t *p
 
 size_t rANS32x1_encode_basic(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
 {
-  if (outCapacity < length + sizeof(uint32_t) * (256 + 1))
+  if (outCapacity < rANS32x1_capacity(length))
     return 0;
 
   uint32_t state = DecodeConsumePoint; // technically `n * TotalSymbolCount`.

@@ -6,6 +6,7 @@
 
 #include "simd_platform.h"
 #include "rans32x1.h"
+#include "rans32x32.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -60,6 +61,194 @@ void print_perf_info(const size_t fileSize)
 
 //////////////////////////////////////////////////////////////////////////
 
+size_t fileSize = 0;
+size_t compressedDataCapacity = 0;
+
+uint8_t *pUncompressedData = nullptr;
+uint8_t *pCompressedData = nullptr;
+uint8_t *pDecompressedData = nullptr;
+
+size_t compressedLength = 0;
+
+//////////////////////////////////////////////////////////////////////////
+
+void profile_rans32x1_encode(hist_t *pHist)
+{
+  hist_enc_t histEnc;
+  make_enc_hist(&histEnc, pHist);
+
+  {
+    compressedLength = rANS32x1_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
+
+    for (size_t run = 0; run < RunCount; run++)
+    {
+      const uint64_t startTick = GetCurrentTimeTicks();
+      const uint64_t startClock = __rdtsc();
+      compressedLength = rANS32x1_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
+      const uint64_t endClock = __rdtsc();
+      const uint64_t endTick = GetCurrentTimeTicks();
+
+      _mm_mfence();
+
+      _NsPerRun[run] = TicksToNs(endTick - startTick);
+      _ClocksPerRun[run] = endClock - startClock;
+
+      printf("rANS32x1_encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    }
+
+    print_perf_info(fileSize);
+  }
+
+  {
+    compressedLength = rANS32x1_encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
+
+    for (size_t run = 0; run < RunCount; run++)
+    {
+      const uint64_t startTick = GetCurrentTimeTicks();
+      const uint64_t startClock = __rdtsc();
+      compressedLength = rANS32x1_encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
+      const uint64_t endClock = __rdtsc();
+      const uint64_t endTick = GetCurrentTimeTicks();
+
+      _mm_mfence();
+
+      _NsPerRun[run] = TicksToNs(endTick - startTick);
+      _ClocksPerRun[run] = endClock - startClock;
+
+      printf("rANS32x1_encode: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    }
+
+    print_perf_info(fileSize);
+  }
+}
+
+void profile_rans32x32_encode(hist_t *pHist)
+{
+  {
+    compressedLength = rANS32x32_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
+
+    for (size_t run = 0; run < RunCount; run++)
+    {
+      const uint64_t startTick = GetCurrentTimeTicks();
+      const uint64_t startClock = __rdtsc();
+      compressedLength = rANS32x32_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
+      const uint64_t endClock = __rdtsc();
+      const uint64_t endTick = GetCurrentTimeTicks();
+
+      _mm_mfence();
+
+      _NsPerRun[run] = TicksToNs(endTick - startTick);
+      _ClocksPerRun[run] = endClock - startClock;
+
+      printf("rANS32x32_encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    }
+
+    print_perf_info(fileSize);
+  }
+}
+
+void profile_rans32x1_decode(hist_t *pHist)
+{
+  hist_dec_t histDec;
+  make_dec_hist(&histDec, pHist);
+
+  hist_dec2_t histDec2;
+  make_dec2_hist(&histDec2, pHist);
+
+  size_t decompressedLength = 0;
+
+  {
+    decompressedLength = rANS32x1_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+
+    for (size_t run = 0; run < RunCount; run++)
+    {
+      const uint64_t startTick = GetCurrentTimeTicks();
+      const uint64_t startClock = __rdtsc();
+      decompressedLength = rANS32x1_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+      const uint64_t endClock = __rdtsc();
+      const uint64_t endTick = GetCurrentTimeTicks();
+
+      _mm_mfence();
+
+      _NsPerRun[run] = TicksToNs(endTick - startTick);
+      _ClocksPerRun[run] = endClock - startClock;
+
+      printf("rANS32x1_decode_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    }
+
+    print_perf_info(fileSize);
+  }
+
+  {
+    decompressedLength = rANS32x1_decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
+
+    for (size_t run = 0; run < RunCount; run++)
+    {
+      const uint64_t startTick = GetCurrentTimeTicks();
+      const uint64_t startClock = __rdtsc();
+      decompressedLength = rANS32x1_decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
+      const uint64_t endClock = __rdtsc();
+      const uint64_t endTick = GetCurrentTimeTicks();
+
+      _mm_mfence();
+
+      _NsPerRun[run] = TicksToNs(endTick - startTick);
+      _ClocksPerRun[run] = endClock - startClock;
+
+      printf("rANS32x1_decode: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    }
+
+    print_perf_info(fileSize);
+  }
+
+  if (decompressedLength != fileSize)
+  {
+    puts("Decompressed Length differs from initial file size.");
+    exit(1);
+  }
+}
+
+void profile_rans32x32_decode(hist_t *pHist)
+{
+  hist_dec_t histDec;
+  make_dec_hist(&histDec, pHist);
+
+  hist_dec2_t histDec2;
+  make_dec2_hist(&histDec2, pHist);
+
+  size_t decompressedLength = 0;
+
+  {
+    decompressedLength = rANS32x32_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+
+    for (size_t run = 0; run < RunCount; run++)
+    {
+      const uint64_t startTick = GetCurrentTimeTicks();
+      const uint64_t startClock = __rdtsc();
+      decompressedLength = rANS32x32_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+      const uint64_t endClock = __rdtsc();
+      const uint64_t endTick = GetCurrentTimeTicks();
+
+      _mm_mfence();
+
+      _NsPerRun[run] = TicksToNs(endTick - startTick);
+      _ClocksPerRun[run] = endClock - startClock;
+
+      printf("rANS32x32_decode_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    }
+
+    print_perf_info(fileSize);
+  }
+
+  if (decompressedLength != fileSize)
+  {
+    puts("Decompressed Length differs from initial file size.");
+    exit(1);
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 int32_t main(const int32_t argc, char **pArgv)
 {
   if (argc == 0)
@@ -67,13 +256,6 @@ int32_t main(const int32_t argc, char **pArgv)
     puts("Invalid Parameter.");
     return 1;
   }
-
-  size_t fileSize = 0;
-  size_t compressedDataCapacity = 0;
-
-  uint8_t *pUncompressedData = nullptr;
-  uint8_t *pCompressedData = nullptr;
-  uint8_t *pDecompressedData = nullptr;
 
   // Read File.
   {
@@ -100,7 +282,7 @@ int32_t main(const int32_t argc, char **pArgv)
     pUncompressedData = (uint8_t *)malloc(fileSize);
     pDecompressedData = (uint8_t *)malloc(fileSize);
 
-    compressedDataCapacity = rANS32x1_capacity(fileSize);
+    compressedDataCapacity = max(rANS32x1_capacity(fileSize), rANS32x32_capacity(fileSize));
     pCompressedData = (uint8_t *)malloc(compressedDataCapacity);
 
     if (pUncompressedData == nullptr || pDecompressedData == nullptr || pCompressedData == nullptr)
@@ -128,7 +310,7 @@ int32_t main(const int32_t argc, char **pArgv)
   for (size_t i = 0; i < 256; i++)
     symCount += (size_t)!!hist.symbolCount[i];
 
-  if (symCount < 8)
+  if (symCount < 12)
   {
     puts("Hist:");
 
@@ -139,78 +321,8 @@ int32_t main(const int32_t argc, char **pArgv)
     puts("");
   }
 
-  hist_enc_t histEnc;
-  make_enc_hist(&histEnc, &hist);
-
-  size_t compressedLength = 0;
-
-  {
-    compressedLength = rANS32x1_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
-
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      compressedLength = rANS32x1_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-
-      _mm_mfence();
-
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-
-      printf("encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-
-    print_perf_info(fileSize);
-  }
-
-  {
-    compressedLength = rANS32x1_encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
-
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      compressedLength = rANS32x1_encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-
-      _mm_mfence();
-
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-
-      printf("encode: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-
-    print_perf_info(fileSize);
-  }
-
-  if (compressedLength < 32 * 8)
-  {
-    printf("Compressed: (state: %" PRIu32 ")\n\n", *reinterpret_cast<const uint32_t *>(pCompressedData));
-
-    for (size_t i = 0; i < compressedLength; i += 32)
-    {
-      const size_t max = i + 32 > compressedLength ? compressedLength : i + 32;
-      size_t j;
-
-      for (j = i; j < max; j++)
-        printf("%02" PRIX8 " ", pCompressedData[j]);
-
-      puts("");
-    }
-
-    puts("");
-  }
-
   hist_dec_t histDec;
   make_dec_hist(&histDec, &hist);
-
-  hist_dec2_t histDec2;
-  make_dec2_hist(&histDec2, &hist);
 
   if (symCount < 12)
   {
@@ -234,87 +346,51 @@ int32_t main(const int32_t argc, char **pArgv)
     puts("");
   }
 
-  size_t decompressedLength = 0;
-
+  for (size_t codec = 0; codec < 2; codec++)
   {
-    decompressedLength = rANS32x1_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
-
-    for (size_t run = 0; run < RunCount; run++)
+    switch (codec)
     {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      decompressedLength = rANS32x1_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-
-      _mm_mfence();
-
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-
-      printf("decode_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    default:
+    case 0: profile_rans32x1_encode(&hist); break;
+    case 1: profile_rans32x32_encode(&hist); break;
     }
 
-    print_perf_info(fileSize);
-  }
-
-  {
-    decompressedLength = rANS32x1_decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
-
-    for (size_t run = 0; run < RunCount; run++)
+    if (compressedLength < 32 * 8)
     {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      decompressedLength = rANS32x1_decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
+      printf("Compressed: (state: %" PRIu32 ")\n\n", *reinterpret_cast<const uint32_t *>(pCompressedData));
 
-      _mm_mfence();
+      for (size_t i = 0; i < compressedLength; i += 32)
+      {
+        const size_t max = i + 32 > compressedLength ? compressedLength : i + 32;
+        size_t j;
 
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
+        for (j = i; j < max; j++)
+          printf("%02" PRIX8 " ", pCompressedData[j]);
 
-      printf("decode: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-
-    print_perf_info(fileSize);
-  }
-
-  if (decompressedLength != fileSize)
-  {
-    puts("Decompressed Length differs from initial file size.");
-    return 1;
-  }
-
-  if (fileSize < 32 * 8)
-  {
-    puts("Input:                                              Output:\n");
-
-    for (size_t i = 0; i < fileSize; i += 16)
-    {
-      const size_t max = i + 16 > fileSize ? fileSize : i + 16;
-      size_t j;
-
-      for (j = i; j < max; j++)
-        printf("%02" PRIX8 " ", pUncompressedData[j]);
-
-      for (; j < i + 16; j++)
-        printf("   ");
-
-      printf(" |  ");
-
-      for (j = i; j < max; j++)
-        printf("%02" PRIX8 " ", pDecompressedData[j]);
-
-      for (; j < i + 16; j++)
-        printf("   ");
+        puts("");
+      }
 
       puts("");
+    }
 
-      if (memcmp(pUncompressedData + i, pUncompressedData + i, max - i) != 0)
+    switch (codec)
+    {
+    default:
+    case 0: profile_rans32x1_decode(&hist); break;
+    case 1: profile_rans32x32_decode(&hist); break;
+    }
+
+    if (fileSize < 32 * 8)
+    {
+      puts("Input:                                              Output:\n");
+
+      for (size_t i = 0; i < fileSize; i += 16)
       {
+        const size_t max = i + 16 > fileSize ? fileSize : i + 16;
+        size_t j;
+
         for (j = i; j < max; j++)
-          printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
+          printf("%02" PRIX8 " ", pUncompressedData[j]);
 
         for (; j < i + 16; j++)
           printf("   ");
@@ -322,26 +398,45 @@ int32_t main(const int32_t argc, char **pArgv)
         printf(" |  ");
 
         for (j = i; j < max; j++)
-          printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
+          printf("%02" PRIX8 " ", pDecompressedData[j]);
 
         for (; j < i + 16; j++)
           printf("   ");
 
         puts("");
+
+        if (memcmp(pUncompressedData + i, pUncompressedData + i, max - i) != 0)
+        {
+          for (j = i; j < max; j++)
+            printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
+
+          for (; j < i + 16; j++)
+            printf("   ");
+
+          printf(" |  ");
+
+          for (j = i; j < max; j++)
+            printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
+
+          for (; j < i + 16; j++)
+            printf("   ");
+
+          puts("");
+        }
       }
+
+      puts("");
     }
 
-    puts("");
-  }
-
-  if (memcmp(pDecompressedData, pUncompressedData, fileSize) != 0)
-  {
-    puts("Failed to decompress correctly.");
-    return 1;
-  }
-  else
-  {
-    puts("Success!");
+    if (memcmp(pDecompressedData, pUncompressedData, fileSize) != 0)
+    {
+      puts("Failed to decompress correctly.");
+      return 1;
+    }
+    else
+    {
+      puts("Success!");
+    }
   }
 
   return 0;
