@@ -38,7 +38,7 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
 
   uint8_t *pWrite = pOutData + outCapacity - 1;
 
-  for (int64_t i = length - 1; i >= 0; i -= StateCount)
+  for (int64_t i = length - 1; i >= 0; i -= StateCount) // TODO: Deal with unaligned stuff properly.
   {
     for (size_t j = 0; j < StateCount; j++)
     {
@@ -79,7 +79,7 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
   
   size_t inIndex = sizeof(uint32_t) * StateCount;
 
-  for (size_t i = 0; i < outLength; i += StateCount)
+  for (size_t i = 0; i < outLength; i += StateCount) // TODO: Deal with unaligned stuff properly.
   {
     for (size_t j = 0; j < StateCount; j++)
     {
