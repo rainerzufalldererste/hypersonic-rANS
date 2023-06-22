@@ -21,7 +21,7 @@ uint64_t TicksToNs(const uint64_t ticks);
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr size_t RunCount = 10;
+constexpr size_t RunCount = 1;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 
@@ -29,34 +29,41 @@ static uint64_t _NsPerRun[RunCount];
 
 void print_perf_info(const size_t fileSize)
 {
-  uint64_t completeNs = 0;
-  uint64_t completeClocks = 0;
-
-  for (size_t i = 0; i < RunCount; i++)
+  if constexpr (RunCount > 1)
   {
-    completeNs += _NsPerRun[i];
-    completeClocks += _ClocksPerRun[i];
+    uint64_t completeNs = 0;
+    uint64_t completeClocks = 0;
+
+    for (size_t i = 0; i < RunCount; i++)
+    {
+      completeNs += _NsPerRun[i];
+      completeClocks += _ClocksPerRun[i];
+    }
+
+    const double meanNs = completeNs / (double)RunCount;
+    const double meanClocks = completeClocks / (double)RunCount;
+    double stdDevNs = 0;
+    double stdDevClocks = 0;
+
+    for (size_t i = 0; i < RunCount; i++)
+    {
+      const double diffNs = _NsPerRun[i] - meanNs;
+      const double diffClocks = _ClocksPerRun[i] - meanClocks;
+
+      stdDevNs += diffNs * diffNs;
+      stdDevClocks += diffClocks * diffClocks;
+    }
+
+    stdDevNs = sqrt(stdDevNs / (double)(RunCount - 1));
+    stdDevClocks = sqrt(stdDevClocks / (double)(RunCount - 1));
+
+    printf("\nAverage: \t%5.3f clk/byte\t(std dev: %5.3f ~ %5.3f)\n", meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
+    printf("Average: \t%5.3f MiB/s\t(std dev: %5.3f ~ %5.3f)\n\n", (fileSize / (1024.0 * 1024.0)) / (meanNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs + stdDevNs) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs - stdDevNs) * 1e-9));
   }
-
-  const double meanNs = completeNs / (double)RunCount;
-  const double meanClocks = completeClocks / (double)RunCount;
-  double stdDevNs = 0;
-  double stdDevClocks = 0;
-
-  for (size_t i = 0; i < RunCount; i++)
+  else
   {
-    const double diffNs = _NsPerRun[i] - meanNs;
-    const double diffClocks = _ClocksPerRun[i] - meanClocks;
-
-    stdDevNs += diffNs * diffNs;
-    stdDevClocks += diffClocks * diffClocks;
+    puts("");
   }
-
-  stdDevNs = sqrt(stdDevNs / (double)(RunCount - 1));
-  stdDevClocks = sqrt(stdDevClocks / (double)(RunCount - 1));
-
-  printf("\nAverage: \t%5.3f clk/byte\t(std dev: %5.3f ~ %5.3f)\n", meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
-  printf("Average: \t%5.3f MiB/s\t(std dev: %5.3f ~ %5.3f)\n\n", (fileSize / (1024.0 * 1024.0)) / (meanNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs + stdDevNs) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs - stdDevNs) * 1e-9));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -78,7 +85,8 @@ void profile_rans32x1_encode(hist_t *pHist)
   make_enc_hist(&histEnc, pHist);
 
   {
-    compressedLength = rANS32x1_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
+    if constexpr (RunCount > 1)
+      compressedLength = rANS32x1_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
 
     for (size_t run = 0; run < RunCount; run++)
     {
@@ -100,7 +108,8 @@ void profile_rans32x1_encode(hist_t *pHist)
   }
 
   {
-    compressedLength = rANS32x1_encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
+    if constexpr (RunCount > 1)
+      compressedLength = rANS32x1_encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
 
     for (size_t run = 0; run < RunCount; run++)
     {
@@ -125,7 +134,8 @@ void profile_rans32x1_encode(hist_t *pHist)
 void profile_rans32x32_encode(hist_t *pHist)
 {
   {
-    compressedLength = rANS32x32_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
+    if constexpr (RunCount > 1)
+      compressedLength = rANS32x32_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
 
     for (size_t run = 0; run < RunCount; run++)
     {
@@ -158,7 +168,8 @@ void profile_rans32x1_decode(hist_t *pHist)
   size_t decompressedLength = 0;
 
   {
-    decompressedLength = rANS32x1_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+    if constexpr (RunCount > 1)
+      decompressedLength = rANS32x1_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
 
     for (size_t run = 0; run < RunCount; run++)
     {
@@ -180,7 +191,8 @@ void profile_rans32x1_decode(hist_t *pHist)
   }
 
   {
-    decompressedLength = rANS32x1_decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
+    if constexpr (RunCount > 1)
+      decompressedLength = rANS32x1_decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
 
     for (size_t run = 0; run < RunCount; run++)
     {
@@ -219,7 +231,8 @@ void profile_rans32x32_decode(hist_t *pHist)
   size_t decompressedLength = 0;
 
   {
-    decompressedLength = rANS32x32_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
+    if constexpr (RunCount > 1)
+      decompressedLength = rANS32x32_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
 
     for (size_t run = 0; run < RunCount; run++)
     {
@@ -241,7 +254,8 @@ void profile_rans32x32_decode(hist_t *pHist)
   }
 
   //{
-  //  decompressedLength = rANS32x32_decode_avx2_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
+  //  if constexpr (RunCount > 1)
+  //    decompressedLength = rANS32x32_decode_avx2_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
   //
   //  for (size_t run = 0; run < RunCount; run++)
   //  {
@@ -338,7 +352,7 @@ int32_t main(const int32_t argc, char **pArgv)
 
     for (size_t i = 0; i < 256; i++)
       if (hist.symbolCount[i])
-        printf("0x%02" PRIX8 "(%c): %" PRIu16 " (%" PRIu16 ")\n", (uint8_t)i, (char)i, hist.symbolCount[i], hist.cumul[i]);
+        printf("0x%02" PRIX8 "(%c): %5" PRIu16 " (%5" PRIu16 ")\n", (uint8_t)i, (char)i, hist.symbolCount[i], hist.cumul[i]);
 
     puts("");
   }
@@ -360,7 +374,7 @@ int32_t main(const int32_t argc, char **pArgv)
         if (histDec.cumulInv[j] != sym)
           break;
 
-      printf("%02" PRIX8 "(%c): %" PRIu64 " ~ %" PRIu64 "\n", sym, (char)sym, i, j - 1);
+      printf("%02" PRIX8 "(%c): %5" PRIu64 " ~ %5" PRIu64 "\n", sym, (char)sym, i, j - 1);
 
       i = j;
     }
@@ -427,7 +441,7 @@ int32_t main(const int32_t argc, char **pArgv)
 
         puts("");
 
-        if (memcmp(pUncompressedData + i, pUncompressedData + i, max - i) != 0)
+        if (memcmp(pUncompressedData + i, pDecompressedData + i, max - i) != 0)
         {
           for (j = i; j < max; j++)
             printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");

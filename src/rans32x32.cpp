@@ -3,6 +3,9 @@
 
 #include <string.h>
 
+#include <inttypes.h>
+#include <stdio.h>
+
 constexpr size_t StateCount = 32;
 
 size_t rANS32x32_capacity(const size_t inputSize)
@@ -38,7 +41,7 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
   // Init Pointers & States.
   {
     uint8_t *pWrite = pOutData + outCapacity - 1;
-    const size_t blockSize = (length + StateCount - 1) / StateCount;
+    const size_t blockSize = (length + StateCount) / StateCount;
 
     for (int64_t i = StateCount - 1; i >= 0; i--)
     {
@@ -59,39 +62,66 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
     {
       const uint8_t index = idx2idx[j];
 
-      const uint8_t in = pInData[i - index];
+      const uint8_t in = pInData[i - StateCount + index];
       const uint32_t symbolCount = pHist->symbolCount[in];
       const uint32_t max = EncodeEmitPoint * symbolCount;
 
-      uint32_t state = states[StateCount - 1 - j];
+      const size_t stateIndex = j;
+
+      uint32_t state = states[stateIndex];
+
+      if (j == StateCount - 1)
+        printf(">> read %02" PRIX8 " | state: %8" PRIX32 " =>", in, state);
 
       while (state >= max)
       {
         *pStart[j] = (uint8_t)(state & 0xFF);
         pStart[j]--;
         state >>= 8;
+
+        if (j == StateCount - 1)
+          printf(" (wrote %02" PRIX8 ": %8" PRIX32 ")", pStart[j][1], state);
       }
 
-      states[StateCount - 1 - j] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
+      states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
+
+      if (j == StateCount - 1)
+        printf(" %8" PRIX32 "\n", states[stateIndex]);
     }
   }
 
-  for (size_t j = 0; i >= 0; j++, i--) // yes, the `i >= 0` is intentional!
+  for (int64_t j = 0; j < StateCount; j++)
   {
-    const uint8_t in = pInData[i];
-    const uint32_t symbolCount = pHist->symbolCount[in];
-    const uint32_t max = EncodeEmitPoint * symbolCount;
+    const uint8_t index = idx2idx[j];
 
-    uint32_t state = states[StateCount - 1 - j];
-
-    while (state >= max)
+    if (i - (int64_t)StateCount + (int64_t)index >= 0)
     {
-      *pStart[j] = (uint8_t)(state & 0xFF);
-      pStart[j]--;
-      state >>= 8;
-    }
+      const uint8_t in = pInData[i - StateCount + index];
+      const uint32_t symbolCount = pHist->symbolCount[in];
+      const uint32_t max = EncodeEmitPoint * symbolCount;
 
-    states[StateCount - 1 - j] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
+      const size_t stateIndex = j;
+
+      uint32_t state = states[stateIndex];
+
+      if (j == StateCount - 1)
+        printf(">> read %02" PRIX8 " | state: %8" PRIX32 " =>", in, state);
+
+      while (state >= max)
+      {
+        *pStart[j] = (uint8_t)(state & 0xFF);
+        pStart[j]--;
+        state >>= 8;
+
+        if (j == StateCount - 1)
+          printf(" (wrote %02" PRIX8 ": %8" PRIX32 ")", pStart[j][1], state);
+      }
+
+      states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
+
+      if (j == StateCount - 1)
+        printf(" %8" PRIX32 "\n", states[stateIndex]);
+    }
   }
 
   uint8_t *pWrite = pOutData;
@@ -139,7 +169,7 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
 
 size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
 {
-  if (inLength <= sizeof(uint32_t) * StateCount * 2 + sizeof(uint64_t) * 2 * sizeof(uint16_t) * 256)
+  if (inLength <= sizeof(uint64_t) * 2 + sizeof(uint32_t) * StateCount * 2 + sizeof(uint16_t) * 256)
     return 0;
 
   size_t inputIndex = 0;
@@ -189,7 +219,6 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
   static_assert(sizeof(idx2idx) == StateCount);
 
   const size_t outLengthInStates = expectedOutputLength - StateCount + 1;
-  size_t inIndex = sizeof(uint32_t) * StateCount;
   size_t i = 0;
 
   for (; i < outLengthInStates; i += StateCount)
@@ -199,26 +228,45 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
       const uint8_t index = idx2idx[j];
       uint32_t state = states[j];
 
+      if (j == StateCount - 1)
+        printf("<< state: %8" PRIX32 " => ", state);
+
       pOutData[i + index] = decode_symbol_basic(&state, &hist);
+
+      if (j == StateCount - 1)
+        printf("%8" PRIX32 " | wrote %02" PRIX8 "", state, pOutData[i + index]);
 
       while (state < DecodeConsumePoint)
       {
         state = state << 8 | *pReadHead[j];
+
+        if (j == StateCount - 1)
+          printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
+
         pReadHead[j]++;
       }
+
+      if (j == StateCount - 1)
+        puts("");
 
       states[j] = state;
     }
   }
 
-  for (size_t j = 0; i < expectedOutputLength; i++, j++) // yes, the `i` comparison is intentional.
+  const size_t remaining = expectedOutputLength - i;
+
+  for (size_t j = 0; j < remaining; j++)
   {
+    const uint8_t index = idx2idx[j];
     uint32_t state = states[j];
 
-    pOutData[i] = decode_symbol_basic(&state, &hist);
+    pOutData[i + index] = decode_symbol_basic(&state, &hist);
 
     while (state < DecodeConsumePoint)
-      state = state << 8 | pInData[inIndex++];
+    {
+      state = state << 8 | *pReadHead[j];
+      pReadHead[j]++;
+    }
 
     states[j] = state;
   }
