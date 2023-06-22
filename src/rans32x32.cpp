@@ -6,7 +6,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-constexpr size_t StateCount = 32;
+constexpr size_t StateCount = 32; // Needs to be a power of two.
 
 size_t rANS32x32_capacity(const size_t inputSize)
 {
@@ -28,6 +28,8 @@ inline uint8_t decode_symbol_basic(uint32_t *pState, const hist_dec_t *pHist)
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+#define IF_RELEVANT if (false)
 
 size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
 {
@@ -55,8 +57,46 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
   static_assert(sizeof(idx2idx) == StateCount);
 
   int64_t i = length - 1;
+  i &= ~(size_t)(StateCount - 1);
+  i += StateCount;
 
-  for (; i >= (int64_t)(StateCount - 1); i -= StateCount)
+  for (int64_t j = 0; j < StateCount; j++)
+  {
+    const uint8_t index = idx2idx[j];
+
+    if (i - (int64_t)StateCount + (int64_t)index < (int64_t)length)
+    {
+      const uint8_t in = pInData[i - StateCount + index];
+      const uint32_t symbolCount = pHist->symbolCount[in];
+      const uint32_t max = EncodeEmitPoint * symbolCount;
+
+      const size_t stateIndex = j;
+
+      uint32_t state = states[stateIndex];
+
+      IF_RELEVANT
+        printf(">> [%02" PRIX64 "] read %02" PRIX8 " (at %8" PRIX64 ") | state: %8" PRIX32 " =>", j, in, i - StateCount + index, state);
+
+      while (state >= max)
+      {
+        *pStart[j] = (uint8_t)(state & 0xFF);
+        pStart[j]--;
+        state >>= 8;
+
+        IF_RELEVANT
+          printf(" (wrote %02" PRIX8 ": %8" PRIX32 ")", pStart[j][1], state);
+      }
+
+      states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
+
+      IF_RELEVANT
+        printf(" %8" PRIX32 "\n", states[stateIndex]);
+    }
+  }
+
+  i -= StateCount;
+
+  for (; i >= StateCount; i -= StateCount)
   {
     for (size_t j = 0; j < StateCount; j++)
     {
@@ -70,8 +110,8 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
 
       uint32_t state = states[stateIndex];
 
-      if (j == StateCount - 1)
-        printf(">> read %02" PRIX8 " | state: %8" PRIX32 " =>", in, state);
+      IF_RELEVANT
+        printf(">> [%02" PRIX64 "] read %02" PRIX8 " (at %8" PRIX64 ") | state: %8" PRIX32 " =>", j, in, i - StateCount + index, state);
 
       while (state >= max)
       {
@@ -79,47 +119,13 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
         pStart[j]--;
         state >>= 8;
 
-        if (j == StateCount - 1)
+        IF_RELEVANT
           printf(" (wrote %02" PRIX8 ": %8" PRIX32 ")", pStart[j][1], state);
       }
 
       states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
 
-      if (j == StateCount - 1)
-        printf(" %8" PRIX32 "\n", states[stateIndex]);
-    }
-  }
-
-  for (int64_t j = 0; j < StateCount; j++)
-  {
-    const uint8_t index = idx2idx[j];
-
-    if (i - (int64_t)StateCount + (int64_t)index >= 0)
-    {
-      const uint8_t in = pInData[i - StateCount + index];
-      const uint32_t symbolCount = pHist->symbolCount[in];
-      const uint32_t max = EncodeEmitPoint * symbolCount;
-
-      const size_t stateIndex = j;
-
-      uint32_t state = states[stateIndex];
-
-      if (j == StateCount - 1)
-        printf(">> read %02" PRIX8 " | state: %8" PRIX32 " =>", in, state);
-
-      while (state >= max)
-      {
-        *pStart[j] = (uint8_t)(state & 0xFF);
-        pStart[j]--;
-        state >>= 8;
-
-        if (j == StateCount - 1)
-          printf(" (wrote %02" PRIX8 ": %8" PRIX32 ")", pStart[j][1], state);
-      }
-
-      states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
-
-      if (j == StateCount - 1)
+      IF_RELEVANT
         printf(" %8" PRIX32 "\n", states[stateIndex]);
     }
   }
@@ -228,47 +234,62 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
       const uint8_t index = idx2idx[j];
       uint32_t state = states[j];
 
-      if (j == StateCount - 1)
-        printf("<< state: %8" PRIX32 " => ", state);
+      IF_RELEVANT
+        printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
 
       pOutData[i + index] = decode_symbol_basic(&state, &hist);
 
-      if (j == StateCount - 1)
-        printf("%8" PRIX32 " | wrote %02" PRIX8 "", state, pOutData[i + index]);
+      IF_RELEVANT
+        printf("%8" PRIX32 " | wrote %02" PRIX8 " (at %8" PRIX64 ")", state, pOutData[i + index], i + index);
 
       while (state < DecodeConsumePoint)
       {
         state = state << 8 | *pReadHead[j];
 
-        if (j == StateCount - 1)
+        IF_RELEVANT
           printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
 
         pReadHead[j]++;
       }
 
-      if (j == StateCount - 1)
+      IF_RELEVANT
         puts("");
 
       states[j] = state;
     }
   }
 
-  const size_t remaining = expectedOutputLength - i;
-
-  for (size_t j = 0; j < remaining; j++)
+  for (size_t j = 0; j < StateCount; j++)
   {
     const uint8_t index = idx2idx[j];
-    uint32_t state = states[j];
 
-    pOutData[i + index] = decode_symbol_basic(&state, &hist);
-
-    while (state < DecodeConsumePoint)
+    if (i + index < expectedInputLength)
     {
-      state = state << 8 | *pReadHead[j];
-      pReadHead[j]++;
-    }
+      uint32_t state = states[j];
 
-    states[j] = state;
+      IF_RELEVANT
+        printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
+
+      pOutData[i + index] = decode_symbol_basic(&state, &hist);
+
+      IF_RELEVANT
+        printf("%8" PRIX32 " | wrote %02" PRIX8 " (at %8" PRIX64 ")", state, pOutData[i + index], i + index);
+
+      while (state < DecodeConsumePoint)
+      {
+        state = state << 8 | *pReadHead[j];
+
+        IF_RELEVANT
+          printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
+
+        pReadHead[j]++;
+      }
+
+      IF_RELEVANT
+        puts("");
+
+      states[j] = state;
+    }
   }
 
   return expectedOutputLength;
