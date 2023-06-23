@@ -21,6 +21,7 @@ uint64_t TicksToNs(const uint64_t ticks);
 bool Validate(const uint8_t *pUncompressedData, const uint8_t *pDecompressedData, const size_t size);
 
 inline size_t rans_max(const size_t a, const size_t b) { return a > b ? a : b; }
+inline size_t rans_min(const size_t a, const size_t b) { return a < b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -550,8 +551,8 @@ bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t s
       {
         printf("First invalid char at %" PRIu64 " [0x%" PRIX64 "] (0x%" PRIX8 " != 0x%" PRIX8 ").\n", i, i, pReceived[i], pExpected[i]);
 
-        const int64_t start = max(0, (int64_t)i - 64) & ~(int64_t)31;
-        int64_t end = min((int64_t)size, (int64_t)(i + 96));
+        const int64_t start = rans_max(0, (int64_t)i - 64) & ~(int64_t)31;
+        int64_t end = rans_min((int64_t)size, (int64_t)(i + 96));
 
         if (end != (int64_t)size)
           end &= ~(int64_t)31;
@@ -560,7 +561,7 @@ bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t s
 
         for (int64_t context = start; context < end; context += 16)
         {
-          const int64_t context_end = min(end, context + 16);
+          const int64_t context_end = rans_min(end, context + 16);
 
           bool different = false;
 
