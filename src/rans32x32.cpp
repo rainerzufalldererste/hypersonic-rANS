@@ -2,8 +2,6 @@
 #include "simd_platform.h"
 
 #include <string.h>
-#include <inttypes.h>
-#include <stdio.h>
 
 constexpr size_t StateCount = 32; // Needs to be a power of two.
 
@@ -14,21 +12,12 @@ size_t rANS32x32_capacity(const size_t inputSize)
 
 //////////////////////////////////////////////////////////////////////////
 
-//#define IF_RELEVANT if (i >= 35003296 && i < 35003424)
-#define IF_RELEVANT if (false)
-
-#ifndef _MSC_VER
-#define __debugbreak __builtin_trap
-#endif
-
-inline uint8_t decode_symbol_basic0(uint32_t *pState, const hist_dec_t *pHist, const size_t i)
+inline uint8_t decode_symbol_basic0(uint32_t *pState, const hist_dec_t *pHist)
 {
   const uint32_t state = *pState;
   const uint32_t slot = state & (TotalSymbolCount - 1);
   const uint8_t symbol = pHist->cumulInv[slot];
   const uint32_t previousState = (state >> TotalSymbolCountBits) * (uint32_t)pHist->symbolCount[symbol] + slot - (uint32_t)pHist->cumul[symbol];
-
-  IF_RELEVANT printf("%8" PRIX32 " (slot: %4" PRIX32 ", freq: %4" PRIX16 ", cumul %4" PRIX16 ")", previousState, slot, pHist->symbolCount[symbol], pHist->cumul[symbol]); else (void)i;
 
   *pState = previousState;
 
@@ -228,37 +217,15 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
     {
       const uint8_t index = idx2idx[j];
       uint32_t state = states[j];
-      IF_RELEVANT printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
-
-      pOutData[i + index] = decode_symbol_basic0(&state, &hist, i);
-
-      IF_RELEVANT printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
+      pOutData[i + index] = decode_symbol_basic0(&state, &hist);
 
       while (state < DecodeConsumePoint)
       {
         state = state << 8 | *pReadHead[j];
-        IF_RELEVANT printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
         pReadHead[j]++;
       }
 
-      IF_RELEVANT puts("");
-
       states[j] = state;
-    }
-
-    IF_RELEVANT
-    {
-    puts("\nWrote:");
-
-    for (size_t j = 0; j < StateCount; j++)
-      printf("%02" PRIX8 " ", pOutData[i + j]);
-
-    puts("");
-
-    for (size_t j = 0; j < StateCount; j++)
-      printf("%c  ", (char)pOutData[i + j]);
-
-    puts("\n");
     }
   }
 
@@ -270,7 +237,7 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
     {
       uint32_t state = states[j];
 
-      pOutData[i + index] = decode_symbol_basic0(&state, &hist, i);
+      pOutData[i + index] = decode_symbol_basic0(&state, &hist);
 
       while (state < DecodeConsumePoint)
       {
@@ -362,8 +329,6 @@ size_t rANS32x32_decode_avx2_varA(const uint8_t *pInData, const size_t inLength,
 
   for (; i < outLengthInStates; i += StateCount)
   {
-    IF_RELEVANT __debugbreak();
-
     // const uint32_t slot = state & (TotalSymbolCount - 1);
     const simd_t slot0 = _mm256_and_si256(statesX8[0], symCountMask);
     const simd_t slot1 = _mm256_and_si256(statesX8[1], symCountMask);
