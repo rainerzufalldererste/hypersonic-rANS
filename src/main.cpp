@@ -23,7 +23,7 @@ inline size_t rans_max(const size_t a, const size_t b) { return a > b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr size_t RunCount = 10;
+constexpr size_t RunCount = 1;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 

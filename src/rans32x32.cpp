@@ -2,6 +2,8 @@
 #include "simd_platform.h"
 
 #include <string.h>
+#include <inttypes.h>
+#include <stdio.h>
 
 constexpr size_t StateCount = 32; // Needs to be a power of two.
 
@@ -12,12 +14,14 @@ size_t rANS32x32_capacity(const size_t inputSize)
 
 //////////////////////////////////////////////////////////////////////////
 
-inline uint8_t decode_symbol_basic(uint32_t *pState, const hist_dec_t *pHist)
+inline uint8_t decode_symbol_basic0(uint32_t *pState, const hist_dec_t *pHist)
 {
   const uint32_t state = *pState;
   const uint32_t slot = state & (TotalSymbolCount - 1);
   const uint8_t symbol = pHist->cumulInv[slot];
   const uint32_t previousState = (state >> TotalSymbolCountBits) * (uint32_t)pHist->symbolCount[symbol] + slot - (uint32_t)pHist->cumul[symbol];
+
+  printf("%8" PRIX32 " (slot: %4" PRIX32 ", freq: %4" PRIX16 ", cumul %4" PRIX16 ")", previousState, slot, pHist->symbolCount[symbol], pHist->cumul[symbol]);
 
   *pState = previousState;
 
@@ -54,7 +58,7 @@ size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8
     }
   }
 
-  const uint8_t idx2idx[] = { 0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0A, 0x0B, 0x10, 0x11, 0x12, 0x13, 0x18, 0x19, 0x1A, 0x1B, 0x04, 0x05, 0x06, 0x07, 0x0C, 0x0D, 0x0E, 0x0F, 0x14, 0x15, 0x16, 0x17, 0x1C, 0x1D, 0x1E, 0x1F };
+  const uint8_t idx2idx[] = { 0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13, 0x04, 0x05, 0x06, 0x07, 0x14, 0x15, 0x16, 0x17, 0x08, 0x09, 0x0A, 0x0B , 0x18, 0x19, 0x1A, 0x1B, 0x0C, 0x0D, 0x0E, 0x0F, 0x1C, 0x1D, 0x1E, 0x1F };
   static_assert(sizeof(idx2idx) == StateCount);
 
   int64_t i = length - 1;
@@ -205,7 +209,7 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
     pReadHead[i] = pReadHead[i - 1] + blockSize;
   }
 
-  const uint8_t idx2idx[] = { 0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0A, 0x0B, 0x10, 0x11, 0x12, 0x13, 0x18, 0x19, 0x1A, 0x1B, 0x04, 0x05, 0x06, 0x07, 0x0C, 0x0D, 0x0E, 0x0F, 0x14, 0x15, 0x16, 0x17, 0x1C, 0x1D, 0x1E, 0x1F };
+  const uint8_t idx2idx[] = { 0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13, 0x04, 0x05, 0x06, 0x07, 0x14, 0x15, 0x16, 0x17, 0x08, 0x09, 0x0A, 0x0B , 0x18, 0x19, 0x1A, 0x1B, 0x0C, 0x0D, 0x0E, 0x0F, 0x1C, 0x1D, 0x1E, 0x1F };
   static_assert(sizeof(idx2idx) == StateCount);
 
   const size_t outLengthInStates = expectedOutputLength - StateCount + 1;
@@ -218,16 +222,35 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
       const uint8_t index = idx2idx[j];
       uint32_t state = states[j];
 
-      pOutData[i + index] = decode_symbol_basic(&state, &hist);
+      printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
+
+      pOutData[i + index] = decode_symbol_basic0(&state, &hist);
+
+      printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
       while (state < DecodeConsumePoint)
       {
         state = state << 8 | *pReadHead[j];
+        printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
         pReadHead[j]++;
       }
 
+      puts("");
+
       states[j] = state;
     }
+
+    puts("\nWrote:");
+
+    for (size_t j = 0; j < StateCount; j++)
+      printf("%02" PRIX8 " ", pOutData[i + j]);
+
+    puts("");
+
+    for (size_t j = 0; j < StateCount; j++)
+      printf("%c  ", (char)pOutData[i + j]);
+
+    puts("\n");
   }
 
   for (size_t j = 0; j < StateCount; j++)
@@ -238,13 +261,20 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
     {
       uint32_t state = states[j];
 
-      pOutData[i + index] = decode_symbol_basic(&state, &hist);
+      printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
+
+      pOutData[i + index] = decode_symbol_basic0(&state, &hist);
+
+      printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
       while (state < DecodeConsumePoint)
       {
         state = state << 8 | *pReadHead[j];
+        printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
         pReadHead[j]++;
       }
+
+      puts("");
 
       states[j] = state;
     }
@@ -316,7 +346,7 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
 
   for (size_t i = 0; i < sizeof(statesX8) / sizeof(simd_t); i++)
   {
-    statesX8[i] = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(pInData + i * sizeof(simd_t)));
+    statesX8[i] = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(reinterpret_cast<const uint8_t *>(states) + i * sizeof(simd_t)));
     readHeadOffsetsX8[i] = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(reinterpret_cast<const uint8_t *>(readHeadOffsets) + i * sizeof(simd_t)));
   }
 
@@ -473,11 +503,11 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
     //////////////////////////////////////////////////////////////////////////
     // Iteration 2:
 
-    // request next byte.
-    const simd_t newByte0b = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[0], 1);
-    const simd_t newByte1b = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[1], 1);
-    const simd_t newByte2b = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[2], 1);
-    const simd_t newByte3b = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
+    // derive next byte.
+    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
+    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
+    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
+    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
 
     // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint - 1 > state) ? 1 : 0
     const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePointMinusOne, combinedStateAfterRenormA0);
@@ -531,7 +561,8 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
   for (size_t j = 0; j < StateCount; j++)
     pReadHead[j] = reinterpret_cast<const uint8_t *>(pReadHeadSIMD) + readHeadOffsets[j];
 
-  const uint8_t idx2idx[] = { 0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0A, 0x0B, 0x10, 0x11, 0x12, 0x13, 0x18, 0x19, 0x1A, 0x1B, 0x04, 0x05, 0x06, 0x07, 0x0C, 0x0D, 0x0E, 0x0F, 0x14, 0x15, 0x16, 0x17, 0x1C, 0x1D, 0x1E, 0x1F };
+  const uint8_t idx2idx[] = { 0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13, 0x04, 0x05, 0x06, 0x07, 0x14, 0x15, 0x16, 0x17, 0x08, 0x09, 0x0A, 0x0B , 0x18, 0x19, 0x1A, 0x1B, 0x0C, 0x0D, 0x0E, 0x0F, 0x1C, 0x1D, 0x1E, 0x1F };
+  static_assert(sizeof(idx2idx) == StateCount);
 
   for (size_t j = 0; j < StateCount; j++)
   {
