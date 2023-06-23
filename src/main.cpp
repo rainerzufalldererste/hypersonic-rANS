@@ -23,7 +23,7 @@ inline size_t rans_max(const size_t a, const size_t b) { return a > b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr size_t RunCount = 1;
+constexpr size_t RunCount = 10;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 
@@ -255,28 +255,28 @@ void profile_rans32x32_decode(hist_t *pHist)
     print_perf_info(fileSize);
   }
 
-  //{
-  //  if constexpr (RunCount > 1)
-  //    decompressedLength = rANS32x32_decode_avx2_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
-  //
-  //  for (size_t run = 0; run < RunCount; run++)
-  //  {
-  //    const uint64_t startTick = GetCurrentTimeTicks();
-  //    const uint64_t startClock = __rdtsc();
-  //    decompressedLength = rANS32x32_decode_avx2_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
-  //    const uint64_t endClock = __rdtsc();
-  //    const uint64_t endTick = GetCurrentTimeTicks();
-  //
-  //    _mm_mfence();
-  //
-  //    _NsPerRun[run] = TicksToNs(endTick - startTick);
-  //    _ClocksPerRun[run] = endClock - startClock;
-  //
-  //    printf("rANS32x32_decode_avx2_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-  //  }
-  //
-  //  print_perf_info(fileSize);
-  //}
+  {
+    if constexpr (RunCount > 1)
+      decompressedLength = rANS32x32_decode_avx2_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
+  
+    for (size_t run = 0; run < RunCount; run++)
+    {
+      const uint64_t startTick = GetCurrentTimeTicks();
+      const uint64_t startClock = __rdtsc();
+      decompressedLength = rANS32x32_decode_avx2_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
+      const uint64_t endClock = __rdtsc();
+      const uint64_t endTick = GetCurrentTimeTicks();
+  
+      _mm_mfence();
+  
+      _NsPerRun[run] = TicksToNs(endTick - startTick);
+      _ClocksPerRun[run] = endClock - startClock;
+  
+      printf("rANS32x32_decode_avx2_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    }
+  
+    print_perf_info(fileSize);
+  }
 
   if (decompressedLength != fileSize)
   {
