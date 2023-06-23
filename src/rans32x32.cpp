@@ -21,8 +21,6 @@ inline uint8_t decode_symbol_basic0(uint32_t *pState, const hist_dec_t *pHist)
   const uint8_t symbol = pHist->cumulInv[slot];
   const uint32_t previousState = (state >> TotalSymbolCountBits) * (uint32_t)pHist->symbolCount[symbol] + slot - (uint32_t)pHist->cumul[symbol];
 
-  printf("%8" PRIX32 " (slot: %4" PRIX32 ", freq: %4" PRIX16 ", cumul %4" PRIX16 ")", previousState, slot, pHist->symbolCount[symbol], pHist->cumul[symbol]);
-
   *pState = previousState;
 
   return symbol;
@@ -222,35 +220,16 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
       const uint8_t index = idx2idx[j];
       uint32_t state = states[j];
 
-      printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
-
       pOutData[i + index] = decode_symbol_basic0(&state, &hist);
-
-      printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
       while (state < DecodeConsumePoint)
       {
         state = state << 8 | *pReadHead[j];
-        printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
         pReadHead[j]++;
       }
 
-      puts("");
-
       states[j] = state;
     }
-
-    puts("\nWrote:");
-
-    for (size_t j = 0; j < StateCount; j++)
-      printf("%02" PRIX8 " ", pOutData[i + j]);
-
-    puts("");
-
-    for (size_t j = 0; j < StateCount; j++)
-      printf("%c  ", (char)pOutData[i + j]);
-
-    puts("\n");
   }
 
   for (size_t j = 0; j < StateCount; j++)
@@ -261,20 +240,13 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
     {
       uint32_t state = states[j];
 
-      printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
-
       pOutData[i + index] = decode_symbol_basic0(&state, &hist);
-
-      printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
       while (state < DecodeConsumePoint)
       {
         state = state << 8 | *pReadHead[j];
-        printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
         pReadHead[j]++;
       }
-
-      puts("");
 
       states[j] = state;
     }
@@ -465,10 +437,10 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
     const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePointMinusOne, state3);
 
     // matching: state << 8
-    const simd_t extractMatchShifted0 = _mm256_slli_si256(_mm256_and_si256(state0, cmp0), 8);
-    const simd_t extractMatchShifted1 = _mm256_slli_si256(_mm256_and_si256(state1, cmp1), 8);
-    const simd_t extractMatchShifted2 = _mm256_slli_si256(_mm256_and_si256(state2, cmp2), 8);
-    const simd_t extractMatchShifted3 = _mm256_slli_si256(_mm256_and_si256(state3, cmp3), 8);
+    const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 8);
+    const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 8);
+    const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 8);
+    const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 8);
 
     // Increment matching read head indexes | well, actually subtract -1.
     readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -516,10 +488,10 @@ size_t rANS32x32_decode_avx2_basic(const uint8_t *pInData, const size_t inLength
     const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePointMinusOne, combinedStateAfterRenormA3);
 
     // matching: state << 8
-    const simd_t extractMatchShifted0b = _mm256_slli_si256(_mm256_and_si256(combinedStateAfterRenormA0, cmp0b), 8);
-    const simd_t extractMatchShifted1b = _mm256_slli_si256(_mm256_and_si256(combinedStateAfterRenormA1, cmp1b), 8);
-    const simd_t extractMatchShifted2b = _mm256_slli_si256(_mm256_and_si256(combinedStateAfterRenormA2, cmp2b), 8);
-    const simd_t extractMatchShifted3b = _mm256_slli_si256(_mm256_and_si256(combinedStateAfterRenormA3, cmp3b), 8);
+    const simd_t extractMatchShifted0b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA0, cmp0b), 8);
+    const simd_t extractMatchShifted1b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA1, cmp1b), 8);
+    const simd_t extractMatchShifted2b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA2, cmp2b), 8);
+    const simd_t extractMatchShifted3b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA3, cmp3b), 8);
 
     // Increment matching read head indexes | well, actually subtract -1.
     readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0b);
