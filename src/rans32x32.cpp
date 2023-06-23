@@ -14,12 +14,21 @@ size_t rANS32x32_capacity(const size_t inputSize)
 
 //////////////////////////////////////////////////////////////////////////
 
-inline uint8_t decode_symbol_basic0(uint32_t *pState, const hist_dec_t *pHist)
+//#define IF_RELEVANT if (i >= 35003296 && i < 35003424)
+#define IF_RELEVANT if (false)
+
+#ifndef _MSC_VER
+#define __debugbreak __builtin_trap
+#endif
+
+inline uint8_t decode_symbol_basic0(uint32_t *pState, const hist_dec_t *pHist, const size_t i)
 {
   const uint32_t state = *pState;
   const uint32_t slot = state & (TotalSymbolCount - 1);
   const uint8_t symbol = pHist->cumulInv[slot];
   const uint32_t previousState = (state >> TotalSymbolCountBits) * (uint32_t)pHist->symbolCount[symbol] + slot - (uint32_t)pHist->cumul[symbol];
+
+  IF_RELEVANT printf("%8" PRIX32 " (slot: %4" PRIX32 ", freq: %4" PRIX16 ", cumul %4" PRIX16 ")", previousState, slot, pHist->symbolCount[symbol], pHist->cumul[symbol]); else (void)i;
 
   *pState = previousState;
 
@@ -219,16 +228,37 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
     {
       const uint8_t index = idx2idx[j];
       uint32_t state = states[j];
+      IF_RELEVANT printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
 
-      pOutData[i + index] = decode_symbol_basic0(&state, &hist);
+      pOutData[i + index] = decode_symbol_basic0(&state, &hist, i);
+
+      IF_RELEVANT printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
       while (state < DecodeConsumePoint)
       {
         state = state << 8 | *pReadHead[j];
+        IF_RELEVANT printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
         pReadHead[j]++;
       }
 
+      IF_RELEVANT puts("");
+
       states[j] = state;
+    }
+
+    IF_RELEVANT
+    {
+    puts("\nWrote:");
+
+    for (size_t j = 0; j < StateCount; j++)
+      printf("%02" PRIX8 " ", pOutData[i + j]);
+
+    puts("");
+
+    for (size_t j = 0; j < StateCount; j++)
+      printf("%c  ", (char)pOutData[i + j]);
+
+    puts("\n");
     }
   }
 
@@ -240,7 +270,7 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
     {
       uint32_t state = states[j];
 
-      pOutData[i + index] = decode_symbol_basic0(&state, &hist);
+      pOutData[i + index] = decode_symbol_basic0(&state, &hist, i);
 
       while (state < DecodeConsumePoint)
       {
@@ -328,10 +358,12 @@ size_t rANS32x32_decode_avx2_varA(const uint8_t *pInData, const size_t inLength,
   const simd_t symCountMask = _mm256_set1_epi32(TotalSymbolCount - 1);
   const simd_t lower16 = _mm256_set1_epi32(0xFFFF);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
-  const simd_t decodeConsumePointPlusOne = _mm256_set1_epi32(DecodeConsumePoint + 1);
+  const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint);
 
   for (; i < outLengthInStates; i += StateCount)
   {
+    IF_RELEVANT __debugbreak();
+
     // const uint32_t slot = state & (TotalSymbolCount - 1);
     const simd_t slot0 = _mm256_and_si256(statesX8[0], symCountMask);
     const simd_t slot1 = _mm256_and_si256(statesX8[1], symCountMask);
@@ -431,10 +463,10 @@ size_t rANS32x32_decode_avx2_varA(const uint8_t *pInData, const size_t inLength,
     const simd_t newByte3 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
 
     // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint - 1 > state) ? 1 : 0
-    const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state0);
-    const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state1);
-    const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state2);
-    const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state3);
+    const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
+    const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
+    const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
+    const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
     // matching: state << 8
     const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 8);
@@ -482,10 +514,10 @@ size_t rANS32x32_decode_avx2_varA(const uint8_t *pInData, const size_t inLength,
     const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
 
     // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint + 1 > state) ? -1 : 0
-    const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA0);
-    const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA1);
-    const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA2);
-    const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA3);
+    const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
+    const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA1);
+    const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA2);
+    const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA3);
 
     // matching: state << 8
     const simd_t extractMatchShifted0b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA0, cmp0b), 8);
@@ -637,7 +669,7 @@ size_t rANS32x32_decode_avx2_varA2(const uint8_t *pInData, const size_t inLength
   const simd_t symCountMask = _mm256_set1_epi32(TotalSymbolCount - 1);
   const simd_t lower16 = _mm256_set1_epi32(0xFFFF);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
-  const simd_t decodeConsumePointPlusOne = _mm256_set1_epi32(DecodeConsumePoint + 1);
+  const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint);
 
   for (; i < outLengthInDoubleStates; i += StateCount * 2)
   {
@@ -717,10 +749,10 @@ size_t rANS32x32_decode_avx2_varA2(const uint8_t *pInData, const size_t inLength
       // Iteration 1:
 
       // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint - 1 > state) ? 1 : 0
-      const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state0);
-      const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state1);
-      const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state2);
-      const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state3);
+      const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
+      const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
+      const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
+      const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       // matching: state << 8
       const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 8);
@@ -768,10 +800,10 @@ size_t rANS32x32_decode_avx2_varA2(const uint8_t *pInData, const size_t inLength
       // Iteration 2:
 
       // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint + 1 > state) ? -1 : 0
-      const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA0);
-      const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA1);
-      const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA2);
-      const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA3);
+      const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
+      const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA1);
+      const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA2);
+      const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA3);
 
       // matching: state << 8
       const simd_t extractMatchShifted0b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA0, cmp0b), 8);
@@ -886,10 +918,10 @@ size_t rANS32x32_decode_avx2_varA2(const uint8_t *pInData, const size_t inLength
       // Iteration 1:
 
       // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint - 1 > state) ? 1 : 0
-      const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state0);
-      const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state1);
-      const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state2);
-      const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state3);
+      const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
+      const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
+      const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
+      const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       // matching: state << 8
       const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 8);
@@ -937,10 +969,10 @@ size_t rANS32x32_decode_avx2_varA2(const uint8_t *pInData, const size_t inLength
       // Iteration 2:
 
       // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint + 1 > state) ? -1 : 0
-      const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA0);
-      const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA1);
-      const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA2);
-      const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA3);
+      const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
+      const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA1);
+      const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA2);
+      const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA3);
 
       // matching: state << 8
       const simd_t extractMatchShifted0b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA0, cmp0b), 8);
@@ -1083,10 +1115,10 @@ size_t rANS32x32_decode_avx2_varA2(const uint8_t *pInData, const size_t inLength
     const simd_t newByte3 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
 
     // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint - 1 > state) ? 1 : 0
-    const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state0);
-    const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state1);
-    const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state2);
-    const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state3);
+    const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
+    const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
+    const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
+    const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
     // matching: state << 8
     const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 8);
@@ -1134,10 +1166,10 @@ size_t rANS32x32_decode_avx2_varA2(const uint8_t *pInData, const size_t inLength
     const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
 
     // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint + 1 > state) ? -1 : 0
-    const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA0);
-    const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA1);
-    const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA2);
-    const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA3);
+    const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
+    const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA1);
+    const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA2);
+    const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA3);
 
     // matching: state << 8
     const simd_t extractMatchShifted0b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA0, cmp0b), 8);
@@ -1291,7 +1323,7 @@ size_t rANS32x32_decode_avx2_varB(const uint8_t *pInData, const size_t inLength,
   const simd_t symCountMask = _mm256_set1_epi32(TotalSymbolCount - 1);
   const simd_t lower16 = _mm256_set1_epi32(0xFFFF);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
-  const simd_t decodeConsumePointPlusOne = _mm256_set1_epi32(DecodeConsumePoint + 1);
+  const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint);
 
   for (; i < outLengthInStates; i += StateCount)
   {
@@ -1368,10 +1400,10 @@ size_t rANS32x32_decode_avx2_varB(const uint8_t *pInData, const size_t inLength,
     const simd_t newByte3 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
 
     // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint - 1 > state) ? 1 : 0
-    const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state0);
-    const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state1);
-    const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state2);
-    const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state3);
+    const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
+    const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
+    const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
+    const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
     // matching: state << 8
     const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 8);
@@ -1419,10 +1451,10 @@ size_t rANS32x32_decode_avx2_varB(const uint8_t *pInData, const size_t inLength,
     const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
 
     // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint + 1 > state) ? -1 : 0
-    const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA0);
-    const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA1);
-    const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA2);
-    const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA3);
+    const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
+    const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA1);
+    const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA2);
+    const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA3);
 
     // matching: state << 8
     const simd_t extractMatchShifted0b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA0, cmp0b), 8);
@@ -1577,7 +1609,7 @@ size_t rANS32x32_decode_avx2_varB2(const uint8_t *pInData, const size_t inLength
   const simd_t symCountMask = _mm256_set1_epi32(TotalSymbolCount - 1);
   const simd_t lower16 = _mm256_set1_epi32(0xFFFF);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
-  const simd_t decodeConsumePointPlusOne = _mm256_set1_epi32(DecodeConsumePoint + 1);
+  const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint);
 
   for (; i < outLengthInDoubleStates; i += StateCount * 2)
   {
@@ -1657,10 +1689,10 @@ size_t rANS32x32_decode_avx2_varB2(const uint8_t *pInData, const size_t inLength
       // Iteration 1:
 
       // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint - 1 > state) ? 1 : 0
-      const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state0);
-      const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state1);
-      const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state2);
-      const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state3);
+      const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
+      const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
+      const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
+      const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       // matching: state << 8
       const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 8);
@@ -1708,10 +1740,10 @@ size_t rANS32x32_decode_avx2_varB2(const uint8_t *pInData, const size_t inLength
       // Iteration 2:
 
       // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint + 1 > state) ? -1 : 0
-      const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA0);
-      const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA1);
-      const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA2);
-      const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA3);
+      const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
+      const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA1);
+      const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA2);
+      const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA3);
 
       // matching: state << 8
       const simd_t extractMatchShifted0b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA0, cmp0b), 8);
@@ -1826,10 +1858,10 @@ size_t rANS32x32_decode_avx2_varB2(const uint8_t *pInData, const size_t inLength
       // Iteration 1:
 
       // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint - 1 > state) ? 1 : 0
-      const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state0);
-      const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state1);
-      const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state2);
-      const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state3);
+      const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
+      const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
+      const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
+      const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       // matching: state << 8
       const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 8);
@@ -1877,10 +1909,10 @@ size_t rANS32x32_decode_avx2_varB2(const uint8_t *pInData, const size_t inLength
       // Iteration 2:
 
       // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint + 1 > state) ? -1 : 0
-      const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA0);
-      const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA1);
-      const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA2);
-      const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA3);
+      const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
+      const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA1);
+      const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA2);
+      const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA3);
 
       // matching: state << 8
       const simd_t extractMatchShifted0b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA0, cmp0b), 8);
@@ -1997,10 +2029,10 @@ size_t rANS32x32_decode_avx2_varB2(const uint8_t *pInData, const size_t inLength
     const simd_t newByte3 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
 
     // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint - 1 > state) ? 1 : 0
-    const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state0);
-    const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state1);
-    const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state2);
-    const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, state3);
+    const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
+    const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
+    const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
+    const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
     // matching: state << 8
     const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 8);
@@ -2048,10 +2080,10 @@ size_t rANS32x32_decode_avx2_varB2(const uint8_t *pInData, const size_t inLength
     const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
 
     // (state < DecodeConsumePoint) ? -1 : 0 | well, actually (DecodeConsumePoint + 1 > state) ? -1 : 0
-    const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA0);
-    const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA1);
-    const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA2);
-    const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePointPlusOne, combinedStateAfterRenormA3);
+    const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
+    const simd_t cmp1b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA1);
+    const simd_t cmp2b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA2);
+    const simd_t cmp3b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA3);
 
     // matching: state << 8
     const simd_t extractMatchShifted0b = _mm256_slli_epi32(_mm256_and_si256(combinedStateAfterRenormA0, cmp0b), 8);
