@@ -24,7 +24,7 @@ inline size_t rans_max(const size_t a, const size_t b) { return a > b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr size_t RunCount = 1;
+constexpr size_t RunCount = 10;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 
@@ -461,17 +461,17 @@ uint64_t TicksToNs(const uint64_t ticks)
 #endif
 }
 
-bool Validate(const uint8_t *pExpected, const uint8_t *pReceived, const size_t size)
+bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t size)
 {
-  if (memcmp(pExpected, pReceived, (size_t)size) != 0)
+  if (memcmp(pReceived, pExpected, (size_t)size) != 0)
   {
     puts("Validation Failed.");
 
     for (size_t i = 0; i < size; i++)
     {
-      if (pExpected[i] != pReceived[i])
+      if (pReceived[i] != pExpected[i])
       {
-        printf("First invalid char at %" PRIu64 " [0x%" PRIX64 "] (0x%" PRIX8 " != 0x%" PRIX8 ").\n", i, i, pExpected[i], pReceived[i]);
+        printf("First invalid char at %" PRIu64 " [0x%" PRIX64 "] (0x%" PRIX8 " != 0x%" PRIX8 ").\n", i, i, pReceived[i], pExpected[i]);
 
         const int64_t start = max(0, (int64_t)i - 64) & ~(int64_t)31;
         int64_t end = min((int64_t)size, (int64_t)(i + 96));
@@ -489,7 +489,7 @@ bool Validate(const uint8_t *pExpected, const uint8_t *pReceived, const size_t s
 
           for (int64_t j = context; j < context_end; j++)
           {
-            if (pExpected[j] != pReceived[j])
+            if (pReceived[j] != pExpected[j])
             {
               different = true;
               break;
@@ -502,7 +502,7 @@ bool Validate(const uint8_t *pExpected, const uint8_t *pReceived, const size_t s
             fputs("   ", stdout);
 
           for (int64_t j = context; j < context_end; j++)
-            printf("%02" PRIX8 " ", pExpected[j]);
+            printf("%02" PRIX8 " ", pReceived[j]);
 
           for (int64_t j = context_end; j < context + 16; j++)
             fputs("   ", stdout);
@@ -510,7 +510,7 @@ bool Validate(const uint8_t *pExpected, const uint8_t *pReceived, const size_t s
           fputs(" |  ", stdout);
 
           for (int64_t j = context; j < context_end; j++)
-            printf("%02" PRIX8 " ", pReceived[j]);
+            printf("%02" PRIX8 " ", pExpected[j]);
 
           puts("");
 
@@ -520,7 +520,7 @@ bool Validate(const uint8_t *pExpected, const uint8_t *pReceived, const size_t s
 
             for (int64_t j = context; j < context_end; j++)
             {
-              if (pExpected[j] != pReceived[j])
+              if (pReceived[j] != pExpected[j])
                 fputs("~~ ", stdout);
               else
                 fputs("   ", stdout);
@@ -533,7 +533,7 @@ bool Validate(const uint8_t *pExpected, const uint8_t *pReceived, const size_t s
 
             for (int64_t j = context; j < context_end; j++)
             {
-              if (pExpected[j] != pReceived[j])
+              if (pReceived[j] != pExpected[j])
                 fputs("~~ ", stdout);
               else
                 fputs("   ", stdout);
