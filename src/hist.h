@@ -34,13 +34,27 @@ struct hist_dec2_t
   uint8_t cumulInv[TotalSymbolCount];
 };
 
+struct hist_dec3_t
+{
+  dec_sym_t symbolFomCumul[TotalSymbolCount];
+  uint8_t cumulInv[TotalSymbolCount];
+};
+
+template <size_t histCount> // only for histCount <= 12 bits.
+struct hist_dec_pack_t
+{
+  uint32_t symbol[histCount];
+};
+
 //////////////////////////////////////////////////////////////////////////
 
 void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size);
 void make_enc_hist(hist_enc_t *pHistEnc, const hist_t *pHist);
 void make_dec_hist(hist_dec_t *pHistDec, const hist_t *pHist);
 void make_dec2_hist(hist_dec2_t *pHistDec, const hist_t *pHist);
+void make_dec3_hist(hist_dec3_t *pHistDec, const hist_t *pHist);
 
+bool inplace_complete_hist(hist_t *pHist);
 bool inplace_make_hist_dec(hist_dec_t *pHist);
 bool inplace_make_hist_dec2(hist_dec2_t *pHist);
 

@@ -182,6 +182,34 @@ void make_dec2_hist(hist_dec2_t *pHistDec, const hist_t *pHist)
   }
 }
 
+void make_dec3_hist(hist_dec3_t *pHistDec, const hist_t *pHist)
+{
+  uint8_t sym = 0;
+
+  for (size_t i = 0; i < TotalSymbolCount; i++)
+  {
+    while (sym != 0xFF && (!pHist->symbolCount[sym] || pHist->cumul[sym + 1] <= i))
+      sym++;
+
+    pHistDec->cumulInv[i] = sym;
+    pHistDec->symbolFomCumul[i].cumul = pHist->cumul[sym];
+    pHistDec->symbolFomCumul[i].freq = pHist->symbolCount[sym];
+  }
+}
+
+bool inplace_complete_hist(hist_t *pHist)
+{
+  uint16_t counter = 0;
+
+  for (size_t i = 0; i < 256; i++)
+  {
+    pHist->cumul[i] = (uint16_t)counter;
+    counter += pHist->symbolCount[i];
+  }
+
+  return (counter == TotalSymbolCount);
+}
+
 bool inplace_make_hist_dec(hist_dec_t *pHist)
 {
   uint16_t counter = 0;

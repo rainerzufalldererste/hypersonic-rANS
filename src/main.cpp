@@ -24,7 +24,7 @@ inline size_t rans_max(const size_t a, const size_t b) { return a > b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr size_t RunCount = 32;
+constexpr size_t RunCount = 16;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 
@@ -36,11 +36,19 @@ void print_perf_info(const size_t fileSize)
   {
     uint64_t completeNs = 0;
     uint64_t completeClocks = 0;
+    uint64_t minNs = (uint64_t)-1;
+    uint64_t minClocks = (uint64_t)-1;
 
     for (size_t i = 0; i < RunCount; i++)
     {
       completeNs += _NsPerRun[i];
       completeClocks += _ClocksPerRun[i];
+
+      if (_NsPerRun[i] < minNs)
+        minNs = _NsPerRun[i];
+
+      if (_ClocksPerRun[i] < minClocks)
+        minClocks = _ClocksPerRun[i];
     }
 
     const double meanNs = completeNs / (double)RunCount;
@@ -60,8 +68,8 @@ void print_perf_info(const size_t fileSize)
     stdDevNs = sqrt(stdDevNs / (double)(RunCount - 1));
     stdDevClocks = sqrt(stdDevClocks / (double)(RunCount - 1));
 
-    printf("\nAverage: \t%5.3f clk/byte\t(std dev: %5.3f ~ %5.3f)\n", meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
-    printf("Average: \t%5.3f MiB/s\t(std dev: %5.3f ~ %5.3f)\n\n", (fileSize / (1024.0 * 1024.0)) / (meanNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs + stdDevNs) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs - stdDevNs) * 1e-9));
+    printf("\nMin: \t%5.3f clk/byte\tAverage: \t%5.3f clk/byte\t(std dev: %5.3f ~ %5.3f)\n", minClocks / (double_t)fileSize, meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
+    printf("Max: \t%5.3f MiB/s\tAverage: \t%5.3f MiB/s\t(std dev: %5.3f ~ %5.3f)\n\n", (fileSize / (1024.0 * 1024.0)) / (minNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / (meanNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs + stdDevNs) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs - stdDevNs) * 1e-9));
   }
   else
   {
@@ -104,7 +112,7 @@ void profile_rans32x1_encode(hist_t *pHist)
       _NsPerRun[run] = TicksToNs(endTick - startTick);
       _ClocksPerRun[run] = endClock - startClock;
 
-      printf("rANS32x1_encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+      printf("\rrANS32x1_encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
     }
 
     print_perf_info(fileSize);
@@ -127,7 +135,7 @@ void profile_rans32x1_encode(hist_t *pHist)
       _NsPerRun[run] = TicksToNs(endTick - startTick);
       _ClocksPerRun[run] = endClock - startClock;
 
-      printf("rANS32x1_encode: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+      printf("\rrANS32x1_encode: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
     }
 
     print_perf_info(fileSize);
@@ -153,7 +161,7 @@ void profile_rans32x32_encode(hist_t *pHist)
       _NsPerRun[run] = TicksToNs(endTick - startTick);
       _ClocksPerRun[run] = endClock - startClock;
 
-      printf("rANS32x32_encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)\n", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+      printf("\rrANS32x32_encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
     }
 
     print_perf_info(fileSize);
@@ -187,7 +195,7 @@ void profile_rans32x1_decode(hist_t *pHist)
       _NsPerRun[run] = TicksToNs(endTick - startTick);
       _ClocksPerRun[run] = endClock - startClock;
 
-      printf("rANS32x1_decode_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+      printf("\rrANS32x1_decode_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
     }
 
     print_perf_info(fileSize);
@@ -210,7 +218,7 @@ void profile_rans32x1_decode(hist_t *pHist)
       _NsPerRun[run] = TicksToNs(endTick - startTick);
       _ClocksPerRun[run] = endClock - startClock;
 
-      printf("rANS32x1_decode: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+      printf("\rrANS32x1_decode: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
     }
 
     print_perf_info(fileSize);
@@ -250,7 +258,7 @@ void profile_rans32x32_decode(hist_t *pHist)
       _NsPerRun[run] = TicksToNs(endTick - startTick);
       _ClocksPerRun[run] = endClock - startClock;
 
-      printf("rANS32x32_decode_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+      printf("\rrANS32x32_decode_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
     }
 
     print_perf_info(fileSize);
@@ -273,7 +281,30 @@ void profile_rans32x32_decode(hist_t *pHist)
       _NsPerRun[run] = TicksToNs(endTick - startTick);
       _ClocksPerRun[run] = endClock - startClock;
   
-      printf("rANS32x32_decode_avx2_varA: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+      printf("\rrANS32x32_decode_avx2_varA: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    }
+  
+    print_perf_info(fileSize);
+  }
+
+  {
+    if constexpr (RunCount > 1)
+      decompressedLength = rANS32x32_decode_avx2_varA2(pCompressedData, compressedLength, pDecompressedData, fileSize);
+  
+    for (size_t run = 0; run < RunCount; run++)
+    {
+      const uint64_t startTick = GetCurrentTimeTicks();
+      const uint64_t startClock = __rdtsc();
+      decompressedLength = rANS32x32_decode_avx2_varA2(pCompressedData, compressedLength, pDecompressedData, fileSize);
+      const uint64_t endClock = __rdtsc();
+      const uint64_t endTick = GetCurrentTimeTicks();
+  
+      _mm_mfence();
+  
+      _NsPerRun[run] = TicksToNs(endTick - startTick);
+      _ClocksPerRun[run] = endClock - startClock;
+  
+      printf("\rrANS32x32_decode_avx2_varA2: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
     }
   
     print_perf_info(fileSize);
@@ -296,7 +327,30 @@ void profile_rans32x32_decode(hist_t *pHist)
       _NsPerRun[run] = TicksToNs(endTick - startTick);
       _ClocksPerRun[run] = endClock - startClock;
   
-      printf("rANS32x32_decode_avx2_varB: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)\n", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+      printf("\rrANS32x32_decode_avx2_varB: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+    }
+  
+    print_perf_info(fileSize);
+  }
+
+  {
+    if constexpr (RunCount > 1)
+      decompressedLength = rANS32x32_decode_avx2_varB2(pCompressedData, compressedLength, pDecompressedData, fileSize);
+  
+    for (size_t run = 0; run < RunCount; run++)
+    {
+      const uint64_t startTick = GetCurrentTimeTicks();
+      const uint64_t startClock = __rdtsc();
+      decompressedLength = rANS32x32_decode_avx2_varB2(pCompressedData, compressedLength, pDecompressedData, fileSize);
+      const uint64_t endClock = __rdtsc();
+      const uint64_t endTick = GetCurrentTimeTicks();
+  
+      _mm_mfence();
+  
+      _NsPerRun[run] = TicksToNs(endTick - startTick);
+      _ClocksPerRun[run] = endClock - startClock;
+  
+      printf("\rrANS32x32_decode_avx2_varB2: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
     }
   
     print_perf_info(fileSize);
