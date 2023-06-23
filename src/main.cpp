@@ -18,6 +18,7 @@
 
 uint64_t GetCurrentTimeTicks();
 uint64_t TicksToNs(const uint64_t ticks);
+bool Validate(const uint8_t *pUncompressedData, const uint8_t *pDecompressedData, const size_t size);
 
 inline size_t rans_max(const size_t a, const size_t b) { return a > b ? a : b; }
 
@@ -418,63 +419,10 @@ int32_t main(const int32_t argc, char **pArgv)
     case 1: profile_rans32x32_decode(&hist); break;
     }
 
-    if (fileSize < 32 * 8)
-    {
-      puts("Input:                                              Output:\n");
-
-      for (size_t i = 0; i < fileSize; i += 16)
-      {
-        const size_t max = i + 16 > fileSize ? fileSize : i + 16;
-        size_t j;
-
-        for (j = i; j < max; j++)
-          printf("%02" PRIX8 " ", pUncompressedData[j]);
-
-        for (; j < i + 16; j++)
-          printf("   ");
-
-        printf(" |  ");
-
-        for (j = i; j < max; j++)
-          printf("%02" PRIX8 " ", pDecompressedData[j]);
-
-        for (; j < i + 16; j++)
-          printf("   ");
-
-        puts("");
-
-        if (memcmp(pUncompressedData + i, pDecompressedData + i, max - i) != 0)
-        {
-          for (j = i; j < max; j++)
-            printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
-
-          for (; j < i + 16; j++)
-            printf("   ");
-
-          printf(" |  ");
-
-          for (j = i; j < max; j++)
-            printf(pUncompressedData[j] != pDecompressedData[j] ? "~~ " : "   ");
-
-          for (; j < i + 16; j++)
-            printf("   ");
-
-          puts("");
-        }
-      }
-
-      puts("");
-    }
-
-    if (memcmp(pDecompressedData, pUncompressedData, fileSize) != 0)
-    {
-      puts("Failed to decompress correctly.");
+    if (!Validate(pDecompressedData, pUncompressedData, fileSize))
       return 1;
-    }
     else
-    {
       puts("Success!");
-    }
   }
 
   free(pUncompressedData);
@@ -511,4 +459,96 @@ uint64_t TicksToNs(const uint64_t ticks)
 #else
   return ticks;
 #endif
+}
+
+bool Validate(const uint8_t *pExpected, const uint8_t *pReceived, const size_t size)
+{
+  if (memcmp(pExpected, pReceived, (size_t)size) != 0)
+  {
+    puts("Validation Failed.");
+
+    for (size_t i = 0; i < size; i++)
+    {
+      if (pExpected[i] != pReceived[i])
+      {
+        printf("First invalid char at %" PRIu64 " [0x%" PRIX64 "] (0x%" PRIX8 " != 0x%" PRIX8 ").\n", i, i, pExpected[i], pReceived[i]);
+
+        const int64_t start = max(0, (int64_t)i - 64) & ~(int64_t)31;
+        int64_t end = min((int64_t)size, (int64_t)(i + 96));
+
+        if (end != (int64_t)size)
+          end &= ~(int64_t)31;
+
+        printf("\nContext: (%" PRIi64 " to %" PRIi64 ")\n\n   Expected:                                        |  Actual Output:\n\n", start, end);
+
+        for (int64_t context = start; context < end; context += 16)
+        {
+          const int64_t context_end = min(end, context + 16);
+
+          bool different = false;
+
+          for (int64_t j = context; j < context_end; j++)
+          {
+            if (pExpected[j] != pReceived[j])
+            {
+              different = true;
+              break;
+            }
+          }
+
+          if (different)
+            fputs("!! ", stdout);
+          else
+            fputs("   ", stdout);
+
+          for (int64_t j = context; j < context_end; j++)
+            printf("%02" PRIX8 " ", pExpected[j]);
+
+          for (int64_t j = context_end; j < context + 16; j++)
+            fputs("   ", stdout);
+
+          fputs(" |  ", stdout);
+
+          for (int64_t j = context; j < context_end; j++)
+            printf("%02" PRIX8 " ", pReceived[j]);
+
+          puts("");
+
+          if (different)
+          {
+            fputs("   ", stdout);
+
+            for (int64_t j = context; j < context_end; j++)
+            {
+              if (pExpected[j] != pReceived[j])
+                fputs("~~ ", stdout);
+              else
+                fputs("   ", stdout);
+            }
+
+            for (int64_t j = context_end; j < context + 16; j++)
+              fputs("   ", stdout);
+
+            fputs("    ", stdout);
+
+            for (int64_t j = context; j < context_end; j++)
+            {
+              if (pExpected[j] != pReceived[j])
+                fputs("~~ ", stdout);
+              else
+                fputs("   ", stdout);
+            }
+          }
+
+          puts("");
+        }
+
+        break;
+      }
+    }
+
+    return false;
+  }
+
+  return true;
 }

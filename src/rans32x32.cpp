@@ -21,12 +21,18 @@ inline uint8_t decode_symbol_basic0(uint32_t *pState, const hist_dec_t *pHist)
   const uint8_t symbol = pHist->cumulInv[slot];
   const uint32_t previousState = (state >> TotalSymbolCountBits) * (uint32_t)pHist->symbolCount[symbol] + slot - (uint32_t)pHist->cumul[symbol];
 
+  if (false)
+    printf("%8" PRIX32 " (slot: %4" PRIX32 ", freq: %4" PRIX16 ", cumul %4" PRIX16 ")", previousState, slot, pHist->symbolCount[symbol], pHist->cumul[symbol]);
+
   *pState = previousState;
 
   return symbol;
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+//#define IF_RELEVANT if (i >= 28000 && i < 28096)
+#define IF_RELEVANT if (false)
 
 size_t rANS32x32_encode_basic(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
 {
@@ -220,15 +226,37 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
       const uint8_t index = idx2idx[j];
       uint32_t state = states[j];
 
+      IF_RELEVANT printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
+
       pOutData[i + index] = decode_symbol_basic0(&state, &hist);
+
+      IF_RELEVANT printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
       while (state < DecodeConsumePoint)
       {
         state = state << 8 | *pReadHead[j];
+        IF_RELEVANT printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
         pReadHead[j]++;
       }
 
+      IF_RELEVANT puts("");
+
       states[j] = state;
+    }
+
+    IF_RELEVANT
+    {
+    puts("\nWrote:");
+
+    for (size_t j = 0; j < StateCount; j++)
+      printf("%02" PRIX8 " ", pOutData[i + j]);
+
+    puts("");
+
+    for (size_t j = 0; j < StateCount; j++)
+      printf("%c  ", (char)pOutData[i + j]);
+
+    puts("\n");
     }
   }
 
@@ -240,13 +268,20 @@ size_t rANS32x32_decode_basic(const uint8_t *pInData, const size_t inLength, uin
     {
       uint32_t state = states[j];
 
+      IF_RELEVANT printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
+
       pOutData[i + index] = decode_symbol_basic0(&state, &hist);
+
+      IF_RELEVANT printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
       while (state < DecodeConsumePoint)
       {
         state = state << 8 | *pReadHead[j];
+        IF_RELEVANT printf(" (consumed %02" PRIX8 ": %8" PRIX32 ")", *pReadHead[j], state);
         pReadHead[j]++;
       }
+
+      IF_RELEVANT puts("");
 
       states[j] = state;
     }
