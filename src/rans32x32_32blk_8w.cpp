@@ -13,7 +13,7 @@ size_t rANS32x32_32blk_8w_capacity(const size_t inputSize)
 //////////////////////////////////////////////////////////////////////////
 
 template <uint32_t TotalSymbolCountBits>
-inline uint8_t decode_symbol_scalar0(uint32_t *pState, const hist_dec_t<TotalSymbolCountBits> *pHist)
+inline static uint8_t decode_symbol_scalar0(uint32_t *pState, const hist_dec_t<TotalSymbolCountBits> *pHist)
 {
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
 
