@@ -72,6 +72,8 @@ size_t rANS32x32_32blk_16w_encode_scalar(const uint8_t *pInData, const size_t le
   i &= ~(size_t)(StateCount - 1);
   i += StateCount;
 
+  constexpr bool EncodeNoBranch = false;
+
   for (size_t j = 0; j < StateCount; j++)
   {
     const uint8_t index = idx2idx[j];
@@ -88,13 +90,23 @@ size_t rANS32x32_32blk_16w_encode_scalar(const uint8_t *pInData, const size_t le
 
       IF_RELEVANT printf(">> [%02" PRIX64 "] read %02" PRIX8 " | state: %8" PRIX32 " =>", j, in, state);
 
-      if (state > max)
+      if constexpr (EncodeNoBranch)
       {
+        const bool write = state > max;
         *reinterpret_cast<uint16_t *>(pStart[j]) = (uint16_t)(state & 0xFFFF);
-        pStart[j] -= sizeof(uint16_t);
-        state >>= 16;
+        pStart[j] -= sizeof(uint16_t) * (size_t)write;
+        state = write ? state >> 16 : state;
+      }
+      else
+      {
+        if (state > max)
+        {
+          *reinterpret_cast<uint16_t *>(pStart[j]) = (uint16_t)(state & 0xFFFF);
+          pStart[j] -= sizeof(uint16_t);
+          state >>= 16;
 
-        IF_RELEVANT printf(" (wrote %04" PRIX16 ": %8" PRIX32 ")", *reinterpret_cast<uint16_t *>(pStart[j] + 2), state);
+          IF_RELEVANT printf(" (wrote %04" PRIX16 ": %8" PRIX32 ")", *reinterpret_cast<uint16_t *>(pStart[j] + 2), state);
+        }
       }
 
       states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
@@ -123,13 +135,23 @@ size_t rANS32x32_32blk_16w_encode_scalar(const uint8_t *pInData, const size_t le
 
       IF_RELEVANT printf(">> [%02" PRIX64 "] read %02" PRIX8 " | state: %8" PRIX32 " =>", j, in, state);
 
-      if (state > max)
+      if constexpr (EncodeNoBranch)
       {
+        const bool write = state > max;
         *reinterpret_cast<uint16_t *>(pStart[j]) = (uint16_t)(state & 0xFFFF);
-        pStart[j] -= sizeof(uint16_t);
-        state >>= 16;
+        pStart[j] -= sizeof(uint16_t) * (size_t)write;
+        state = write ? state >> 16 : state;
+      }
+      else
+      {
+        if (state > max)
+        {
+          *reinterpret_cast<uint16_t *>(pStart[j]) = (uint16_t)(state & 0xFFFF);
+          pStart[j] -= sizeof(uint16_t);
+          state >>= 16;
 
-        IF_RELEVANT printf(" (wrote %04" PRIX16 ": %8" PRIX32 ")", *reinterpret_cast<uint16_t *>(pStart[j] + 2), state);
+          IF_RELEVANT printf(" (wrote %04" PRIX16 ": %8" PRIX32 ")", *reinterpret_cast<uint16_t *>(pStart[j] + 2), state);
+        }
       }
 
       states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pHist->cumul[in] + (state % symbolCount);
@@ -241,6 +263,8 @@ size_t rANS32x32_32blk_16w_decode_scalar(const uint8_t *pInData, const size_t in
   const size_t outLengthInStates = expectedOutputLength - StateCount + 1;
   size_t i = 0;
 
+  constexpr bool DecodeNoBranch = false;
+
   for (; i < outLengthInStates; i += StateCount)
   {
     for (size_t j = 0; j < StateCount; j++)
@@ -254,13 +278,23 @@ size_t rANS32x32_32blk_16w_decode_scalar(const uint8_t *pInData, const size_t in
 
       IF_RELEVANT printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
-      if (state < DecodeConsumePoint16)
+      if constexpr (DecodeNoBranch)
       {
-        state = state << 16 | *reinterpret_cast<const uint16_t *>(pReadHead[j]);
+        const bool read = state < DecodeConsumePoint16;
+        const uint32_t newState = state << 16 | *reinterpret_cast<const uint16_t *>(pReadHead[j]);
+        state = read ? newState : state;
+        pReadHead[j] += sizeof(uint16_t) * (size_t)read;
+      }
+      else
+      {
+        if (state < DecodeConsumePoint16)
+        {
+          state = state << 16 | *reinterpret_cast<const uint16_t *>(pReadHead[j]);
 
-        IF_RELEVANT printf(" (consumed %04" PRIX16 ": %8" PRIX32 ")", *reinterpret_cast<const uint16_t *>(pReadHead[j]), state);
+          IF_RELEVANT printf(" (consumed %04" PRIX16 ": %8" PRIX32 ")", *reinterpret_cast<const uint16_t *>(pReadHead[j]), state);
 
-        pReadHead[j] += 2;
+          pReadHead[j] += sizeof(uint16_t);
+        }
       }
 
       IF_RELEVANT puts("");
@@ -298,10 +332,20 @@ size_t rANS32x32_32blk_16w_decode_scalar(const uint8_t *pInData, const size_t in
 
       IF_RELEVANT printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
-      if (state < DecodeConsumePoint16)
+      if constexpr (DecodeNoBranch)
       {
-        state = state << 16 | *reinterpret_cast<const uint16_t *>(pReadHead[j]);
-        pReadHead[j] += 2;
+        const bool read = state < DecodeConsumePoint16;
+        const uint32_t newState = state << 16 | *reinterpret_cast<const uint16_t *>(pReadHead[j]);
+        state = read ? newState : state;
+        pReadHead[j] += sizeof(uint16_t) * (size_t)read;
+      }
+      else
+      {
+        if (state < DecodeConsumePoint16)
+        {
+          state = state << 16 | *reinterpret_cast<const uint16_t *>(pReadHead[j]);
+          pReadHead[j] += sizeof(uint16_t);
+        }
       }
 
       IF_RELEVANT puts("");

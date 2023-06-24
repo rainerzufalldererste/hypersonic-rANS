@@ -34,7 +34,7 @@ inline size_t rans_min(const T a, const T b) { return a < b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr size_t RunCount = 1;
+constexpr size_t RunCount = 16;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 
@@ -124,6 +124,7 @@ struct codec_info_t
 
 static codec_info_t _Codecs[] =
 {
+  { "rANS32x32 32blk 16w", 15, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_15 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_15 }, {}}},
   { "rANS32x32 32blk 16w", 12, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_12 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_12 }, {}}},
   { "rANS32x32 32blk 8w", 15, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_15 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_15 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_15 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_15 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_15 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_15 }, {}}},
   { "rANS32x32 32blk 8w", 14, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_14 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_14 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_14 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_14 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_14 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_14 }, {}}},
