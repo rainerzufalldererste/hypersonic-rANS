@@ -69,8 +69,8 @@ void print_perf_info(const size_t fileSize)
     stdDevNs = sqrt(stdDevNs / (double)(RunCount - 1));
     stdDevClocks = sqrt(stdDevClocks / (double)(RunCount - 1));
 
-    printf("\nMin: \t%5.3f clk/byte\tAverage: \t%5.3f clk/byte\t(std dev: %5.3f ~ %5.3f)\n", minClocks / (double_t)fileSize, meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
-    printf("Max: \t%5.3f MiB/s\tAverage: \t%5.3f MiB/s\t(std dev: %5.3f ~ %5.3f)\n\n", (fileSize / (1024.0 * 1024.0)) / (minNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / (meanNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs + stdDevNs) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs - stdDevNs) * 1e-9));
+    printf("| %6.3f clk/byte | %6.3f clk/byte (%6.3f ~ %6.3f) ", minClocks / (double_t)fileSize, meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
+    printf("| %8.2f MiB/s | %8.2f MiB/s (%8.2f ~ %8.2f)\n", (fileSize / (1024.0 * 1024.0)) / (minNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / (meanNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs + stdDevNs) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs - stdDevNs) * 1e-9));
   }
   else
   {
@@ -91,278 +91,41 @@ size_t compressedLength = 0;
 
 //////////////////////////////////////////////////////////////////////////
 
-void profile_rans32x1_encode(hist_t *pHist)
+template <typename func_t>
+struct func_info_t
 {
-  static hist_enc_t histEnc;
-  make_enc_hist(&histEnc, pHist);
+  const char *name = nullptr;
+  func_t func = nullptr;
+};
 
-  {
-    if constexpr (RunCount > 1)
-      compressedLength = rANS32x1_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
+constexpr size_t MaxEncoderCount = 32; // if someone needs more than 32, simply increase this.
+constexpr size_t MaxDecoderCount = 32; // if someone needs more than 32, simply increase this.
 
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      compressedLength = rANS32x1_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-
-      _mm_mfence();
-
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-
-      printf("\rrANS32x1_encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-
-    print_perf_info(fileSize);
-  }
-
-  {
-    if constexpr (RunCount > 1)
-      compressedLength = rANS32x1_encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
-
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      compressedLength = rANS32x1_encode(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &histEnc);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-
-      _mm_mfence();
-
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-
-      printf("\rrANS32x1_encode: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-
-    print_perf_info(fileSize);
-  }
-}
-
-void profile_rans32x32_encode(hist_t *pHist)
+struct codec_info_t
 {
-  {
-    if constexpr (RunCount > 1)
-      compressedLength = rANS32x32_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
+  typedef size_t (*encodeFunc)(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist);
+  typedef size_t (*decodeFunc)(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      compressedLength = rANS32x32_encode_basic(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, pHist);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
+  const char *name = "<UNNAMED CODEC>";
+  uint32_t totalSymbolCountBits = 0;
+  func_info_t<encodeFunc> encoders[MaxEncoderCount];
+  func_info_t<decodeFunc> decoders[MaxDecoderCount];
+};
 
-      _mm_mfence();
-
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-
-      printf("\rrANS32x32_encode_basic: \t%" PRIu64 " bytes from %" PRIu64 " bytes. (%5.3f %%, %6.3f clocks/byte, %5.2f MiB/s)", compressedLength, fileSize, compressedLength / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-
-    print_perf_info(fileSize);
-  }
-}
-
-void profile_rans32x1_decode(hist_t *pHist)
+static codec_info_t _Codecs[] =
 {
-  static hist_dec_t histDec;
-  make_dec_hist(&histDec, pHist);
+  { "rANS32x32 multi block", 15, {{ "encode_basic", rANS32x32_encode_basic_15 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_15 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_15 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_15 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_15 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_15 }, {}}},
 
-  static hist_dec2_t histDec2;
-  make_dec2_hist(&histDec2, pHist);
+  { "rANS32x32 multi block", 14, {{ "encode_basic", rANS32x32_encode_basic_14 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_14 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_14 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_14 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_14 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_14 }, {}}},
 
-  size_t decompressedLength = 0;
+  { "rANS32x32 multi block", 13, {{ "encode_basic", rANS32x32_encode_basic_13 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_13 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_13 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_13 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_13 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_13 }, {}}},
 
-  {
-    if constexpr (RunCount > 1)
-      decompressedLength = rANS32x1_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
+  { "rANS32x32 multi block", 12, {{ "encode_basic", rANS32x32_encode_basic_12 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_12 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_12 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_12 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_12 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_12 }, {}}},
 
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      decompressedLength = rANS32x1_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
+  { "rANS32x32 multi block", 11, {{ "encode_basic", rANS32x32_encode_basic_11 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_11 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_11 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_11 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_11 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_11 }, {}}},
 
-      _mm_mfence();
-
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-
-      printf("\rrANS32x1_decode_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-
-    print_perf_info(fileSize);
-  }
-
-  {
-    if constexpr (RunCount > 1)
-      decompressedLength = rANS32x1_decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
-
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      decompressedLength = rANS32x1_decode(pCompressedData, compressedLength, pDecompressedData, fileSize, &histDec2);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-
-      _mm_mfence();
-
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-
-      printf("\rrANS32x1_decode: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-
-    print_perf_info(fileSize);
-  }
-
-  if (decompressedLength != fileSize)
-  {
-    puts("Decompressed Length differs from initial file size.");
-    exit(1);
-  }
-}
-
-void profile_rans32x32_decode(hist_t *pHist)
-{
-  static hist_dec_t histDec;
-  make_dec_hist(&histDec, pHist);
-
-  static hist_dec2_t histDec2;
-  make_dec2_hist(&histDec2, pHist);
-
-  size_t decompressedLength = 0;
-
-  {
-    if constexpr (RunCount > 1)
-      decompressedLength = rANS32x32_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
-
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      decompressedLength = rANS32x32_decode_basic(pCompressedData, compressedLength, pDecompressedData, fileSize);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-
-      _mm_mfence();
-
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-
-      printf("\rrANS32x32_decode_basic: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-
-    print_perf_info(fileSize);
-  }
-
-  {
-    if constexpr (RunCount > 1)
-      decompressedLength = rANS32x32_decode_avx2_varA(pCompressedData, compressedLength, pDecompressedData, fileSize);
-  
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      decompressedLength = rANS32x32_decode_avx2_varA(pCompressedData, compressedLength, pDecompressedData, fileSize);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-  
-      _mm_mfence();
-  
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-  
-      printf("\rrANS32x32_decode_avx2_varA: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-  
-    print_perf_info(fileSize);
-  }
-  
-  {
-    if constexpr (RunCount > 1)
-      decompressedLength = rANS32x32_decode_avx2_varA2(pCompressedData, compressedLength, pDecompressedData, fileSize);
-  
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      decompressedLength = rANS32x32_decode_avx2_varA2(pCompressedData, compressedLength, pDecompressedData, fileSize);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-  
-      _mm_mfence();
-  
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-  
-      printf("\rrANS32x32_decode_avx2_varA2: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-  
-    print_perf_info(fileSize);
-  }
-  
-  {
-    if constexpr (RunCount > 1)
-      decompressedLength = rANS32x32_decode_avx2_varB(pCompressedData, compressedLength, pDecompressedData, fileSize);
-  
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      decompressedLength = rANS32x32_decode_avx2_varB(pCompressedData, compressedLength, pDecompressedData, fileSize);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-  
-      _mm_mfence();
-  
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-  
-      printf("\rrANS32x32_decode_avx2_varB: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-  
-    print_perf_info(fileSize);
-  }
-  
-  {
-    if constexpr (RunCount > 1)
-      decompressedLength = rANS32x32_decode_avx2_varB2(pCompressedData, compressedLength, pDecompressedData, fileSize);
-  
-    for (size_t run = 0; run < RunCount; run++)
-    {
-      const uint64_t startTick = GetCurrentTimeTicks();
-      const uint64_t startClock = __rdtsc();
-      decompressedLength = rANS32x32_decode_avx2_varB2(pCompressedData, compressedLength, pDecompressedData, fileSize);
-      const uint64_t endClock = __rdtsc();
-      const uint64_t endTick = GetCurrentTimeTicks();
-  
-      _mm_mfence();
-  
-      _NsPerRun[run] = TicksToNs(endTick - startTick);
-      _ClocksPerRun[run] = endClock - startClock;
-  
-      printf("\rrANS32x32_decode_avx2_varB2: \tdecompressed to %" PRIu64 " bytes (should be %" PRIu64 "). (%6.3f clocks/byte, %5.2f MiB/s)", decompressedLength, fileSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
-    }
-  
-    print_perf_info(fileSize);
-  }
-
-  if (decompressedLength != fileSize)
-  {
-    puts("Decompressed Length differs from initial file size.");
-    exit(1);
-  }
-}
+  { "rANS32x32 multi block", 10, {{ "encode_basic", rANS32x32_encode_basic_10 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_10 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_10 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_10 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_10 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_10 }, {}}},
+};
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -419,88 +182,81 @@ int32_t main(const int32_t argc, char **pArgv)
     fclose(pFile);
   }
 
-  static hist_t hist;
-  make_hist(&hist, pUncompressedData, fileSize);
+  puts("Codec Type               Encoder/Decoder Impl           Ratio      Minimum           Average         ( StdDev.       )   Maximum          Average        ( StdDev.           )");
+  puts("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
-  size_t symCount = 0;
-
-  for (size_t i = 0; i < 256; i++)
-    symCount += (size_t)!!hist.symbolCount[i];
-
-  if (symCount < 12)
+  for (size_t codecId = 0; codecId < sizeof(_Codecs) / sizeof(_Codecs[0]); codecId++)
   {
-    puts("Hist:");
+    static hist_t hist;
+    make_hist(&hist, pUncompressedData, fileSize, _Codecs[codecId].totalSymbolCountBits);
 
-    for (size_t i = 0; i < 256; i++)
-      if (hist.symbolCount[i])
-        printf("0x%02" PRIX8 "(%c): %5" PRIu16 " (%5" PRIu16 ")\n", (uint8_t)i, (char)i, hist.symbolCount[i], hist.cumul[i]);
+    size_t encodedSize = 0;
 
-    puts("");
-  }
-
-  static hist_dec_t histDec;
-  make_dec_hist(&histDec, &hist);
-
-  if (symCount < 12)
-  {
-    puts("DecHist:");
-
-    for (size_t i = 0; i < TotalSymbolCount;)
+    for (size_t i = 0; i < MaxEncoderCount; i++)
     {
-      const uint8_t sym = histDec.cumulInv[i];
+      if (_Codecs[codecId].encoders[i].name == nullptr)
+        break;
 
-      size_t j = i + 1;
+      printf("\r(dry run)");
+      encodedSize = _Codecs[codecId].encoders[i].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
 
-      for (; j < TotalSymbolCount; j++)
-        if (histDec.cumulInv[j] != sym)
-          break;
-
-      printf("%02" PRIX8 "(%c): %5" PRIu64 " ~ %5" PRIu64 "\n", sym, (char)sym, i, j - 1);
-
-      i = j;
-    }
-
-    puts("");
-  }
-
-  for (size_t codec = 1; codec < 2; codec++)
-  {
-    switch (codec)
-    {
-    default:
-    case 0: profile_rans32x1_encode(&hist); break;
-    case 1: profile_rans32x32_encode(&hist); break;
-    }
-
-    if (compressedLength < 32 * 8)
-    {
-      printf("Compressed: (state: %" PRIu32 ")\n\n", *reinterpret_cast<const uint32_t *>(pCompressedData));
-
-      for (size_t i = 0; i < compressedLength; i += 32)
+      for (size_t run = 0; run < RunCount; run++)
       {
-        const size_t max = i + 32 > compressedLength ? compressedLength : i + 32;
-        size_t j;
+        const uint64_t startTick = GetCurrentTimeTicks();
+        const uint64_t startClock = __rdtsc();
+        encodedSize = _Codecs[codecId].encoders[i].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
+        const uint64_t endClock = __rdtsc();
+        const uint64_t endTick = GetCurrentTimeTicks();
 
-        for (j = i; j < max; j++)
-          printf("%02" PRIX8 " ", pCompressedData[j]);
+        _mm_mfence();
 
-        puts("");
+        _NsPerRun[run] = TicksToNs(endTick - startTick);
+        _ClocksPerRun[run] = endClock - startClock;
+
+        printf("\rcompressed to %" PRIu64 " bytes (%5.3f %%). (%6.3f clocks/byte, %5.2f MiB/s)", encodedSize, encodedSize / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
       }
 
-      puts("");
+      printf("\r%-21s %2" PRIu32 " %-28s | %6.2f %% ", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0);
+      print_perf_info(fileSize);
+
+      const size_t decodedSize = _Codecs[codecId].decoders[0].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
+
+      if (decodedSize != fileSize || !Validate(pDecompressedData, pUncompressedData, fileSize))
+        puts("Failed to validate.");
     }
 
-    switch (codec)
+    size_t decodedSize = 0;
+
+    for (size_t i = 0; i < MaxDecoderCount; i++)
     {
-    default:
-    case 0: profile_rans32x1_decode(&hist); break;
-    case 1: profile_rans32x32_decode(&hist); break;
-    }
+      if (_Codecs[codecId].decoders[i].name == nullptr)
+        break;
 
-    if (!Validate(pDecompressedData, pUncompressedData, fileSize))
-      return 1;
-    else
-      puts("Success!");
+      printf("\r(dry run)");
+      decodedSize = _Codecs[codecId].decoders[i].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
+
+      for (size_t run = 0; run < RunCount; run++)
+      {
+        const uint64_t startTick = GetCurrentTimeTicks();
+        const uint64_t startClock = __rdtsc();
+        decodedSize = _Codecs[codecId].decoders[i].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
+        const uint64_t endClock = __rdtsc();
+        const uint64_t endTick = GetCurrentTimeTicks();
+
+        _mm_mfence();
+
+        _NsPerRun[run] = TicksToNs(endTick - startTick);
+        _ClocksPerRun[run] = endClock - startClock;
+
+        printf("\rdecompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)", decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+      }
+
+      printf("\r%-21s %2" PRIu32 " %-28s |          ", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].decoders[i].name);
+      print_perf_info(fileSize);
+
+      if (decodedSize != fileSize || !Validate(pDecompressedData, pUncompressedData, fileSize))
+        puts("\nFailed to validate.");
+    }
   }
 
   free(pUncompressedData);
@@ -551,7 +307,7 @@ bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t s
       {
         printf("First invalid char at %" PRIu64 " [0x%" PRIX64 "] (0x%" PRIX8 " != 0x%" PRIX8 ").\n", i, i, pReceived[i], pExpected[i]);
 
-        const int64_t start = rans_max(0, (int64_t)i - 64) & ~(int64_t)31;
+        const int64_t start = rans_max(0, (int64_t)(i - 64) & ~(int64_t)31);
         int64_t end = rans_min((int64_t)size, (int64_t)(i + 96));
 
         if (end != (int64_t)size)
