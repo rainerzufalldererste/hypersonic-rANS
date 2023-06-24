@@ -7,6 +7,7 @@
 #include "simd_platform.h"
 #include "rans32x1.h"
 #include "rans32x32_32blk_8w.h"
+#include "rans32x32_32blk_16w.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -33,7 +34,7 @@ inline size_t rans_min(const T a, const T b) { return a < b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr size_t RunCount = 16;
+constexpr size_t RunCount = 1;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 
@@ -82,7 +83,8 @@ void print_perf_info(const size_t fileSize)
   }
   else
   {
-    puts("");
+    printf("| %6.3f clk/byte | %6.3f clk/byte (%6.3f ~ %6.3f) ", _ClocksPerRun[0] / (double_t)fileSize, _ClocksPerRun[0] / (double)fileSize, (_ClocksPerRun[0]) / (double)fileSize, (_ClocksPerRun[0]) / (double)fileSize);
+    printf("| %8.2f MiB/s | %8.2f MiB/s (%8.2f ~ %8.2f)\n", (fileSize / (1024.0 * 1024.0)) / (_NsPerRun[0] * 1e-9), (fileSize / (1024.0 * 1024.0)) / (_NsPerRun[0] * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((_NsPerRun[0]) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((_NsPerRun[0]) * 1e-9));
   }
 }
 
@@ -122,6 +124,7 @@ struct codec_info_t
 
 static codec_info_t _Codecs[] =
 {
+  { "rANS32x32 32blk 16w", 12, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_12 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_12 }, {}}},
   { "rANS32x32 32blk 8w", 15, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_15 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_15 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_15 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_15 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_15 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_15 }, {}}},
   { "rANS32x32 32blk 8w", 14, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_14 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_14 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_14 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_14 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_14 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_14 }, {}}},
   { "rANS32x32 32blk 8w", 13, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_13 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_13 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_13 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_13 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_13 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_13 }, {}}},
@@ -184,7 +187,7 @@ int32_t main(const int32_t argc, char **pArgv)
     pUncompressedData = (uint8_t *)malloc(fileSize);
     pDecompressedData = (uint8_t *)malloc(fileSize);
 
-    compressedDataCapacity = rans_max(rANS32x1_capacity(fileSize), rANS32x32_32blk_8w_capacity(fileSize));
+    compressedDataCapacity = rans_max(rANS32x32_32blk_16w_capacity(fileSize), rANS32x32_32blk_8w_capacity(fileSize));
     pCompressedData = (uint8_t *)malloc(compressedDataCapacity);
 
     if (pUncompressedData == nullptr || pDecompressedData == nullptr || pCompressedData == nullptr)
@@ -219,8 +222,11 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_Codecs[codecId].encoders[i].name == nullptr)
         break;
 
-      printf("\r(dry run)");
-      encodedSize = _Codecs[codecId].encoders[i].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
+      if constexpr (RunCount > 1)
+      {
+        printf("\r(dry run)");
+        encodedSize = _Codecs[codecId].encoders[i].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
+      }
 
       SleepNs(1500 * 1000 * 1000);
 
@@ -237,7 +243,7 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r%-21s %2" PRIu32 " %-28s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].decoders[i].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r%-21s %2" PRIu32 " %-28s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
 
         SleepNs(250 * 1000 * 1000);
       }
@@ -258,8 +264,11 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_Codecs[codecId].decoders[i].name == nullptr)
         break;
 
-      printf("\r(dry run)");
-      decodedSize = _Codecs[codecId].decoders[i].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
+      if constexpr (RunCount > 1)
+      {
+        printf("\r(dry run)");
+        decodedSize = _Codecs[codecId].decoders[i].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
+      }
 
       SleepNs(1500 * 1000 * 1000);
 
@@ -375,7 +384,7 @@ bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t s
             fputs("   ", stdout);
 
           for (int64_t j = context; j < context_end; j++)
-            printf("%02" PRIX8 " ", pReceived[j]);
+            printf("%02" PRIX8 " ", pExpected[j]);
 
           for (int64_t j = context_end; j < context + 16; j++)
             fputs("   ", stdout);
@@ -383,7 +392,7 @@ bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t s
           fputs(" |  ", stdout);
 
           for (int64_t j = context; j < context_end; j++)
-            printf("%02" PRIX8 " ", pExpected[j]);
+            printf("%02" PRIX8 " ", pReceived[j]);
 
           puts("");
 

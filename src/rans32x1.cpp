@@ -38,7 +38,7 @@ size_t rANS32x1_capacity(const size_t inputSize)
 //  if (outCapacity < rANS32x1_capacity(length))
 //    return 0;
 //
-//  uint32_t state = DecodeConsumePoint; // technically `n * TotalSymbolCount`.
+//  uint32_t state = DecodeConsumePoint8; // technically `n * TotalSymbolCount`.
 //  uint8_t *pWrite = pOutData + outCapacity - 1;
 //
 //  for (int64_t i = length - 1; i >= 0; i--)
@@ -97,7 +97,7 @@ size_t rANS32x1_capacity(const size_t inputSize)
 //
 //    pOutData[i] = symbol;
 //
-//    while (state < DecodeConsumePoint)
+//    while (state < DecodeConsumePoint8)
 //      state = state << 8 | pInData[inIndex++];
 //  }
 //
@@ -111,7 +111,7 @@ size_t rANS32x1_capacity(const size_t inputSize)
 //  if (outCapacity < rANS32x1_capacity(length))
 //    return 0;
 //
-//  uint32_t state = DecodeConsumePoint; // technically `n * TotalSymbolCount`.
+//  uint32_t state = DecodeConsumePoint8; // technically `n * TotalSymbolCount`.
 //  uint8_t *pWrite = pOutData + outCapacity - 1;
 //
 //  for (int64_t i = length - 1; i >= 0; i--)
@@ -150,7 +150,7 @@ size_t rANS32x1_capacity(const size_t inputSize)
 //  {
 //    pOutData[i] = decode_symbol_scalar(&state, pHist);
 //
-//    while (state < DecodeConsumePoint)
+//    while (state < DecodeConsumePoint8)
 //      state = state << 8 | pInData[inIndex++];
 //  }
 //
