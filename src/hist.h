@@ -65,6 +65,9 @@ void make_dec2_hist(hist_dec2_t<TotalSymbolCountBits> *pHistDec, const hist_t *p
 template <uint32_t TotalSymbolCountBits>
 void make_dec3_hist(hist_dec3_t<TotalSymbolCountBits> *pHistDec, const hist_t *pHist);
 
+template <uint32_t TotalSymbolCountBits>
+void make_dec_pack_hist(hist_dec_pack_t<TotalSymbolCountBits> *pHistDec, const hist_t *pHist);
+
 bool inplace_complete_hist(hist_t *pHist, const size_t totalSymbolCountBits);
 
 template <uint32_t TotalSymbolCountBits>

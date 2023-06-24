@@ -12,16 +12,24 @@
 #include <windows.h>
 #else
 #include <time.h>
+#include <unistd.h>
+
+#include <sched.h>
+#include <pthread.h>
 #endif
 
 //////////////////////////////////////////////////////////////////////////
 
 uint64_t GetCurrentTimeTicks();
 uint64_t TicksToNs(const uint64_t ticks);
+void SleepNs(const uint64_t sleepNs);
 bool Validate(const uint8_t *pUncompressedData, const uint8_t *pDecompressedData, const size_t size);
 
-inline size_t rans_max(const size_t a, const size_t b) { return a > b ? a : b; }
-inline size_t rans_min(const size_t a, const size_t b) { return a < b ? a : b; }
+template <typename T>
+inline size_t rans_max(const T a, const T b) { return a > b ? a : b; }
+
+template <typename T>
+inline size_t rans_min(const T a, const T b) { return a < b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -114,17 +122,12 @@ struct codec_info_t
 
 static codec_info_t _Codecs[] =
 {
-  { "rANS32x32 multi block", 15, {{ "encode_basic", rANS32x32_encode_basic_15 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_15 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_15 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_15 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_15 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_15 }, {}}},
-
-  { "rANS32x32 multi block", 14, {{ "encode_basic", rANS32x32_encode_basic_14 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_14 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_14 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_14 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_14 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_14 }, {}}},
-
-  { "rANS32x32 multi block", 13, {{ "encode_basic", rANS32x32_encode_basic_13 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_13 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_13 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_13 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_13 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_13 }, {}}},
-
-  { "rANS32x32 multi block", 12, {{ "encode_basic", rANS32x32_encode_basic_12 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_12 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_12 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_12 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_12 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_12 }, {}}},
-
-  { "rANS32x32 multi block", 11, {{ "encode_basic", rANS32x32_encode_basic_11 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_11 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_11 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_11 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_11 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_11 }, {}}},
-
-  { "rANS32x32 multi block", 10, {{ "encode_basic", rANS32x32_encode_basic_10 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_10 }, { "decode_avx2 (variant A)", rANS32x32_decode_avx2_varA_10 }, { "decode_avx2 (variant A 2x)", rANS32x32_decode_avx2_varA2_10 }, { "decode_avx2 (variant B)", rANS32x32_decode_avx2_varB_10 }, { "decode_avx2 (variant B 2x)", rANS32x32_decode_avx2_varB2_10 }, {}}},
+  { "rANS32x32 multi block", 15, {{ "encode_basic", rANS32x32_encode_basic_15 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_15 }, { "decode_avx2 (sym dpndt)", rANS32x32_decode_avx2_varA_15 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_decode_avx2_varA2_15 }, { "decode_avx2 (sym indpt)", rANS32x32_decode_avx2_varB_15 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_decode_avx2_varB2_15 }, {}}},
+  { "rANS32x32 multi block", 14, {{ "encode_basic", rANS32x32_encode_basic_14 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_14 }, { "decode_avx2 (sym dpndt)", rANS32x32_decode_avx2_varA_14 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_decode_avx2_varA2_14 }, { "decode_avx2 (sym indpt)", rANS32x32_decode_avx2_varB_14 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_decode_avx2_varB2_14 }, {}}},
+  { "rANS32x32 multi block", 13, {{ "encode_basic", rANS32x32_encode_basic_13 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_13 }, { "decode_avx2 (sym dpndt)", rANS32x32_decode_avx2_varA_13 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_decode_avx2_varA2_13 }, { "decode_avx2 (sym indpt)", rANS32x32_decode_avx2_varB_13 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_decode_avx2_varB2_13 }, {}}},
+  { "rANS32x32 multi block", 12, {{ "encode_basic", rANS32x32_encode_basic_12 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_12 }, { "decode_avx2 (sym dpndt)", rANS32x32_decode_avx2_varA_12 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_decode_avx2_varA2_12 }, { "decode_avx2 (sym indpt)", rANS32x32_decode_avx2_varB_12 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_decode_avx2_varB2_12 }, { "decode_avx2 (sngl gathr)", rANS32x32_decode_avx2_varC_12 }, { "decode_avx2 (sngl gathr 2x)", rANS32x32_decode_avx2_varC2_12 }, {}}},
+  { "rANS32x32 multi block", 11, {{ "encode_basic", rANS32x32_encode_basic_11 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_11 }, { "decode_avx2 (sym dpndt)", rANS32x32_decode_avx2_varA_11 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_decode_avx2_varA2_11 }, { "decode_avx2 (sym indpt)", rANS32x32_decode_avx2_varB_11 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_decode_avx2_varB2_11 }, { "decode_avx2 (sngl gathr)", rANS32x32_decode_avx2_varC_11 }, { "decode_avx2 (sngl gathr 2x)", rANS32x32_decode_avx2_varC2_11 }, {}}},
+  { "rANS32x32 multi block", 10, {{ "encode_basic", rANS32x32_encode_basic_10 }, {}}, {{ "decode_basic", rANS32x32_decode_basic_10 }, { "decode_avx2 (sym dpndt)", rANS32x32_decode_avx2_varA_10 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_decode_avx2_varA2_10 }, { "decode_avx2 (sym indpt)", rANS32x32_decode_avx2_varB_10 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_decode_avx2_varB2_10 }, { "decode_avx2 (sngl gathr)", rANS32x32_decode_avx2_varC_10 }, { "decode_avx2 (sngl gathr 2x)", rANS32x32_decode_avx2_varC2_10 }, {}}},
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -135,6 +138,25 @@ int32_t main(const int32_t argc, char **pArgv)
   {
     puts("Invalid Parameter.");
     return 1;
+  }
+
+  if (argc == 3)
+  {
+    // For more consistent benchmarking results.
+    const size_t cpuCoreIndex = strtoull(pArgv[2], nullptr, 10);
+
+#ifdef _WIN32
+    HANDLE thread = GetCurrentThread();
+    SetThreadPriority(thread, THREAD_PRIORITY_HIGHEST);
+    SetThreadAffinityMask(thread, (uint64_t)1 << cpuCoreIndex);
+#else
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET((int32_t)cpuCoreIndex, &cpuset);
+
+    pthread_t current_thread = pthread_self();
+    pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+#endif
   }
 
   // Read File.
@@ -200,6 +222,8 @@ int32_t main(const int32_t argc, char **pArgv)
       printf("\r(dry run)");
       encodedSize = _Codecs[codecId].encoders[i].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
 
+      SleepNs(1500 * 1000 * 1000);
+
       for (size_t run = 0; run < RunCount; run++)
       {
         const uint64_t startTick = GetCurrentTimeTicks();
@@ -213,7 +237,9 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\rcompressed to %" PRIu64 " bytes (%5.3f %%). (%6.3f clocks/byte, %5.2f MiB/s)", encodedSize, encodedSize / (double)fileSize * 100.0, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r%-21s %2" PRIu32 " %-28s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].decoders[i].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+
+        SleepNs(250 * 1000 * 1000);
       }
 
       printf("\r%-21s %2" PRIu32 " %-28s | %6.2f %% ", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0);
@@ -235,6 +261,8 @@ int32_t main(const int32_t argc, char **pArgv)
       printf("\r(dry run)");
       decodedSize = _Codecs[codecId].decoders[i].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
 
+      SleepNs(1500 * 1000 * 1000);
+
       for (size_t run = 0; run < RunCount; run++)
       {
         const uint64_t startTick = GetCurrentTimeTicks();
@@ -248,7 +276,9 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\rdecompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)", decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r%-21s %2" PRIu32 " %-28s |          | decompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].decoders[i].name, decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+
+        SleepNs(250 * 1000 * 1000);
       }
 
       printf("\r%-21s %2" PRIu32 " %-28s |          ", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].decoders[i].name);
@@ -295,6 +325,15 @@ uint64_t TicksToNs(const uint64_t ticks)
 #endif
 }
 
+void SleepNs(const uint64_t sleepNs)
+{
+#ifdef _WIN32
+  Sleep((DWORD)((sleepNs + 500 * 1000) / (1000 * 1000)));
+#else
+  usleep((uint32_t)((sleepNs + 500) / (1000)));
+#endif
+}
+
 bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t size)
 {
   if (memcmp(pReceived, pExpected, (size_t)size) != 0)
@@ -307,7 +346,7 @@ bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t s
       {
         printf("First invalid char at %" PRIu64 " [0x%" PRIX64 "] (0x%" PRIX8 " != 0x%" PRIX8 ").\n", i, i, pReceived[i], pExpected[i]);
 
-        const int64_t start = rans_max(0, (int64_t)(i - 64) & ~(int64_t)31);
+        const int64_t start = rans_max((int64_t)0, (int64_t)(i - 64) & ~(int64_t)31);
         int64_t end = rans_min((int64_t)size, (int64_t)(i + 96));
 
         if (end != (int64_t)size)
