@@ -12,14 +12,14 @@ size_t rANS32x1_capacity(const size_t inputSize)
 
 //////////////////////////////////////////////////////////////////////////
 //
-//inline uint32_t encode_symbol_basic(const uint8_t symbol, const hist_t *pHist, const uint32_t state)
+//inline uint32_t encode_symbol_scalar(const uint8_t symbol, const hist_t *pHist, const uint32_t state)
 //{
 //  const uint32_t symbolCount = pHist->symbolCount[symbol];
 //
 //  return ((state / symbolCount) << TotalSymbolCountBits) + pHist->cumul[symbol] + (state % symbolCount);
 //}
 //
-//inline uint8_t decode_symbol_basic(uint32_t *pState, const hist_dec_t *pHist)
+//inline uint8_t decode_symbol_scalar(uint32_t *pState, const hist_dec_t *pHist)
 //{
 //  const uint32_t state = *pState;
 //  const uint32_t slot = state & (TotalSymbolCount - 1);
@@ -106,7 +106,7 @@ size_t rANS32x1_capacity(const size_t inputSize)
 //
 ////////////////////////////////////////////////////////////////////////////
 //
-//size_t rANS32x1_encode_basic(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
+//size_t rANS32x1_encode_scalar(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
 //{
 //  if (outCapacity < rANS32x1_capacity(length))
 //    return 0;
@@ -138,7 +138,7 @@ size_t rANS32x1_capacity(const size_t inputSize)
 //  return writtenSize + sizeof(uint32_t);
 //}
 //
-//size_t rANS32x1_decode_basic(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec_t *pHist)
+//size_t rANS32x1_decode_scalar(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outLength, const hist_dec_t *pHist)
 //{
 //  if (inLength == 0)
 //    return 0;
@@ -148,7 +148,7 @@ size_t rANS32x1_capacity(const size_t inputSize)
 //
 //  for (size_t i = 0; i < outLength; i++)
 //  {
-//    pOutData[i] = decode_symbol_basic(&state, pHist);
+//    pOutData[i] = decode_symbol_scalar(&state, pHist);
 //
 //    while (state < DecodeConsumePoint)
 //      state = state << 8 | pInData[inIndex++];
