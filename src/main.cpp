@@ -34,7 +34,7 @@ inline size_t rans_min(const T a, const T b) { return a < b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr size_t RunCount = 16;
+constexpr size_t RunCount = 1;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 
@@ -78,12 +78,12 @@ void print_perf_info(const size_t fileSize)
     stdDevNs = sqrt(stdDevNs / (double)(RunCount - 1));
     stdDevClocks = sqrt(stdDevClocks / (double)(RunCount - 1));
 
-    printf("| %6.3f clk/byte | %6.3f clk/byte (%6.3f ~ %6.3f) ", minClocks / (double_t)fileSize, meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
+    printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", minClocks / (double_t)fileSize, meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
     printf("| %8.2f MiB/s | %8.2f MiB/s (%8.2f ~ %8.2f)\n", (fileSize / (1024.0 * 1024.0)) / (minNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / (meanNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs + stdDevNs) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs - stdDevNs) * 1e-9));
   }
   else
   {
-    printf("| %6.3f clk/byte | %6.3f clk/byte (%6.3f ~ %6.3f) ", _ClocksPerRun[0] / (double_t)fileSize, _ClocksPerRun[0] / (double)fileSize, (_ClocksPerRun[0]) / (double)fileSize, (_ClocksPerRun[0]) / (double)fileSize);
+    printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", _ClocksPerRun[0] / (double_t)fileSize, _ClocksPerRun[0] / (double)fileSize, (_ClocksPerRun[0]) / (double)fileSize, (_ClocksPerRun[0]) / (double)fileSize);
     printf("| %8.2f MiB/s | %8.2f MiB/s (%8.2f ~ %8.2f)\n", (fileSize / (1024.0 * 1024.0)) / (_NsPerRun[0] * 1e-9), (fileSize / (1024.0 * 1024.0)) / (_NsPerRun[0] * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((_NsPerRun[0]) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((_NsPerRun[0]) * 1e-9));
   }
 }
@@ -124,18 +124,18 @@ struct codec_info_t
 
 static codec_info_t _Codecs[] =
 {
-  { "rANS32x32 32blk 16w", 15, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_15 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_15 }, {}}},
-  { "rANS32x32 32blk 16w", 14, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_14 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_14 }, {}}},
-  { "rANS32x32 32blk 16w", 13, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_13 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_13 }, {}}},
-  { "rANS32x32 32blk 16w", 12, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_12 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_12 }, {}}},
-  { "rANS32x32 32blk 16w", 11, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_11 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_11 }, {}}},
-  { "rANS32x32 32blk 16w", 10, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_10 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_10 }, {}}},
+  { "rANS32x32 32blk 16w", 15, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_15 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_15 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_16w_decode_avx2_varA_15 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_16w_decode_avx2_varA2_15 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_16w_decode_avx2_varB_15 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_16w_decode_avx2_varB2_15 }, {}}},
+  { "rANS32x32 32blk 16w", 14, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_14 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_14 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_16w_decode_avx2_varA_14 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_16w_decode_avx2_varA2_14 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_16w_decode_avx2_varB_14 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_16w_decode_avx2_varB2_14 }, {}}},
+  { "rANS32x32 32blk 16w", 13, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_13 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_13 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_16w_decode_avx2_varA_13 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_16w_decode_avx2_varA2_13 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_16w_decode_avx2_varB_13 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_16w_decode_avx2_varB2_13 }, {}}},
+  { "rANS32x32 32blk 16w", 12, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_12 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_12 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_16w_decode_avx2_varA_12 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_16w_decode_avx2_varA2_12 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_16w_decode_avx2_varB_12 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_16w_decode_avx2_varB2_12 }, { "decode_avx2 (sngl gthr)", rANS32x32_32blk_16w_decode_avx2_varC_12 }, { "decode_avx2 (sngl gthr 2x)", rANS32x32_32blk_16w_decode_avx2_varC2_12 }, {}}},
+  { "rANS32x32 32blk 16w", 11, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_11 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_11 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_16w_decode_avx2_varA_11 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_16w_decode_avx2_varA2_11 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_16w_decode_avx2_varB_11 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_16w_decode_avx2_varB2_11 }, { "decode_avx2 (sngl gthr)", rANS32x32_32blk_16w_decode_avx2_varC_11 }, { "decode_avx2 (sngl gthr 2x)", rANS32x32_32blk_16w_decode_avx2_varC2_11 }, {}}},
+  { "rANS32x32 32blk 16w", 10, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_10 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_10 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_16w_decode_avx2_varA_10 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_16w_decode_avx2_varA2_10 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_16w_decode_avx2_varB_10 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_16w_decode_avx2_varB2_10 }, { "decode_avx2 (sngl gthr)", rANS32x32_32blk_16w_decode_avx2_varC_10 }, { "decode_avx2 (sngl gthr 2x)", rANS32x32_32blk_16w_decode_avx2_varC2_10 }, {}}},
   { "rANS32x32 32blk 8w", 15, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_15 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_15 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_15 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_15 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_15 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_15 }, {}}},
   { "rANS32x32 32blk 8w", 14, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_14 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_14 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_14 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_14 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_14 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_14 }, {}}},
   { "rANS32x32 32blk 8w", 13, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_13 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_13 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_13 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_13 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_13 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_13 }, {}}},
-  { "rANS32x32 32blk 8w", 12, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_12 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_12 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_12 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_12 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_12 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_12 }, { "decode_avx2 (sngl gathr)", rANS32x32_32blk_8w_decode_avx2_varC_12 }, { "decode_avx2 (sngl gathr 2x)", rANS32x32_32blk_8w_decode_avx2_varC2_12 }, {}}},
-  { "rANS32x32 32blk 8w", 11, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_11 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_11 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_11 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_11 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_11 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_11 }, { "decode_avx2 (sngl gathr)", rANS32x32_32blk_8w_decode_avx2_varC_11 }, { "decode_avx2 (sngl gathr 2x)", rANS32x32_32blk_8w_decode_avx2_varC2_11 }, {}}},
-  { "rANS32x32 32blk 8w", 10, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_10 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_10 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_10 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_10 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_10 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_10 }, { "decode_avx2 (sngl gathr)", rANS32x32_32blk_8w_decode_avx2_varC_10 }, { "decode_avx2 (sngl gathr 2x)", rANS32x32_32blk_8w_decode_avx2_varC2_10 }, {}}},
+  { "rANS32x32 32blk 8w", 12, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_12 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_12 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_12 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_12 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_12 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_12 }, { "decode_avx2 (sngl gthr)", rANS32x32_32blk_8w_decode_avx2_varC_12 }, { "decode_avx2 (sngl gthr 2x)", rANS32x32_32blk_8w_decode_avx2_varC2_12 }, {}}},
+  { "rANS32x32 32blk 8w", 11, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_11 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_11 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_11 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_11 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_11 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_11 }, { "decode_avx2 (sngl gthr)", rANS32x32_32blk_8w_decode_avx2_varC_11 }, { "decode_avx2 (sngl gthr 2x)", rANS32x32_32blk_8w_decode_avx2_varC2_11 }, {}}},
+  { "rANS32x32 32blk 8w", 10, {{ "encode_scalar", rANS32x32_32blk_8w_encode_scalar_10 }, {}}, {{ "decode_scalar", rANS32x32_32blk_8w_decode_scalar_10 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_8w_decode_avx2_varA_10 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_8w_decode_avx2_varA2_10 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_8w_decode_avx2_varB_10 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_8w_decode_avx2_varB2_10 }, { "decode_avx2 (sngl gthr)", rANS32x32_32blk_8w_decode_avx2_varC_10 }, { "decode_avx2 (sngl gthr 2x)", rANS32x32_32blk_8w_decode_avx2_varC2_10 }, {}}},
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -212,8 +212,8 @@ int32_t main(const int32_t argc, char **pArgv)
     fclose(pFile);
   }
 
-  puts("Codec Type               Encoder/Decoder Impl           Ratio      Minimum           Average         ( StdDev.       )   Maximum          Average        ( StdDev.           )");
-  puts("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+  puts("Codec Type               Encoder/Decoder Impl           Ratio      Minimum            Average          ( StdDev.         )   Maximum          Average        ( StdDev.           )");
+  puts("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
   for (size_t codecId = 0; codecId < sizeof(_Codecs) / sizeof(_Codecs[0]); codecId++)
   {
