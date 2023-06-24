@@ -53,4 +53,4 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB2_10(const uint8_t *pInData, const si
 size_t rANS32x32_32blk_16w_decode_avx2_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_32blk_16w_decode_avx2_varC2_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 
-#endif rans32x32_32blk_16w_h__
+#endif // rans32x32_32blk_16w_h__
