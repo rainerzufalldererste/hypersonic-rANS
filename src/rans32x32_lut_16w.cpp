@@ -272,7 +272,7 @@ size_t rANS32x32_lut_16w_decode_scalar(const uint8_t *pInData, const size_t inLe
 
 #define ___ 0xEE
 
-// Similar to the table used by Fabian Giesen, but byte wise and for 8 lanes.
+// Somewhat similar to the table used by Fabian Giesen, but byte wise, for 8 lanes, in steps of two and using 0xEE instead of -1 to allow for some more trickery.
 #ifdef _MSC_VER
 __declspec(align(32))
 #else

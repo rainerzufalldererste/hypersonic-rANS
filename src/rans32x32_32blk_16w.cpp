@@ -376,6 +376,7 @@ size_t rANS32x32_32blk_16w_decode_avx2_varA(const uint8_t *pInData, const size_t
   const simd_t lower16 = _mm256_set1_epi32(0xFFFF);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint16);
+  const simd_t _16 = _mm256_set1_epi32(16);
 
   for (; i < outLengthInStates; i += StateCount)
   {
@@ -454,10 +455,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varA(const uint8_t *pInData, const size_t
     const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
     // matching: state << 16
-    const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+    const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+    const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+    const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+    const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
     // Increment matching read head indexes | well, actually subtract -1.
     readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -466,28 +467,16 @@ size_t rANS32x32_32blk_16w_decode_avx2_varA(const uint8_t *pInData, const size_t
     readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
     // grab current uint16_t from the read heads.
-    const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-    const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-    const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-    const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-    // matching: (state << 16) | newWord
-    const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-    const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-    const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-    const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-    // select non matching.
-    const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-    const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-    const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-    const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+    const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+    const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+    const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+    const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
     // combine.
-    statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-    statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-    statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-    statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+    statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+    statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+    statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+    statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
   }
 
   for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)
@@ -618,6 +607,7 @@ size_t rANS32x32_32blk_16w_decode_avx2_varA2(const uint8_t *pInData, const size_
   const simd_t lower16 = _mm256_set1_epi32(0xFFFF);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint16);
+  const simd_t _16 = _mm256_set1_epi32(16);
 
   for (; i < outLengthInDoubleStates; i += StateCount * 2)
   {
@@ -699,10 +689,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varA2(const uint8_t *pInData, const size_
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       // matching: state << 16
-      const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+      const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+      const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+      const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+      const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
       // Increment matching read head indexes | well, actually subtract -1.
       readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -711,34 +701,22 @@ size_t rANS32x32_32blk_16w_decode_avx2_varA2(const uint8_t *pInData, const size_
       readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
       // grab current uint16_t from the read heads.
-      const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-      const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-      const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-      const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-      // matching: (state << 16) | newWord
-      const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-      const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-      const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-      const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-      // select non matching.
-      const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-      const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-      const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-      const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+      const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+      const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+      const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+      const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
       // combine.
-      statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-      statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-      statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-      statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+      statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+      statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+      statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+      statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
 
       // derive next byte.
-      newWord0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newWord0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newWord0, 16))); // `_mm256_srlv_epi32` !
-      newWord1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newWord1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newWord1, 16))); // `_mm256_srlv_epi32` !
-      newWord2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newWord2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newWord2, 16))); // `_mm256_srlv_epi32` !
-      newWord3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newWord3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newWord3, 16))); // `_mm256_srlv_epi32` !
+      newWord0 = _mm256_srlv_epi32(newWord0, _mm256_and_si256(cmp0, _16));
+      newWord1 = _mm256_srlv_epi32(newWord1, _mm256_and_si256(cmp1, _16));
+      newWord2 = _mm256_srlv_epi32(newWord2, _mm256_and_si256(cmp2, _16));
+      newWord3 = _mm256_srlv_epi32(newWord3, _mm256_and_si256(cmp3, _16));
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -813,10 +791,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varA2(const uint8_t *pInData, const size_
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       // matching: state << 16
-      const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+      const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+      const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+      const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+      const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
       // Increment matching read head indexes | well, actually subtract -1.
       readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -825,28 +803,16 @@ size_t rANS32x32_32blk_16w_decode_avx2_varA2(const uint8_t *pInData, const size_
       readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
       // grab current uint16_t from the read heads.
-      const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-      const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-      const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-      const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-      // matching: (state << 16) | newWord
-      const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-      const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-      const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-      const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-      // select non matching.
-      const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-      const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-      const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-      const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+      const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+      const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+      const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+      const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
       // combine.
-      statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-      statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-      statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-      statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+      statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+      statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+      statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+      statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
 
       // no need to derive next byte, we'll gather anyways.
     }
@@ -929,10 +895,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varA2(const uint8_t *pInData, const size_
     const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
     // matching: state << 16
-    const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+    const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+    const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+    const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+    const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
     // Increment matching read head indexes | well, actually subtract -1.
     readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -941,28 +907,16 @@ size_t rANS32x32_32blk_16w_decode_avx2_varA2(const uint8_t *pInData, const size_
     readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
     // grab current uint16_t from the read heads.
-    const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-    const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-    const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-    const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-    // matching: (state << 16) | newWord
-    const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-    const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-    const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-    const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-    // select non matching.
-    const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-    const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-    const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-    const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+    const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+    const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+    const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+    const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
     // combine.
-    statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-    statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-    statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-    statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+    statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+    statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+    statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+    statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
   }
 
   for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)
@@ -1095,6 +1049,7 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB(const uint8_t *pInData, const size_t
   const simd_t lower16 = _mm256_set1_epi32(0xFFFF);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint16);
+  const simd_t _16 = _mm256_set1_epi32(16);
 
   for (; i < outLengthInStates; i += StateCount)
   {
@@ -1173,10 +1128,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB(const uint8_t *pInData, const size_t
     const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
     // matching: state << 16
-    const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+    const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+    const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+    const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+    const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
     // Increment matching read head indexes | well, actually subtract -1.
     readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -1185,28 +1140,16 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB(const uint8_t *pInData, const size_t
     readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
     // grab current uint16_t from the read heads.
-    const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-    const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-    const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-    const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-    // matching: (state << 16) | newWord
-    const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-    const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-    const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-    const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-    // select non matching.
-    const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-    const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-    const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-    const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+    const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+    const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+    const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+    const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
     // combine.
-    statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-    statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-    statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-    statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+    statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+    statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+    statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+    statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
   }
 
   for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)
@@ -1340,6 +1283,7 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB2(const uint8_t *pInData, const size_
   const simd_t lower16 = _mm256_set1_epi32(0xFFFF);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint16);
+  const simd_t _16 = _mm256_set1_epi32(16);
 
   for (; i < outLengthInDoubleStates; i += StateCount * 2)
   {
@@ -1421,10 +1365,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB2(const uint8_t *pInData, const size_
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       // matching: state << 16
-      const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+      const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+      const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+      const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+      const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
       // Increment matching read head indexes | well, actually subtract -1.
       readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -1433,34 +1377,22 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB2(const uint8_t *pInData, const size_
       readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
       // grab current byte from the read heads.
-      const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-      const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-      const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-      const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-      // matching: (state << 16) | newWord
-      const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-      const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-      const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-      const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-      // select non matching.
-      const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-      const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-      const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-      const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+      const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+      const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+      const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+      const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
       // combine.
-      statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-      statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-      statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-      statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+      statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+      statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+      statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+      statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
 
       // derive next byte.
-      newWord0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newWord0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newWord0, 16))); // `_mm256_srlv_epi32` !
-      newWord1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newWord1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newWord1, 16))); // `_mm256_srlv_epi32` !
-      newWord2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newWord2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newWord2, 16))); // `_mm256_srlv_epi32` !
-      newWord3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newWord3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newWord3, 16))); // `_mm256_srlv_epi32` !
+      newWord0 = _mm256_srlv_epi32(newWord0, _mm256_and_si256(cmp0, _16));
+      newWord1 = _mm256_srlv_epi32(newWord1, _mm256_and_si256(cmp1, _16));
+      newWord2 = _mm256_srlv_epi32(newWord2, _mm256_and_si256(cmp2, _16));
+      newWord3 = _mm256_srlv_epi32(newWord3, _mm256_and_si256(cmp3, _16));
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1535,10 +1467,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB2(const uint8_t *pInData, const size_
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       // matching: state << 16
-      const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+      const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+      const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+      const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+      const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
       // Increment matching read head indexes | well, actually subtract -1.
       readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -1547,28 +1479,16 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB2(const uint8_t *pInData, const size_
       readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
       // grab current byte from the read heads.
-      const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-      const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-      const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-      const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-      // matching: (state << 16) | newWord
-      const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-      const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-      const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-      const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-      // select non matching.
-      const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-      const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-      const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-      const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+      const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+      const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+      const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+      const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
       // combine.
-      statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-      statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-      statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-      statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+      statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+      statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+      statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+      statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
 
       // no need to derive next byte, we'll gather anyways.
     }
@@ -1651,10 +1571,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB2(const uint8_t *pInData, const size_
     const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
     // matching: state << 16
-    const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+    const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+    const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+    const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+    const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
     // Increment matching read head indexes | well, actually subtract -1.
     readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -1663,28 +1583,16 @@ size_t rANS32x32_32blk_16w_decode_avx2_varB2(const uint8_t *pInData, const size_
     readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
     // grab current uint16_t from the read heads.
-    const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-    const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-    const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-    const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-    // matching: (state << 16) | newWord
-    const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-    const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-    const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-    const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-    // select non matching.
-    const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-    const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-    const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-    const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+    const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+    const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+    const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+    const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
     // combine.
-    statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-    statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-    statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-    statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+    statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+    statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+    statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+    statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
   }
 
   for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)
@@ -1820,6 +1728,7 @@ size_t rANS32x32_32blk_16w_decode_avx2_varC(const uint8_t *pInData, const size_t
   const simd_t lower12 = _mm256_set1_epi32((1 << 12) - 1);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint16);
+  const simd_t _16 = _mm256_set1_epi32(16);
 
   for (; i < outLengthInStates; i += StateCount)
   {
@@ -1892,10 +1801,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varC(const uint8_t *pInData, const size_t
     const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
     // matching: state << 16
-    const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+    const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+    const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+    const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+    const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
     // Increment matching read head indexes | well, actually subtract -1.
     readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -1904,28 +1813,16 @@ size_t rANS32x32_32blk_16w_decode_avx2_varC(const uint8_t *pInData, const size_t
     readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
     // grab current byte from the read heads.
-    const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-    const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-    const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-    const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-    // matching: (state << 16) | newWord
-    const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-    const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-    const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-    const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-    // select non matching.
-    const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-    const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-    const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-    const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+    const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+    const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+    const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+    const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
     // combine.
-    statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-    statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-    statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-    statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+    statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+    statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+    statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+    statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
   }
 
   for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)
@@ -2060,6 +1957,7 @@ size_t rANS32x32_32blk_16w_decode_avx2_varC2(const uint8_t *pInData, const size_
   const simd_t lower12 = _mm256_set1_epi32((1 << 12) - 1);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint16);
+  const simd_t _16 = _mm256_set1_epi32(16);
 
   for (; i < outLengthInDoubleStates; i += StateCount * 2)
   {
@@ -2135,10 +2033,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varC2(const uint8_t *pInData, const size_
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       // matching: state << 16
-      const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+      const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+      const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+      const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+      const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
       // Increment matching read head indexes | well, actually subtract -1.
       readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -2147,34 +2045,22 @@ size_t rANS32x32_32blk_16w_decode_avx2_varC2(const uint8_t *pInData, const size_
       readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
       // grab current byte from the read heads.
-      const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-      const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-      const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-      const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-      // matching: (state << 16) | newWord
-      const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-      const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-      const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-      const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-      // select non matching.
-      const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-      const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-      const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-      const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+      const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+      const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+      const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+      const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
       // combine.
-      statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-      statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-      statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-      statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+      statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+      statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+      statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+      statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
 
       // derive next byte.
-      newWord0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newWord0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newWord0, 16))); // `_mm256_srlv_epi32` !
-      newWord1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newWord1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newWord1, 16))); // `_mm256_srlv_epi32` !
-      newWord2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newWord2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newWord2, 16))); // `_mm256_srlv_epi32` !
-      newWord3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newWord3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newWord3, 16))); // `_mm256_srlv_epi32` !
+      newWord0 = _mm256_srlv_epi32(newWord0, _mm256_and_si256(cmp0, _16));
+      newWord1 = _mm256_srlv_epi32(newWord1, _mm256_and_si256(cmp1, _16));
+      newWord2 = _mm256_srlv_epi32(newWord2, _mm256_and_si256(cmp2, _16));
+      newWord3 = _mm256_srlv_epi32(newWord3, _mm256_and_si256(cmp3, _16));
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -2243,10 +2129,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varC2(const uint8_t *pInData, const size_
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       // matching: state << 16
-      const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-      const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+      const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+      const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+      const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+      const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
       // Increment matching read head indexes | well, actually subtract -1.
       readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -2255,28 +2141,16 @@ size_t rANS32x32_32blk_16w_decode_avx2_varC2(const uint8_t *pInData, const size_
       readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
       // grab current byte from the read heads.
-      const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-      const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-      const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-      const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-      // matching: (state << 16) | newWord
-      const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-      const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-      const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-      const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-      // select non matching.
-      const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-      const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-      const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-      const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+      const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+      const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+      const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+      const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
       // combine.
-      statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-      statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-      statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-      statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+      statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+      statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+      statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+      statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
 
       // no need to derive next byte, we'll gather anyways.
     }
@@ -2353,10 +2227,10 @@ size_t rANS32x32_32blk_16w_decode_avx2_varC2(const uint8_t *pInData, const size_
     const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
     // matching: state << 16
-    const simd_t extractMatchShifted0 = _mm256_slli_epi32(_mm256_and_si256(state0, cmp0), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted1 = _mm256_slli_epi32(_mm256_and_si256(state1, cmp1), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted2 = _mm256_slli_epi32(_mm256_and_si256(state2, cmp2), 16); // `_mm256_srlv_epi32` !
-    const simd_t extractMatchShifted3 = _mm256_slli_epi32(_mm256_and_si256(state3, cmp3), 16); // `_mm256_srlv_epi32` !
+    const simd_t extractMatchShifted0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+    const simd_t extractMatchShifted1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+    const simd_t extractMatchShifted2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+    const simd_t extractMatchShifted3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
     // Increment matching read head indexes | well, actually subtract -1.
     readHeadOffsetsX8[0] = _mm256_sub_epi32(readHeadOffsetsX8[0], cmp0);
@@ -2365,28 +2239,16 @@ size_t rANS32x32_32blk_16w_decode_avx2_varC2(const uint8_t *pInData, const size_
     readHeadOffsetsX8[3] = _mm256_sub_epi32(readHeadOffsetsX8[3], cmp3);
 
     // grab current byte from the read heads.
-    const simd_t extractMatchNextByte0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
-    const simd_t extractMatchNextByte1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
-    const simd_t extractMatchNextByte2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
-    const simd_t extractMatchNextByte3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
-
-    // matching: (state << 16) | newWord
-    const simd_t matchingStates0 = _mm256_or_si256(extractMatchShifted0, extractMatchNextByte0);
-    const simd_t matchingStates1 = _mm256_or_si256(extractMatchShifted1, extractMatchNextByte1);
-    const simd_t matchingStates2 = _mm256_or_si256(extractMatchShifted2, extractMatchNextByte2);
-    const simd_t matchingStates3 = _mm256_or_si256(extractMatchShifted3, extractMatchNextByte3);
-
-    // select non matching.
-    const simd_t nonMatchingStates0 = _mm256_andnot_si256(cmp0, state0);
-    const simd_t nonMatchingStates1 = _mm256_andnot_si256(cmp1, state1);
-    const simd_t nonMatchingStates2 = _mm256_andnot_si256(cmp2, state2);
-    const simd_t nonMatchingStates3 = _mm256_andnot_si256(cmp3, state3);
+    const simd_t extractMatchNextWord0 = _mm256_and_si256(_mm256_and_si256(cmp0, lower16), newWord0);
+    const simd_t extractMatchNextWord1 = _mm256_and_si256(_mm256_and_si256(cmp1, lower16), newWord1);
+    const simd_t extractMatchNextWord2 = _mm256_and_si256(_mm256_and_si256(cmp2, lower16), newWord2);
+    const simd_t extractMatchNextWord3 = _mm256_and_si256(_mm256_and_si256(cmp3, lower16), newWord3);
 
     // combine.
-    statesX8[0] = _mm256_or_si256(matchingStates0, nonMatchingStates0);
-    statesX8[1] = _mm256_or_si256(matchingStates1, nonMatchingStates1);
-    statesX8[2] = _mm256_or_si256(matchingStates2, nonMatchingStates2);
-    statesX8[3] = _mm256_or_si256(matchingStates3, nonMatchingStates3);
+    statesX8[0] = _mm256_or_si256(extractMatchShifted0, extractMatchNextWord0);
+    statesX8[1] = _mm256_or_si256(extractMatchShifted1, extractMatchNextWord1);
+    statesX8[2] = _mm256_or_si256(extractMatchShifted2, extractMatchNextWord2);
+    statesX8[3] = _mm256_or_si256(extractMatchShifted3, extractMatchNextWord3);
   }
 
   for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)

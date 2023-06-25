@@ -35,7 +35,8 @@ inline size_t rans_min(const T a, const T b) { return a < b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr size_t RunCount = 1;
+constexpr bool DisableSleep = false;
+constexpr size_t RunCount = 8;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 
@@ -348,11 +349,14 @@ uint64_t TicksToNs(const uint64_t ticks)
 
 void SleepNs(const uint64_t sleepNs)
 {
+  if constexpr (!DisableSleep)
+  {
 #ifdef _WIN32
-  Sleep((DWORD)((sleepNs + 500 * 1000) / (1000 * 1000)));
+    Sleep((DWORD)((sleepNs + 500 * 1000) / (1000 * 1000)));
 #else
-  usleep((uint32_t)((sleepNs + 500) / (1000)));
+    usleep((uint32_t)((sleepNs + 500) / (1000)));
 #endif
+  }
 }
 
 bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t size)
