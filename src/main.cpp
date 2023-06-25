@@ -8,7 +8,7 @@
 #include "rans32x1.h"
 #include "rans32x32_32blk_8w.h"
 #include "rans32x32_32blk_16w.h"
-#include "rans32x32_lut_16w.h"
+#include "rANS32x32_xmmShfl_16w.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -126,12 +126,12 @@ struct codec_info_t
 
 static codec_info_t _Codecs[] =
 {
-  { "rANS32x32 lut 16w", 15, {{ "encode_scalar", rANS32x32_lut_16w_encode_scalar_15 }, {}}, {{ "decode_scalar", rANS32x32_lut_16w_decode_scalar_15 }, { "decode_avx2 (sym dpndt)", rANS32x32_lut_16w_decode_avx2_varA_15 }, { "decode_avx2 (sym indpt)", rANS32x32_lut_16w_decode_avx2_varB_15 }, {}}},
-  { "rANS32x32 lut 16w", 14, {{ "encode_scalar", rANS32x32_lut_16w_encode_scalar_14 }, {}}, {{ "decode_scalar", rANS32x32_lut_16w_decode_scalar_14 }, { "decode_avx2 (sym dpndt)", rANS32x32_lut_16w_decode_avx2_varA_14 }, { "decode_avx2 (sym indpt)", rANS32x32_lut_16w_decode_avx2_varB_14 }, {}}},
-  { "rANS32x32 lut 16w", 13, {{ "encode_scalar", rANS32x32_lut_16w_encode_scalar_13 }, {}}, {{ "decode_scalar", rANS32x32_lut_16w_decode_scalar_13 }, { "decode_avx2 (sym dpndt)", rANS32x32_lut_16w_decode_avx2_varA_13 }, { "decode_avx2 (sym indpt)", rANS32x32_lut_16w_decode_avx2_varB_13 }, {}}},
-  { "rANS32x32 lut 16w", 12, {{ "encode_scalar", rANS32x32_lut_16w_encode_scalar_12 }, {}}, {{ "decode_scalar", rANS32x32_lut_16w_decode_scalar_12 }, { "decode_avx2 (sym dpndt)", rANS32x32_lut_16w_decode_avx2_varA_12 }, { "decode_avx2 (sym indpt)", rANS32x32_lut_16w_decode_avx2_varB_12 }, { "decode_avx2 (sngl gthr)", rANS32x32_lut_16w_decode_avx2_varC_12 }, {}}},
-  { "rANS32x32 lut 16w", 11, {{ "encode_scalar", rANS32x32_lut_16w_encode_scalar_11 }, {}}, {{ "decode_scalar", rANS32x32_lut_16w_decode_scalar_11 }, { "decode_avx2 (sym dpndt)", rANS32x32_lut_16w_decode_avx2_varA_11 }, { "decode_avx2 (sym indpt)", rANS32x32_lut_16w_decode_avx2_varB_11 }, { "decode_avx2 (sngl gthr)", rANS32x32_lut_16w_decode_avx2_varC_11 }, {}}},
-  { "rANS32x32 lut 16w", 10, {{ "encode_scalar", rANS32x32_lut_16w_encode_scalar_10 }, {}}, {{ "decode_scalar", rANS32x32_lut_16w_decode_scalar_10 }, { "decode_avx2 (sym dpndt)", rANS32x32_lut_16w_decode_avx2_varA_10 }, { "decode_avx2 (sym indpt)", rANS32x32_lut_16w_decode_avx2_varB_10 }, { "decode_avx2 (sngl gthr)", rANS32x32_lut_16w_decode_avx2_varC_10 }, {}}},
+  { "rANS32x32 xmm shfl 16w", 15, {{ "encode_scalar", rANS32x32_xmmShfl_16w_encode_scalar_15 }, {}}, {{ "decode_scalar", rANS32x32_xmmShfl_16w_decode_scalar_15 }, { "decode_avx2 (sym dpndt)", rANS32x32_xmmShfl_16w_decode_avx2_varA_15 }, { "decode_avx2 (sym indpt)", rANS32x32_xmmShfl_16w_decode_avx2_varB_15 }, {}}},
+  { "rANS32x32 xmm shfl 16w", 14, {{ "encode_scalar", rANS32x32_xmmShfl_16w_encode_scalar_14 }, {}}, {{ "decode_scalar", rANS32x32_xmmShfl_16w_decode_scalar_14 }, { "decode_avx2 (sym dpndt)", rANS32x32_xmmShfl_16w_decode_avx2_varA_14 }, { "decode_avx2 (sym indpt)", rANS32x32_xmmShfl_16w_decode_avx2_varB_14 }, {}}},
+  { "rANS32x32 xmm shfl 16w", 13, {{ "encode_scalar", rANS32x32_xmmShfl_16w_encode_scalar_13 }, {}}, {{ "decode_scalar", rANS32x32_xmmShfl_16w_decode_scalar_13 }, { "decode_avx2 (sym dpndt)", rANS32x32_xmmShfl_16w_decode_avx2_varA_13 }, { "decode_avx2 (sym indpt)", rANS32x32_xmmShfl_16w_decode_avx2_varB_13 }, {}}},
+  { "rANS32x32 xmm shfl 16w", 12, {{ "encode_scalar", rANS32x32_xmmShfl_16w_encode_scalar_12 }, {}}, {{ "decode_scalar", rANS32x32_xmmShfl_16w_decode_scalar_12 }, { "decode_avx2 (sym dpndt)", rANS32x32_xmmShfl_16w_decode_avx2_varA_12 }, { "decode_avx2 (sym indpt)", rANS32x32_xmmShfl_16w_decode_avx2_varB_12 }, { "decode_avx2 (sngl gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_12 }, {}}},
+  { "rANS32x32 xmm shfl 16w", 11, {{ "encode_scalar", rANS32x32_xmmShfl_16w_encode_scalar_11 }, {}}, {{ "decode_scalar", rANS32x32_xmmShfl_16w_decode_scalar_11 }, { "decode_avx2 (sym dpndt)", rANS32x32_xmmShfl_16w_decode_avx2_varA_11 }, { "decode_avx2 (sym indpt)", rANS32x32_xmmShfl_16w_decode_avx2_varB_11 }, { "decode_avx2 (sngl gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_11 }, {}}},
+  { "rANS32x32 xmm shfl 16w", 10, {{ "encode_scalar", rANS32x32_xmmShfl_16w_encode_scalar_10 }, {}}, {{ "decode_scalar", rANS32x32_xmmShfl_16w_decode_scalar_10 }, { "decode_avx2 (sym dpndt)", rANS32x32_xmmShfl_16w_decode_avx2_varA_10 }, { "decode_avx2 (sym indpt)", rANS32x32_xmmShfl_16w_decode_avx2_varB_10 }, { "decode_avx2 (sngl gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_10 }, {}}},
   { "rANS32x32 32blk 16w", 15, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_15 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_15 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_16w_decode_avx2_varA_15 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_16w_decode_avx2_varA2_15 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_16w_decode_avx2_varB_15 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_16w_decode_avx2_varB2_15 }, {}}},
   { "rANS32x32 32blk 16w", 14, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_14 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_14 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_16w_decode_avx2_varA_14 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_16w_decode_avx2_varA2_14 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_16w_decode_avx2_varB_14 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_16w_decode_avx2_varB2_14 }, {}}},
   { "rANS32x32 32blk 16w", 13, {{ "encode_scalar", rANS32x32_32blk_16w_encode_scalar_13 }, {}}, {{ "decode_scalar", rANS32x32_32blk_16w_decode_scalar_13 }, { "decode_avx2 (sym dpndt)", rANS32x32_32blk_16w_decode_avx2_varA_13 }, { "decode_avx2 (sym dpndt 2x)", rANS32x32_32blk_16w_decode_avx2_varA2_13 }, { "decode_avx2 (sym indpt)", rANS32x32_32blk_16w_decode_avx2_varB_13 }, { "decode_avx2 (sym indpt 2x)", rANS32x32_32blk_16w_decode_avx2_varB2_13 }, {}}},
@@ -200,7 +200,7 @@ int32_t main(const int32_t argc, char **pArgv)
     pUncompressedData = (uint8_t *)malloc(fileSize);
     pDecompressedData = (uint8_t *)malloc(fileSize);
 
-    compressedDataCapacity = rans_max(rANS32x32_lut_16w_capacity(fileSize), rans_max(rANS32x32_32blk_16w_capacity(fileSize), rANS32x32_32blk_8w_capacity(fileSize)));
+    compressedDataCapacity = rans_max(rANS32x32_xmmShfl_16w_capacity(fileSize), rans_max(rANS32x32_32blk_16w_capacity(fileSize), rANS32x32_32blk_8w_capacity(fileSize)));
     pCompressedData = (uint8_t *)malloc(compressedDataCapacity);
 
     if (pUncompressedData == nullptr || pDecompressedData == nullptr || pCompressedData == nullptr)

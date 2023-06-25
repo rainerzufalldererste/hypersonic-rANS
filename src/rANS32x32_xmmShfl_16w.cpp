@@ -7,7 +7,7 @@ constexpr size_t StateCount = 32; // Needs to be a power of two.
 constexpr bool DecodeNoBranch = false;
 constexpr bool EncodeNoBranch = false;
 
-size_t rANS32x32_lut_16w_capacity(const size_t inputSize)
+size_t rANS32x32_xmmShfl_16w_capacity(const size_t inputSize)
 {
   return inputSize + StateCount + sizeof(uint16_t) * 256 + sizeof(uint32_t) * StateCount + sizeof(uint64_t) * 2; // buffer + histogram + state
 }
@@ -32,9 +32,9 @@ inline static uint8_t decode_symbol_scalar2(uint32_t *pState, const hist_dec_t<T
 //////////////////////////////////////////////////////////////////////////
 
 template <uint32_t TotalSymbolCountBits>
-size_t rANS32x32_lut_16w_encode_scalar(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
+size_t rANS32x32_xmmShfl_16w_encode_scalar(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist)
 {
-  if (outCapacity < rANS32x32_lut_16w_capacity(length))
+  if (outCapacity < rANS32x32_xmmShfl_16w_capacity(length))
     return 0;
 
   static_assert(TotalSymbolCountBits < 16);
@@ -159,7 +159,7 @@ size_t rANS32x32_lut_16w_encode_scalar(const uint8_t *pInData, const size_t leng
 }
 
 template <uint32_t TotalSymbolCountBits>
-size_t rANS32x32_lut_16w_decode_scalar(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
+size_t rANS32x32_xmmShfl_16w_decode_scalar(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
 {
   if (inLength < sizeof(uint64_t) * 2 + sizeof(uint32_t) * StateCount + sizeof(uint16_t) * 256)
     return 0;
@@ -546,7 +546,7 @@ template <uint32_t TotalSymbolCountBits>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
-size_t rANS32x32_lut_16w_decode_avx2_varA(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
 {
   if (inLength <= sizeof(uint64_t) * 2)
     return 0;
@@ -788,7 +788,7 @@ template <uint32_t TotalSymbolCountBits>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
-size_t rANS32x32_lut_16w_decode_avx2_varB(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
 {
   if (inLength <= sizeof(uint64_t) * 2)
     return 0;
@@ -1035,7 +1035,7 @@ template <uint32_t TotalSymbolCountBits>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
-size_t rANS32x32_lut_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
 {
   if (inLength <= sizeof(uint64_t) * 2)
     return 0;
@@ -1272,35 +1272,35 @@ size_t rANS32x32_lut_16w_decode_avx2_varC(const uint8_t *pInData, const size_t i
 
 //////////////////////////////////////////////////////////////////////////
 
-size_t rANS32x32_lut_16w_encode_scalar_15(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_lut_16w_encode_scalar<15>(pInData, length, pOutData, outCapacity, pHist); }
-size_t rANS32x32_lut_16w_decode_scalar_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_scalar<15>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varA_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varA<15>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varB_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varB<15>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_encode_scalar_15(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_xmmShfl_16w_encode_scalar<15>(pInData, length, pOutData, outCapacity, pHist); }
+size_t rANS32x32_xmmShfl_16w_decode_scalar_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_scalar<15>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varA<15>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varB<15>(pInData, inLength, pOutData, outCapacity); }
 
-size_t rANS32x32_lut_16w_encode_scalar_14(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_lut_16w_encode_scalar<14>(pInData, length, pOutData, outCapacity, pHist); }
-size_t rANS32x32_lut_16w_decode_scalar_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_scalar<14>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varA_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varA<14>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varB_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varB<14>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_encode_scalar_14(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_xmmShfl_16w_encode_scalar<14>(pInData, length, pOutData, outCapacity, pHist); }
+size_t rANS32x32_xmmShfl_16w_decode_scalar_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_scalar<14>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varA<14>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varB<14>(pInData, inLength, pOutData, outCapacity); }
 
-size_t rANS32x32_lut_16w_encode_scalar_13(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_lut_16w_encode_scalar<13>(pInData, length, pOutData, outCapacity, pHist); }
-size_t rANS32x32_lut_16w_decode_scalar_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_scalar<13>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varA_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varA<13>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varB_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varB<13>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_encode_scalar_13(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_xmmShfl_16w_encode_scalar<13>(pInData, length, pOutData, outCapacity, pHist); }
+size_t rANS32x32_xmmShfl_16w_decode_scalar_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_scalar<13>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varA<13>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varB<13>(pInData, inLength, pOutData, outCapacity); }
 
-size_t rANS32x32_lut_16w_encode_scalar_12(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_lut_16w_encode_scalar<12>(pInData, length, pOutData, outCapacity, pHist); }
-size_t rANS32x32_lut_16w_decode_scalar_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_scalar<12>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varA_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varA<12>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varB_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varB<12>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varC<12>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_encode_scalar_12(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_xmmShfl_16w_encode_scalar<12>(pInData, length, pOutData, outCapacity, pHist); }
+size_t rANS32x32_xmmShfl_16w_decode_scalar_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_scalar<12>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varA<12>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varB<12>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varC<12>(pInData, inLength, pOutData, outCapacity); }
 
-size_t rANS32x32_lut_16w_encode_scalar_11(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_lut_16w_encode_scalar<11>(pInData, length, pOutData, outCapacity, pHist); }
-size_t rANS32x32_lut_16w_decode_scalar_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_scalar<11>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varA_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varA<11>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varB_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varB<11>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varC<11>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_encode_scalar_11(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_xmmShfl_16w_encode_scalar<11>(pInData, length, pOutData, outCapacity, pHist); }
+size_t rANS32x32_xmmShfl_16w_decode_scalar_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_scalar<11>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varA<11>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varB<11>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varC<11>(pInData, inLength, pOutData, outCapacity); }
 
-size_t rANS32x32_lut_16w_encode_scalar_10(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_lut_16w_encode_scalar<10>(pInData, length, pOutData, outCapacity, pHist); }
-size_t rANS32x32_lut_16w_decode_scalar_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_scalar<10>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varA_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varA<10>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varB_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varB<10>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_lut_16w_decode_avx2_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_lut_16w_decode_avx2_varC<10>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_encode_scalar_10(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_xmmShfl_16w_encode_scalar<10>(pInData, length, pOutData, outCapacity, pHist); }
+size_t rANS32x32_xmmShfl_16w_decode_scalar_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_scalar<10>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varA<10>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varB<10>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_xmmShfl_16w_decode_avx2_varC<10>(pInData, inLength, pOutData, outCapacity); }
