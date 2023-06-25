@@ -220,8 +220,8 @@ int32_t main(const int32_t argc, char **pArgv)
     fclose(pFile);
   }
 
-  puts("Codec Type               Encoder/Decoder Impl           Ratio      Minimum            Average          ( StdDev.         )   Maximum          Average        ( StdDev.           )");
-  puts("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+  puts("Codec Type (Enc/Dec Impl)  Hist  Ratio      Minimum            Average          ( StdDev.         )   Maximum          Average        ( StdDev.           )");
+  puts("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
   for (size_t codecId = 0; codecId < sizeof(_Codecs) / sizeof(_Codecs[0]); codecId++)
   {
@@ -235,9 +235,11 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_Codecs[codecId].encoders[i].name == nullptr)
         break;
 
+      printf("%-27s %2" PRIu32 " | -------- | ---------------- | ------------------------------------ | -------------- | ----------------------------------- \n", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits);
+
       if constexpr (RunCount > 1)
       {
-        printf("\r(dry run)");
+        printf("\r  (dry run)");
         encodedSize = _Codecs[codecId].encoders[i].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
       }
 
@@ -256,12 +258,12 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r%-21s %2" PRIu32 " %-28s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r  %-28s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
 
         SleepNs(250 * 1000 * 1000);
       }
 
-      printf("\r%-21s %2" PRIu32 " %-28s | %6.2f %% ", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0);
+      printf("\r  %-28s | %6.2f %% ", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0);
       print_perf_info(fileSize);
 
       const size_t decodedSize = _Codecs[codecId].decoders[0].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
@@ -298,12 +300,12 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r%-21s %2" PRIu32 " %-28s |          | decompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].decoders[i].name, decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r  %-28s |          | decompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].decoders[i].name, decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
 
         SleepNs(250 * 1000 * 1000);
       }
 
-      printf("\r%-21s %2" PRIu32 " %-28s |          ", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits, _Codecs[codecId].decoders[i].name);
+      printf("\r  %-28s |          ", _Codecs[codecId].decoders[i].name);
       print_perf_info(fileSize);
 
       if (decodedSize != fileSize || !Validate(pDecompressedData, pUncompressedData, fileSize))
