@@ -14,7 +14,7 @@ size_t rANS32x32_lut_16w_capacity(const size_t inputSize)
   return inputSize + StateCount + sizeof(uint16_t) * 256 + sizeof(uint32_t) * StateCount + sizeof(uint64_t) * 2; // buffer + histogram + state
 }
 
-#define IF_RELEVANT if (true)
+#define IF_RELEVANT if (false)
 
 #ifndef _MSC_VER
 #define __debugbreak __builtin_trap
@@ -701,7 +701,7 @@ size_t rANS32x32_lut_16w_decode_avx2_varA(const uint8_t *pInData, const size_t i
 
     // now to the messy part...
     
-    // read input for blocks 0 and 1.
+    // read input for blocks 0.
     const __m128i newWords0 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
     // (state < DecodeConsumePoint16) ? -1 : 0 | well, actually (DecodeConsumePoint16 > state) ? -1 : 0
@@ -723,22 +723,24 @@ size_t rANS32x32_lut_16w_decode_avx2_varA(const uint8_t *pInData, const size_t i
     const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
     __m128i lut3 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLut32[cmpMask3 << 3])); // `* 8`.
 
-    // advance read head.
+    // advance read head & read input for blocks 1, 2, 3.
     const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
-    const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
+    pReadHead += maskPop0;
 
-    const uint32_t advanceWords01 = maskPop0 + maskPop1;
-    pReadHead += advanceWords01;
-
-    // read input for blocks 2 and 3.
     const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-    // advance read head.
-    const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
-    const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
+    const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
+    pReadHead += maskPop1;
 
-    const uint32_t advanceWords23 = maskPop2 + maskPop3;
-    pReadHead += advanceWords23;
+    const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+    const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
+    pReadHead += maskPop2;
+
+    const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+    const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
+    pReadHead += maskPop3;
 
     // finalize lookups.
     lut0 = _mm_or_si128(_mm_shuffle_epi8(lut0, shuffleDoubleMask), shuffleUpper16Bit);
@@ -746,23 +748,17 @@ size_t rANS32x32_lut_16w_decode_avx2_varA(const uint8_t *pInData, const size_t i
     lut2 = _mm_or_si128(_mm_shuffle_epi8(lut2, shuffleDoubleMask), shuffleUpper16Bit);
     lut3 = _mm_or_si128(_mm_shuffle_epi8(lut3, shuffleDoubleMask), shuffleUpper16Bit);
 
-    // shift later luts in place.
-    lut1 = _mm_add_epi8(lut1, _mm_set1_epi8((uint8_t)maskPop0 << 1)); // `* 2`.
-    lut3 = _mm_add_epi8(lut3, _mm_set1_epi8((uint8_t)maskPop2 << 1)); // `* 2`.
-
-    // shuffle new words in place.
-    const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
-    const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords1, lut2);
-
     // matching: state << 16
     const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
     const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
     const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
     const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
-    // delay because of dependency.
-    const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords0, lut1);
-    const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords1, lut3);
+    // shuffle new words in place.
+    const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
+    const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
+    const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
+    const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
 
     // expand new word.
     const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
