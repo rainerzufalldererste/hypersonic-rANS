@@ -1090,7 +1090,6 @@ size_t rANS32x32_lut_16w_decode_avx2_varC(const uint8_t *pInData, const size_t i
   size_t i = 0;
 
   const simd_t symCountMask = _mm256_set1_epi32(TotalSymbolCount - 1);
-  const simd_t lower16 = _mm256_set1_epi32(0xFFFF);
   const simd_t lower12 = _mm256_set1_epi32((1 << 12) - 1);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint16);
