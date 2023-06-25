@@ -435,7 +435,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA(const uint8_t *pInData, const size_t 
     const simd_t newByte2 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[2], 1);
     const simd_t newByte3 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
 
-    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
     const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
     const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
     const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -481,10 +481,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA(const uint8_t *pInData, const size_t 
     // Iteration 2:
 
     // derive next byte.
-    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
     // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 + 1 > state) ? -1 : 0
     const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
@@ -725,7 +725,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA2(const uint8_t *pInData, const size_t
       //////////////////////////////////////////////////////////////////////////
       // Iteration 1:
 
-      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
       const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
       const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -768,10 +768,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA2(const uint8_t *pInData, const size_t
       const simd_t combinedStateAfterRenormA3 = _mm256_or_si256(matchingStates3, nonMatchingStates3);
 
       // derive next byte.
-      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
       //////////////////////////////////////////////////////////////////////////
       // Iteration 2:
@@ -894,7 +894,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA2(const uint8_t *pInData, const size_t
       //////////////////////////////////////////////////////////////////////////
       // Iteration 1:
 
-      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
       const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
       const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -937,10 +937,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA2(const uint8_t *pInData, const size_t
       const simd_t combinedStateAfterRenormA3 = _mm256_or_si256(matchingStates3, nonMatchingStates3);
 
       // derive next byte.
-      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
       //////////////////////////////////////////////////////////////////////////
       // Iteration 2:
@@ -1091,7 +1091,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA2(const uint8_t *pInData, const size_t
     const simd_t newByte2 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[2], 1);
     const simd_t newByte3 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
 
-    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
     const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
     const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
     const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -1137,10 +1137,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA2(const uint8_t *pInData, const size_t
     // Iteration 2:
 
     // derive next byte.
-    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
     // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 + 1 > state) ? -1 : 0
     const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
@@ -1380,7 +1380,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB(const uint8_t *pInData, const size_t 
     const simd_t newByte2 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[2], 1);
     const simd_t newByte3 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
 
-    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
     const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
     const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
     const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -1426,10 +1426,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB(const uint8_t *pInData, const size_t 
     // Iteration 2:
 
     // derive next byte.
-    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
     // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 + 1 > state) ? -1 : 0
     const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
@@ -1673,7 +1673,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB2(const uint8_t *pInData, const size_t
       //////////////////////////////////////////////////////////////////////////
       // Iteration 1:
 
-      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
       const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
       const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -1716,10 +1716,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB2(const uint8_t *pInData, const size_t
       const simd_t combinedStateAfterRenormA3 = _mm256_or_si256(matchingStates3, nonMatchingStates3);
 
       // derive next byte.
-      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
       //////////////////////////////////////////////////////////////////////////
       // Iteration 2:
@@ -1842,7 +1842,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB2(const uint8_t *pInData, const size_t
       //////////////////////////////////////////////////////////////////////////
       // Iteration 1:
 
-      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
       const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
       const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -1885,10 +1885,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB2(const uint8_t *pInData, const size_t
       const simd_t combinedStateAfterRenormA3 = _mm256_or_si256(matchingStates3, nonMatchingStates3);
 
       // derive next byte.
-      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
       //////////////////////////////////////////////////////////////////////////
       // Iteration 2:
@@ -2013,7 +2013,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB2(const uint8_t *pInData, const size_t
     const simd_t newByte2 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[2], 1);
     const simd_t newByte3 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
 
-    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
     const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
     const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
     const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -2059,10 +2059,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB2(const uint8_t *pInData, const size_t
     // Iteration 2:
 
     // derive next byte.
-    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
     // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 + 1 > state) ? -1 : 0
     const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
@@ -2298,7 +2298,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC(const uint8_t *pInData, const size_t 
     const simd_t newByte2 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[2], 1);
     const simd_t newByte3 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
 
-    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
     const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
     const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
     const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -2344,10 +2344,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC(const uint8_t *pInData, const size_t 
     // Iteration 2:
 
     // derive next byte.
-    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
     // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 + 1 > state) ? -1 : 0
     const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);
@@ -2585,7 +2585,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC2(const uint8_t *pInData, const size_t
       //////////////////////////////////////////////////////////////////////////
       // Iteration 1:
 
-      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
       const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
       const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -2628,10 +2628,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC2(const uint8_t *pInData, const size_t
       const simd_t combinedStateAfterRenormA3 = _mm256_or_si256(matchingStates3, nonMatchingStates3);
 
       // derive next byte.
-      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
       //////////////////////////////////////////////////////////////////////////
       // Iteration 2:
@@ -2748,7 +2748,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC2(const uint8_t *pInData, const size_t
       //////////////////////////////////////////////////////////////////////////
       // Iteration 1:
 
-      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+      // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
       const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
       const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -2791,10 +2791,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC2(const uint8_t *pInData, const size_t
       const simd_t combinedStateAfterRenormA3 = _mm256_or_si256(matchingStates3, nonMatchingStates3);
 
       // derive next byte.
-      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+      newByte0 = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+      newByte1 = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+      newByte2 = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+      newByte3 = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
       //////////////////////////////////////////////////////////////////////////
       // Iteration 2:
@@ -2913,7 +2913,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC2(const uint8_t *pInData, const size_t
     const simd_t newByte2 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[2], 1);
     const simd_t newByte3 = _mm256_i32gather_epi32(pReadHeadSIMD, readHeadOffsetsX8[3], 1);
 
-    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 - 1 > state) ? 1 : 0
+    // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 > state) ? -1 : 0
     const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
     const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
     const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
@@ -2959,10 +2959,10 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC2(const uint8_t *pInData, const size_t
     // Iteration 2:
 
     // derive next byte.
-    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8)));
-    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8)));
-    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8)));
-    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8)));
+    const simd_t newByte0b = _mm256_or_si256(_mm256_andnot_si256(cmp0, newByte0), _mm256_and_si256(cmp0, _mm256_srli_epi32(newByte0, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte1b = _mm256_or_si256(_mm256_andnot_si256(cmp1, newByte1), _mm256_and_si256(cmp1, _mm256_srli_epi32(newByte1, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte2b = _mm256_or_si256(_mm256_andnot_si256(cmp2, newByte2), _mm256_and_si256(cmp2, _mm256_srli_epi32(newByte2, 8))); // `_mm256_srlv_epi32` !
+    const simd_t newByte3b = _mm256_or_si256(_mm256_andnot_si256(cmp3, newByte3), _mm256_and_si256(cmp3, _mm256_srli_epi32(newByte3, 8))); // `_mm256_srlv_epi32` !
 
     // (state < DecodeConsumePoint8) ? -1 : 0 | well, actually (DecodeConsumePoint8 + 1 > state) ? -1 : 0
     const simd_t cmp0b = _mm256_cmpgt_epi32(decodeConsumePoint, combinedStateAfterRenormA0);

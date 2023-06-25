@@ -258,7 +258,6 @@ bool inplace_make_hist_dec(hist_dec_t<TotalSymbolCountBits> *pHist)
   if (counter != TotalSymbolCount)
     return false;
 
-
   uint8_t sym = 0;
 
   for (size_t i = 0; i < TotalSymbolCount; i++)
@@ -288,7 +287,6 @@ bool inplace_make_hist_dec2(hist_dec2_t<TotalSymbolCountBits> *pHist)
 
   if (counter != TotalSymbolCount)
     return false;
-
 
   uint8_t sym = 0;
 
