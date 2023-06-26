@@ -19,7 +19,7 @@ size_t rANS32x1_capacity(const size_t inputSize)
 //  return ((state / symbolCount) << TotalSymbolCountBits) + pHist->cumul[symbol] + (state % symbolCount);
 //}
 //
-//inline uint8_t decode_symbol_scalar(uint32_t *pState, const hist_dec_t *pHist)
+//inline uint8_t decode_symbol_scalar_32x32_32blk_8w(uint32_t *pState, const hist_dec_t *pHist)
 //{
 //  const uint32_t state = *pState;
 //  const uint32_t slot = state & (TotalSymbolCount - 1);
@@ -148,7 +148,7 @@ size_t rANS32x1_capacity(const size_t inputSize)
 //
 //  for (size_t i = 0; i < outLength; i++)
 //  {
-//    pOutData[i] = decode_symbol_scalar(&state, pHist);
+//    pOutData[i] = decode_symbol_scalar_32x32_32blk_8w(&state, pHist);
 //
 //    while (state < DecodeConsumePoint8)
 //      state = state << 8 | pInData[inIndex++];
