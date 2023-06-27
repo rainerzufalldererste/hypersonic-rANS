@@ -10,6 +10,7 @@
 #include "rans32x32_32blk_16w.h"
 #include "rANS32x32_16w.h"
 #include "rANS32x16_16w.h"
+#include "rANS32x64_16w.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -127,6 +128,12 @@ struct codec_info_t
 
 static codec_info_t _Codecs[] =
 {
+  { "rANS32x64 16w", 15, {{ "enc scalar", rANS32x64_16w_encode_scalar_15 }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_15 }, { "dec avx2 (xmm shfl, sym dpndt)", rANS32x64_xmmShfl_16w_decode_avx2_varA_15 }, { "dec avx2 (xmm shfl, sym indpt)", rANS32x64_xmmShfl_16w_decode_avx2_varB_15 }, { "dec avx2 (ymm perm, sym dpndt)", rANS32x64_ymmPerm_16w_decode_avx2_varA_15 }, { "dec avx2 (ymm perm, sym indpt)", rANS32x64_ymmPerm_16w_decode_avx2_varB_15 }, {}}},
+  { "rANS32x64 16w", 14, {{ "enc scalar", rANS32x64_16w_encode_scalar_14 }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_14 }, { "dec avx2 (xmm shfl, sym dpndt)", rANS32x64_xmmShfl_16w_decode_avx2_varA_14 }, { "dec avx2 (xmm shfl, sym indpt)", rANS32x64_xmmShfl_16w_decode_avx2_varB_14 }, { "dec avx2 (ymm perm, sym dpndt)", rANS32x64_ymmPerm_16w_decode_avx2_varA_14 }, { "dec avx2 (ymm perm, sym indpt)", rANS32x64_ymmPerm_16w_decode_avx2_varB_14 }, {}}},
+  { "rANS32x64 16w", 13, {{ "enc scalar", rANS32x64_16w_encode_scalar_13 }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_13 }, { "dec avx2 (xmm shfl, sym dpndt)", rANS32x64_xmmShfl_16w_decode_avx2_varA_13 }, { "dec avx2 (xmm shfl, sym indpt)", rANS32x64_xmmShfl_16w_decode_avx2_varB_13 }, { "dec avx2 (ymm perm, sym dpndt)", rANS32x64_ymmPerm_16w_decode_avx2_varA_13 }, { "dec avx2 (ymm perm, sym indpt)", rANS32x64_ymmPerm_16w_decode_avx2_varB_13 }, {}}},
+  { "rANS32x64 16w", 12, {{ "enc scalar", rANS32x64_16w_encode_scalar_12 }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_12 }, { "dec avx2 (xmm shfl, sym dpndt)", rANS32x64_xmmShfl_16w_decode_avx2_varA_12 }, { "dec avx2 (xmm shfl, sym indpt)", rANS32x64_xmmShfl_16w_decode_avx2_varB_12 }, { "dec avx2 (xmm shfl, sngl gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_12 }, { "dec avx2 (ymm perm, sym dpndt)", rANS32x64_ymmPerm_16w_decode_avx2_varA_12 }, { "dec avx2 (ymm perm, sym indpt)", rANS32x64_ymmPerm_16w_decode_avx2_varB_12 }, { "dec avx2 (ymm perm, sngl gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_12 }, {}}},
+  { "rANS32x64 16w", 11, {{ "enc scalar", rANS32x64_16w_encode_scalar_11 }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_11 }, { "dec avx2 (xmm shfl, sym dpndt)", rANS32x64_xmmShfl_16w_decode_avx2_varA_11 }, { "dec avx2 (xmm shfl, sym indpt)", rANS32x64_xmmShfl_16w_decode_avx2_varB_11 }, { "dec avx2 (xmm shfl, sngl gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_11 }, { "dec avx2 (ymm perm, sym dpndt)", rANS32x64_ymmPerm_16w_decode_avx2_varA_11 }, { "dec avx2 (ymm perm, sym indpt)", rANS32x64_ymmPerm_16w_decode_avx2_varB_11 }, { "dec avx2 (ymm perm, sngl gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_11 }, {}}},
+  { "rANS32x64 16w", 10, {{ "enc scalar", rANS32x64_16w_encode_scalar_10 }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_10 }, { "dec avx2 (xmm shfl, sym dpndt)", rANS32x64_xmmShfl_16w_decode_avx2_varA_10 }, { "dec avx2 (xmm shfl, sym indpt)", rANS32x64_xmmShfl_16w_decode_avx2_varB_10 }, { "dec avx2 (xmm shfl, sngl gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_10 }, { "dec avx2 (ymm perm, sym dpndt)", rANS32x64_ymmPerm_16w_decode_avx2_varA_10 }, { "dec avx2 (ymm perm, sym indpt)", rANS32x64_ymmPerm_16w_decode_avx2_varB_10 }, { "dec avx2 (ymm perm, sngl gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_10 }, {}}},
   { "rANS32x32 16w", 15, {{ "enc scalar", rANS32x32_16w_encode_scalar_15 }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_15 }, { "dec avx2 (xmm shfl, sym dpndt)", rANS32x32_xmmShfl_16w_decode_avx2_varA_15 }, { "dec avx2 (xmm shfl, sym indpt)", rANS32x32_xmmShfl_16w_decode_avx2_varB_15 }, { "dec avx2 (ymm perm, sym dpndt)", rANS32x32_ymmPerm_16w_decode_avx2_varA_15 }, { "dec avx2 (ymm perm, sym indpt)", rANS32x32_ymmPerm_16w_decode_avx2_varB_15 }, {}}},
   { "rANS32x32 16w", 14, {{ "enc scalar", rANS32x32_16w_encode_scalar_14 }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_14 }, { "dec avx2 (xmm shfl, sym dpndt)", rANS32x32_xmmShfl_16w_decode_avx2_varA_14 }, { "dec avx2 (xmm shfl, sym indpt)", rANS32x32_xmmShfl_16w_decode_avx2_varB_14 }, { "dec avx2 (ymm perm, sym dpndt)", rANS32x32_ymmPerm_16w_decode_avx2_varA_14 }, { "dec avx2 (ymm perm, sym indpt)", rANS32x32_ymmPerm_16w_decode_avx2_varB_14 }, {}}},
   { "rANS32x32 16w", 13, {{ "enc scalar", rANS32x32_16w_encode_scalar_13 }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_13 }, { "dec avx2 (xmm shfl, sym dpndt)", rANS32x32_xmmShfl_16w_decode_avx2_varA_13 }, { "dec avx2 (xmm shfl, sym indpt)", rANS32x32_xmmShfl_16w_decode_avx2_varB_13 }, { "dec avx2 (ymm perm, sym dpndt)", rANS32x32_ymmPerm_16w_decode_avx2_varA_13 }, { "dec avx2 (ymm perm, sym indpt)", rANS32x32_ymmPerm_16w_decode_avx2_varB_13 }, {}}},
@@ -157,7 +164,7 @@ static codec_info_t _Codecs[] =
 
 int32_t main(const int32_t argc, char **pArgv)
 {
-  if (argc == 0)
+  if (argc == 1)
   {
     puts("Invalid Parameter.");
     return 1;
@@ -207,7 +214,7 @@ int32_t main(const int32_t argc, char **pArgv)
     pUncompressedData = (uint8_t *)malloc(fileSize);
     pDecompressedData = (uint8_t *)malloc(fileSize);
 
-    compressedDataCapacity = rans_max(rans_max(rANS32x16_16w_capacity(fileSize), rANS32x32_16w_capacity(fileSize)), rans_max(rANS32x32_32blk_16w_capacity(fileSize), rANS32x32_32blk_8w_capacity(fileSize)));
+    compressedDataCapacity = rans_max(rans_max(rans_max(rANS32x64_16w_capacity(fileSize), rANS32x16_16w_capacity(fileSize)), rANS32x32_16w_capacity(fileSize)), rans_max(rANS32x32_32blk_16w_capacity(fileSize), rANS32x32_32blk_8w_capacity(fileSize)));
     pCompressedData = (uint8_t *)malloc(compressedDataCapacity);
 
     if (pUncompressedData == nullptr || pDecompressedData == nullptr || pCompressedData == nullptr)
