@@ -657,6 +657,7 @@ size_t rANS32x64_xmmShfl_16w_decode_avx2_varA(const uint8_t *pInData, const size
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
 
     // We intentionally encoded in a way to not have to do horrible things here. (TODO: make variant with `_mm256_stream_si256`/`_mm256_store_si256` if output buffer is 32 byte aligned)
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
 
     const simd_t symPack45 = _mm256_packus_epi32(symbol4, symbol5);
     const simd_t symPack67 = _mm256_packus_epi32(symbol6, symbol7);
@@ -1025,6 +1026,7 @@ size_t rANS32x64_xmmShfl_16w_decode_avx2_varB(const uint8_t *pInData, const size
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
 
     // We intentionally encoded in a way to not have to do horrible things here. (TODO: make variant with `_mm256_stream_si256`/`_mm256_store_si256` if output buffer is 32 byte aligned)
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
 
     const simd_t symPack45 = _mm256_packus_epi32(symbol4, symbol5);
     const simd_t symPack67 = _mm256_packus_epi32(symbol6, symbol7);
@@ -1365,6 +1367,7 @@ size_t rANS32x64_xmmShfl_16w_decode_avx2_varC(const uint8_t *pInData, const size
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
 
     // We intentionally encoded in a way to not have to do horrible things here. (TODO: make variant with `_mm256_stream_si256`/`_mm256_store_si256` if output buffer is 32 byte aligned)
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
 
     const simd_t symPack45 = _mm256_packus_epi32(symbol4, symbol5);
     const simd_t symPack67 = _mm256_packus_epi32(symbol6, symbol7);
@@ -1998,6 +2001,7 @@ size_t rANS32x64_ymmPerm_16w_decode_avx2_varA(const uint8_t *pInData, const size
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
 
     // We intentionally encoded in a way to not have to do horrible things here. (TODO: make variant with `_mm256_stream_si256`/`_mm256_store_si256` if output buffer is 32 byte aligned)
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
 
     const simd_t symPack45 = _mm256_packus_epi32(symbol4, symbol5);
     const simd_t symPack67 = _mm256_packus_epi32(symbol6, symbol7);
@@ -2372,6 +2376,7 @@ size_t rANS32x64_ymmPerm_16w_decode_avx2_varB(const uint8_t *pInData, const size
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
 
     // We intentionally encoded in a way to not have to do horrible things here. (TODO: make variant with `_mm256_stream_si256`/`_mm256_store_si256` if output buffer is 32 byte aligned)
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
 
     const simd_t symPack45 = _mm256_packus_epi32(symbol4, symbol5);
     const simd_t symPack67 = _mm256_packus_epi32(symbol6, symbol7);
@@ -2718,6 +2723,7 @@ size_t rANS32x64_ymmPerm_16w_decode_avx2_varC(const uint8_t *pInData, const size
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
 
     // We intentionally encoded in a way to not have to do horrible things here. (TODO: make variant with `_mm256_stream_si256`/`_mm256_store_si256` if output buffer is 32 byte aligned)
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
 
     const simd_t symPack45 = _mm256_packus_epi32(symbol4, symbol5);
     const simd_t symPack67 = _mm256_packus_epi32(symbol6, symbol7);

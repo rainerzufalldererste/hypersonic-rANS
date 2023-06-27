@@ -251,6 +251,8 @@ int32_t main(const int32_t argc, char **pArgv)
 
       printf("%-32s %2" PRIu32 " | -------- | ---------------- | ------------------------------------ | -------------- | ------------------------------------\n", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits);
 
+      memset(pCompressedData, 0xCC, compressedDataCapacity);
+
       if constexpr (RunCount > 1)
       {
         printf("\r  (dry run)");
@@ -292,6 +294,8 @@ int32_t main(const int32_t argc, char **pArgv)
     {
       if (_Codecs[codecId].decoders[i].name == nullptr)
         break;
+
+      memset(pDecompressedData, 0xCC, fileSize);
 
       if constexpr (RunCount > 1)
       {

@@ -150,6 +150,54 @@ rANS32x32 32blk 8w               10 | -        | -                | -           
   dec avx2 (sym indpt 2x)           |          |    3.38 clk/byte |    3.39 clk/byte |  1266.38 MiB/s |  1262.78 MiB/s |
   dec avx2 (sngl gthr)              |          |    2.54 clk/byte |    2.59 clk/byte |  1687.24 MiB/s |  1653.33 MiB/s |
   dec avx2 (sngl gthr 2x)           |          |    2.40 clk/byte |    2.41 clk/byte |  1783.11 MiB/s |  1775.06 MiB/s |
+rANS32x64 16w                    15 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.59 % |    5.98 clk/byte |    6.30 clk/byte |   715.74 MiB/s |   680.38 MiB/s |
+  dec scalar                        |          |    4.98 clk/byte |    5.51 clk/byte |   859.42 MiB/s |   777.33 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.69 clk/byte |    2.93 clk/byte |  1593.20 MiB/s |  1464.29 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    3.01 clk/byte |    3.02 clk/byte |  1425.08 MiB/s |  1420.38 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.85 clk/byte |    2.86 clk/byte |  1504.20 MiB/s |  1496.87 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    3.17 clk/byte |    3.18 clk/byte |  1353.16 MiB/s |  1346.22 MiB/s |
+rANS32x64 16w                    14 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.62 % |    6.03 clk/byte |    6.05 clk/byte |   710.51 MiB/s |   708.20 MiB/s |
+  dec scalar                        |          |    4.89 clk/byte |    4.95 clk/byte |   876.21 MiB/s |   866.11 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.69 clk/byte |    2.70 clk/byte |  1594.18 MiB/s |  1586.53 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.90 clk/byte |    2.93 clk/byte |  1478.29 MiB/s |  1462.36 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.85 clk/byte |    2.87 clk/byte |  1501.20 MiB/s |  1493.30 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    3.06 clk/byte |    3.09 clk/byte |  1399.32 MiB/s |  1387.44 MiB/s |
+rANS32x64 16w                    13 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.71 % |    6.04 clk/byte |    6.07 clk/byte |   709.65 MiB/s |   705.82 MiB/s |
+  dec scalar                        |          |    4.91 clk/byte |    4.99 clk/byte |   872.48 MiB/s |   858.56 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.68 clk/byte |    2.85 clk/byte |  1597.34 MiB/s |  1503.91 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.86 clk/byte |    3.21 clk/byte |  1499.28 MiB/s |  1334.22 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.85 clk/byte |    3.19 clk/byte |  1505.02 MiB/s |  1344.79 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    3.02 clk/byte |    3.22 clk/byte |  1419.88 MiB/s |  1328.40 MiB/s |
+rANS32x64 16w                    12 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.99 % |    6.04 clk/byte |    6.06 clk/byte |   709.39 MiB/s |   706.50 MiB/s |
+  dec scalar                        |          |    4.95 clk/byte |    5.02 clk/byte |   864.84 MiB/s |   853.58 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.69 clk/byte |    2.71 clk/byte |  1593.98 MiB/s |  1582.96 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.82 clk/byte |    2.89 clk/byte |  1520.70 MiB/s |  1483.21 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    1.70 clk/byte |    1.73 clk/byte |  2512.39 MiB/s |  2472.05 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.85 clk/byte |    2.87 clk/byte |  1501.79 MiB/s |  1491.19 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.98 clk/byte |    3.15 clk/byte |  1436.69 MiB/s |  1360.16 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    1.85 clk/byte |    1.86 clk/byte |  2314.97 MiB/s |  2305.96 MiB/s |
+rANS32x64 16w                    11 | -        | -                | -                | -              | -              |
+  enc scalar                        |  13.73 % |    6.19 clk/byte |    6.21 clk/byte |   692.21 MiB/s |   689.57 MiB/s |
+  dec scalar                        |          |    5.10 clk/byte |    5.16 clk/byte |   840.12 MiB/s |   829.59 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.68 clk/byte |    2.69 clk/byte |  1598.11 MiB/s |  1591.38 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.81 clk/byte |    2.85 clk/byte |  1522.40 MiB/s |  1505.48 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    1.70 clk/byte |    1.81 clk/byte |  2512.21 MiB/s |  2365.70 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.84 clk/byte |    3.02 clk/byte |  1506.42 MiB/s |  1417.63 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.97 clk/byte |    3.14 clk/byte |  1443.30 MiB/s |  1364.18 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    1.86 clk/byte |    2.08 clk/byte |  2307.62 MiB/s |  2060.28 MiB/s |
+rANS32x64 16w                    10 | -        | -                | -                | -              | -              |
+  enc scalar                        |  16.34 % |    6.43 clk/byte |    6.46 clk/byte |   666.25 MiB/s |   662.91 MiB/s |
+  dec scalar                        |          |    5.46 clk/byte |    5.51 clk/byte |   784.53 MiB/s |   777.87 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.68 clk/byte |    2.69 clk/byte |  1600.54 MiB/s |  1593.16 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.83 clk/byte |    2.84 clk/byte |  1513.96 MiB/s |  1509.36 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    1.70 clk/byte |    1.72 clk/byte |  2520.29 MiB/s |  2487.04 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.85 clk/byte |    2.87 clk/byte |  1503.16 MiB/s |  1494.55 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.97 clk/byte |    3.06 clk/byte |  1444.30 MiB/s |  1398.16 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    1.86 clk/byte |    1.87 clk/byte |  2307.08 MiB/s |  2294.53 MiB/s |
 rANS32x16 16w                    15 | -        | -                | -                | -              | -              |
   enc scalar                        |  12.59 % |    6.11 clk/byte |    6.13 clk/byte |   701.44 MiB/s |   698.72 MiB/s |
   dec scalar                        |          |    5.00 clk/byte |    5.06 clk/byte |   856.38 MiB/s |   846.36 MiB/s |
@@ -202,198 +250,246 @@ rANS32x16 16w                    10 | -        | -                | -           
 ### Clang (via WSL2)
 | Codec Type | Ratio | Minimum<br/>Clocks/Byte | Average<br/>Clocks/Byte | Maximum<br/>Throughput | Average<br/>Throughput |
 | -- | --: | --: | --: | --: | --: |
-rANS32x32 16w                    15 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.59 % |    6.28 clk/byte |    6.29 clk/byte  |   682.55 MiB/s |   680.80 MiB/s |
-  dec scalar                        |          |    5.21 clk/byte |    5.32 clk/byte  |   821.48 MiB/s |   804.64 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    2.43 clk/byte |    2.46 clk/byte  |  1759.64 MiB/s |  1739.65 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    2.80 clk/byte |    2.81 clk/byte  |  1528.61 MiB/s |  1521.78 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    2.59 clk/byte |    2.62 clk/byte  |  1653.06 MiB/s |  1637.83 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    3.01 clk/byte |    3.02 clk/byte  |  1423.46 MiB/s |  1418.15 MiB/s |
-rANS32x32 16w                    14 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.62 % |    6.28 clk/byte |    6.31 clk/byte  |   681.83 MiB/s |   678.78 MiB/s |
-  dec scalar                        |          |    5.31 clk/byte |    5.33 clk/byte  |   806.73 MiB/s |   804.27 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    2.40 clk/byte |    2.41 clk/byte  |  1786.11 MiB/s |  1774.01 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    2.70 clk/byte |    2.71 clk/byte  |  1588.62 MiB/s |  1578.66 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    2.56 clk/byte |    2.57 clk/byte  |  1676.19 MiB/s |  1666.93 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    2.88 clk/byte |    2.90 clk/byte  |  1486.06 MiB/s |  1477.57 MiB/s |
-rANS32x32 16w                    13 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.71 % |    6.29 clk/byte |    6.32 clk/byte  |   681.06 MiB/s |   678.25 MiB/s |
-  dec scalar                        |          |    5.27 clk/byte |    5.30 clk/byte  |   812.93 MiB/s |   808.74 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    2.37 clk/byte |    2.38 clk/byte  |  1804.99 MiB/s |  1797.87 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    2.57 clk/byte |    2.58 clk/byte  |  1669.50 MiB/s |  1660.65 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    2.54 clk/byte |    2.56 clk/byte  |  1689.08 MiB/s |  1674.06 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    2.77 clk/byte |    2.79 clk/byte  |  1544.27 MiB/s |  1535.11 MiB/s |
-rANS32x32 16w                    12 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.99 % |    6.36 clk/byte |    6.37 clk/byte  |   673.91 MiB/s |   672.47 MiB/s |
-  dec scalar                        |          |    5.30 clk/byte |    5.37 clk/byte  |   808.46 MiB/s |   797.51 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    2.37 clk/byte |    2.38 clk/byte  |  1807.73 MiB/s |  1797.18 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    2.43 clk/byte |    2.46 clk/byte  |  1761.24 MiB/s |  1743.51 MiB/s |
-  dec avx2 (shfl, sngl gthr)        |          |    1.57 clk/byte |    1.59 clk/byte  |  2732.98 MiB/s |  2698.21 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    2.56 clk/byte |    2.57 clk/byte  |  1674.59 MiB/s |  1665.05 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    2.68 clk/byte |    2.70 clk/byte  |  1600.40 MiB/s |  1585.18 MiB/s |
-  dec avx2 (perm, sngl gthr)        |          |    1.71 clk/byte |    1.73 clk/byte  |  2498.73 MiB/s |  2471.75 MiB/s |
-rANS32x32 16w                    11 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  13.73 % |    6.45 clk/byte |    6.47 clk/byte  |   664.59 MiB/s |   662.12 MiB/s |
-  dec scalar                        |          |    5.40 clk/byte |    5.43 clk/byte  |   793.91 MiB/s |   789.05 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    2.38 clk/byte |    2.41 clk/byte  |  1797.36 MiB/s |  1780.45 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    2.44 clk/byte |    2.46 clk/byte  |  1754.25 MiB/s |  1744.37 MiB/s |
-  dec avx2 (shfl, sngl gthr)        |          |    1.57 clk/byte |    1.58 clk/byte  |  2730.31 MiB/s |  2705.41 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    2.56 clk/byte |    2.58 clk/byte  |  1673.70 MiB/s |  1662.29 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    2.66 clk/byte |    2.67 clk/byte  |  1612.21 MiB/s |  1602.44 MiB/s |
-  dec avx2 (perm, sngl gthr)        |          |    1.72 clk/byte |    1.73 clk/byte  |  2491.58 MiB/s |  2471.98 MiB/s |
-rANS32x32 16w                    10 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  16.34 % |    6.78 clk/byte |    6.82 clk/byte  |   632.15 MiB/s |   628.14 MiB/s |
-  dec scalar                        |          |    5.81 clk/byte |    5.88 clk/byte  |   737.34 MiB/s |   728.37 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    2.38 clk/byte |    2.39 clk/byte  |  1800.70 MiB/s |  1790.78 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    2.43 clk/byte |    2.46 clk/byte  |  1759.59 MiB/s |  1744.06 MiB/s |
-  dec avx2 (shfl, sngl gthr)        |          |    1.56 clk/byte |    1.58 clk/byte  |  2737.97 MiB/s |  2715.31 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    2.53 clk/byte |    2.57 clk/byte  |  1690.76 MiB/s |  1667.33 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    2.65 clk/byte |    2.67 clk/byte  |  1618.62 MiB/s |  1601.42 MiB/s |
-  dec avx2 (perm, sngl gthr)        |          |    1.70 clk/byte |    1.73 clk/byte  |  2517.48 MiB/s |  2481.76 MiB/s |
-rANS32x32 32blk 16w              15 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.59 % |    6.10 clk/byte |    6.14 clk/byte  |   702.34 MiB/s |   697.27 MiB/s |
-  dec scalar                        |          |    5.25 clk/byte |    5.28 clk/byte  |   815.87 MiB/s |   811.29 MiB/s |
-  dec avx2 (sym dpndt)              |          |    2.94 clk/byte |    2.96 clk/byte  |  1456.62 MiB/s |  1447.36 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.64 clk/byte |    2.67 clk/byte  |  1624.87 MiB/s |  1607.02 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.30 clk/byte |    3.32 clk/byte  |  1299.77 MiB/s |  1289.25 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    3.00 clk/byte |    3.03 clk/byte  |  1429.80 MiB/s |  1415.78 MiB/s |
-rANS32x32 32blk 16w              14 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.62 % |    6.23 clk/byte |    6.29 clk/byte  |   687.06 MiB/s |   681.27 MiB/s |
-  dec scalar                        |          |    5.32 clk/byte |    5.36 clk/byte  |   805.28 MiB/s |   799.82 MiB/s |
-  dec avx2 (sym dpndt)              |          |    2.93 clk/byte |    2.94 clk/byte  |  1459.82 MiB/s |  1454.66 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.62 clk/byte |    2.65 clk/byte  |  1635.37 MiB/s |  1618.07 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.21 clk/byte |    3.22 clk/byte  |  1333.80 MiB/s |  1328.29 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    2.90 clk/byte |    2.92 clk/byte  |  1478.46 MiB/s |  1468.47 MiB/s |
-rANS32x32 32blk 16w              13 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.71 % |    6.21 clk/byte |    6.25 clk/byte  |   689.95 MiB/s |   684.93 MiB/s |
-  dec scalar                        |          |    5.26 clk/byte |    5.29 clk/byte  |   814.78 MiB/s |   809.73 MiB/s |
-  dec avx2 (sym dpndt)              |          |    2.93 clk/byte |    2.97 clk/byte  |  1461.07 MiB/s |  1444.33 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.64 clk/byte |    2.65 clk/byte  |  1623.37 MiB/s |  1615.86 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.10 clk/byte |    3.12 clk/byte  |  1382.52 MiB/s |  1374.45 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    2.78 clk/byte |    2.81 clk/byte  |  1538.81 MiB/s |  1526.52 MiB/s |
-rANS32x32 32blk 16w              12 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.99 % |    6.24 clk/byte |    6.30 clk/byte  |   686.60 MiB/s |   680.26 MiB/s |
-  dec scalar                        |          |    5.28 clk/byte |    5.31 clk/byte  |   810.74 MiB/s |   806.16 MiB/s |
-  dec avx2 (sym dpndt)              |          |    2.94 clk/byte |    2.95 clk/byte  |  1457.50 MiB/s |  1450.50 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.63 clk/byte |    2.65 clk/byte  |  1626.48 MiB/s |  1616.02 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.07 clk/byte |    3.09 clk/byte  |  1396.02 MiB/s |  1388.33 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    2.66 clk/byte |    2.68 clk/byte  |  1608.71 MiB/s |  1595.64 MiB/s |
-  dec avx2 (sngl gthr)              |          |    2.20 clk/byte |    2.23 clk/byte  |  1943.09 MiB/s |  1924.81 MiB/s |
-  dec avx2 (sngl gthr 2x)           |          |    1.79 clk/byte |    1.81 clk/byte  |  2391.11 MiB/s |  2366.07 MiB/s |
-rANS32x32 32blk 16w              11 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  13.73 % |    6.37 clk/byte |    6.43 clk/byte  |   672.69 MiB/s |   666.61 MiB/s |
-  dec scalar                        |          |    5.38 clk/byte |    5.44 clk/byte  |   796.16 MiB/s |   787.62 MiB/s |
-  dec avx2 (sym dpndt)              |          |    2.95 clk/byte |    2.99 clk/byte  |  1449.62 MiB/s |  1434.11 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.64 clk/byte |    2.68 clk/byte  |  1619.91 MiB/s |  1600.32 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.08 clk/byte |    3.10 clk/byte  |  1389.34 MiB/s |  1381.45 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    2.68 clk/byte |    2.69 clk/byte  |  1599.23 MiB/s |  1592.94 MiB/s |
-  dec avx2 (sngl gthr)              |          |    2.19 clk/byte |    2.20 clk/byte  |  1954.62 MiB/s |  1947.53 MiB/s |
-  dec avx2 (sngl gthr 2x)           |          |    1.85 clk/byte |    1.86 clk/byte  |  2319.74 MiB/s |  2296.92 MiB/s |
-rANS32x32 32blk 16w              10 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  16.34 % |    6.71 clk/byte |    6.75 clk/byte  |   638.00 MiB/s |   634.74 MiB/s |
-  dec scalar                        |          |    5.79 clk/byte |    5.85 clk/byte  |   739.32 MiB/s |   732.72 MiB/s |
-  dec avx2 (sym dpndt)              |          |    2.97 clk/byte |    3.01 clk/byte  |  1441.73 MiB/s |  1424.86 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.65 clk/byte |    2.67 clk/byte  |  1614.63 MiB/s |  1601.86 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.12 clk/byte |    3.14 clk/byte  |  1373.01 MiB/s |  1364.69 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    2.67 clk/byte |    2.69 clk/byte  |  1604.31 MiB/s |  1589.51 MiB/s |
-  dec avx2 (sngl gthr)              |          |    2.20 clk/byte |    2.21 clk/byte  |  1948.04 MiB/s |  1936.20 MiB/s |
-  dec avx2 (sngl gthr 2x)           |          |    1.84 clk/byte |    1.86 clk/byte  |  2324.27 MiB/s |  2300.85 MiB/s |
-rANS32x32 32blk 8w               15 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.58 % |    7.06 clk/byte |    7.10 clk/byte  |   606.91 MiB/s |   603.46 MiB/s |
-  dec scalar                        |          |    6.49 clk/byte |    6.52 clk/byte  |   659.68 MiB/s |   656.67 MiB/s |
-  dec avx2 (sym dpndt)              |          |    3.36 clk/byte |    3.38 clk/byte  |  1273.90 MiB/s |  1267.59 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    3.03 clk/byte |    3.05 clk/byte  |  1414.08 MiB/s |  1402.93 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.85 clk/byte |    3.88 clk/byte  |  1113.44 MiB/s |  1102.92 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    3.53 clk/byte |    3.55 clk/byte  |  1214.31 MiB/s |  1207.01 MiB/s |
-rANS32x32 32blk 8w               14 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.61 % |    7.07 clk/byte |    7.09 clk/byte  |   606.03 MiB/s |   604.43 MiB/s |
-  dec scalar                        |          |    6.38 clk/byte |    6.44 clk/byte  |   671.67 MiB/s |   665.51 MiB/s |
-  dec avx2 (sym dpndt)              |          |    3.25 clk/byte |    3.26 clk/byte  |  1317.88 MiB/s |  1312.18 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.96 clk/byte |    2.97 clk/byte  |  1448.41 MiB/s |  1441.11 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.57 clk/byte |    3.59 clk/byte  |  1198.39 MiB/s |  1192.50 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    3.34 clk/byte |    3.36 clk/byte  |  1283.61 MiB/s |  1275.38 MiB/s |
-rANS32x32 32blk 8w               13 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.70 % |    7.09 clk/byte |    7.13 clk/byte  |   603.86 MiB/s |   600.59 MiB/s |
-  dec scalar                        |          |    6.36 clk/byte |    6.39 clk/byte  |   673.21 MiB/s |   670.15 MiB/s |
-  dec avx2 (sym dpndt)              |          |    3.26 clk/byte |    3.29 clk/byte  |  1314.82 MiB/s |  1302.09 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.97 clk/byte |    2.99 clk/byte  |  1442.91 MiB/s |  1434.87 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.40 clk/byte |    3.42 clk/byte  |  1258.40 MiB/s |  1253.10 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    3.13 clk/byte |    3.16 clk/byte  |  1369.02 MiB/s |  1357.36 MiB/s |
-rANS32x32 32blk 8w               12 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.99 % |    7.10 clk/byte |    7.15 clk/byte  |   603.56 MiB/s |   599.31 MiB/s |
-  dec scalar                        |          |    6.37 clk/byte |    6.40 clk/byte  |   672.58 MiB/s |   668.79 MiB/s |
-  dec avx2 (sym dpndt)              |          |    3.24 clk/byte |    3.27 clk/byte  |  1324.01 MiB/s |  1310.90 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.94 clk/byte |    2.96 clk/byte  |  1456.96 MiB/s |  1447.56 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.26 clk/byte |    3.29 clk/byte  |  1312.03 MiB/s |  1301.61 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    2.89 clk/byte |    2.91 clk/byte  |  1483.60 MiB/s |  1472.79 MiB/s |
-  dec avx2 (sngl gthr)              |          |    2.42 clk/byte |    2.45 clk/byte  |  1768.85 MiB/s |  1749.19 MiB/s |
-  dec avx2 (sngl gthr 2x)           |          |    2.07 clk/byte |    2.09 clk/byte  |  2066.72 MiB/s |  2051.62 MiB/s |
-rANS32x32 32blk 8w               11 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  13.73 % |    7.13 clk/byte |    7.17 clk/byte  |   600.82 MiB/s |   597.13 MiB/s |
-  dec scalar                        |          |    6.33 clk/byte |    6.36 clk/byte  |   677.06 MiB/s |   673.07 MiB/s |
-  dec avx2 (sym dpndt)              |          |    3.28 clk/byte |    3.30 clk/byte  |  1305.47 MiB/s |  1296.14 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.97 clk/byte |    2.99 clk/byte  |  1439.92 MiB/s |  1434.07 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.29 clk/byte |    3.33 clk/byte  |  1303.53 MiB/s |  1285.27 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    2.90 clk/byte |    2.93 clk/byte  |  1475.39 MiB/s |  1462.28 MiB/s |
-  dec avx2 (sngl gthr)              |          |    2.38 clk/byte |    2.40 clk/byte  |  1796.74 MiB/s |  1785.82 MiB/s |
-  dec avx2 (sngl gthr 2x)           |          |    2.12 clk/byte |    2.13 clk/byte  |  2016.90 MiB/s |  2011.26 MiB/s |
-rANS32x32 32blk 8w               10 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  16.34 % |    7.10 clk/byte |    7.17 clk/byte  |   603.58 MiB/s |   597.39 MiB/s |
-  dec scalar                        |          |    6.44 clk/byte |    6.51 clk/byte  |   665.02 MiB/s |   658.15 MiB/s |
-  dec avx2 (sym dpndt)              |          |    3.28 clk/byte |    3.31 clk/byte  |  1305.38 MiB/s |  1295.84 MiB/s |
-  dec avx2 (sym dpndt 2x)           |          |    2.99 clk/byte |    3.00 clk/byte  |  1434.06 MiB/s |  1426.52 MiB/s |
-  dec avx2 (sym indpt)              |          |    3.26 clk/byte |    3.29 clk/byte  |  1315.74 MiB/s |  1302.51 MiB/s |
-  dec avx2 (sym indpt 2x)           |          |    2.89 clk/byte |    2.91 clk/byte  |  1480.90 MiB/s |  1471.40 MiB/s |
-  dec avx2 (sngl gthr)              |          |    2.39 clk/byte |    2.40 clk/byte  |  1792.14 MiB/s |  1785.99 MiB/s |
-  dec avx2 (sngl gthr 2x)           |          |    2.11 clk/byte |    2.13 clk/byte  |  2026.25 MiB/s |  2014.03 MiB/s |
-rANS32x16 16w                    15 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.59 % |    6.32 clk/byte |    6.36 clk/byte  |   678.24 MiB/s |   673.80 MiB/s |
-  dec scalar                        |          |    5.14 clk/byte |    5.20 clk/byte  |   833.42 MiB/s |   823.43 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    3.82 clk/byte |    3.88 clk/byte  |  1121.45 MiB/s |  1104.05 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    3.96 clk/byte |    4.01 clk/byte  |  1081.59 MiB/s |  1067.08 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    4.14 clk/byte |    4.19 clk/byte  |  1033.69 MiB/s |  1023.14 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    4.06 clk/byte |    4.10 clk/byte  |  1056.22 MiB/s |  1044.07 MiB/s |
-rANS32x16 16w                    14 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.62 % |    6.36 clk/byte |    6.38 clk/byte  |   673.61 MiB/s |   671.55 MiB/s |
-  dec scalar                        |          |    5.19 clk/byte |    5.24 clk/byte  |   826.05 MiB/s |   818.17 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    3.65 clk/byte |    3.68 clk/byte  |  1172.88 MiB/s |  1165.41 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    3.90 clk/byte |    3.94 clk/byte  |  1097.34 MiB/s |  1087.25 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    3.96 clk/byte |    4.00 clk/byte  |  1082.18 MiB/s |  1071.27 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    4.01 clk/byte |    4.03 clk/byte  |  1069.28 MiB/s |  1061.62 MiB/s |
-rANS32x16 16w                    13 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.71 % |    6.38 clk/byte |    6.42 clk/byte  |   670.94 MiB/s |   666.68 MiB/s |
-  dec scalar                        |          |    5.20 clk/byte |    5.24 clk/byte  |   823.02 MiB/s |   816.90 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    3.64 clk/byte |    3.67 clk/byte  |  1176.86 MiB/s |  1168.08 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    3.70 clk/byte |    3.75 clk/byte  |  1157.95 MiB/s |  1143.32 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    3.91 clk/byte |    3.96 clk/byte  |  1096.04 MiB/s |  1080.80 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    3.84 clk/byte |    3.88 clk/byte  |  1115.38 MiB/s |  1105.01 MiB/s |
-rANS32x16 16w                    12 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  12.99 % |    6.40 clk/byte |    6.43 clk/byte  |   669.32 MiB/s |   665.81 MiB/s |
-  dec scalar                        |          |    5.24 clk/byte |    5.27 clk/byte  |   817.86 MiB/s |   812.97 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    3.60 clk/byte |    3.63 clk/byte  |  1190.34 MiB/s |  1179.82 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    3.46 clk/byte |    3.49 clk/byte  |  1238.45 MiB/s |  1226.55 MiB/s |
-  dec avx2 (shfl, sngl gthr)        |          |    2.56 clk/byte |    2.58 clk/byte  |  1673.44 MiB/s |  1660.39 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    3.91 clk/byte |    3.96 clk/byte  |  1095.27 MiB/s |  1081.83 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    3.53 clk/byte |    3.57 clk/byte  |  1213.61 MiB/s |  1199.79 MiB/s |
-  dec avx2 (perm, sngl gthr)        |          |    2.78 clk/byte |    2.82 clk/byte  |  1539.43 MiB/s |  1517.41 MiB/s |
-rANS32x16 16w                    11 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  13.73 % |    6.59 clk/byte |    6.62 clk/byte  |   650.32 MiB/s |   647.13 MiB/s |
-  dec scalar                        |          |    5.34 clk/byte |    5.40 clk/byte  |   802.19 MiB/s |   793.65 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    3.62 clk/byte |    3.66 clk/byte  |  1181.77 MiB/s |  1171.18 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    3.50 clk/byte |    3.52 clk/byte  |  1223.93 MiB/s |  1215.85 MiB/s |
-  dec avx2 (shfl, sngl gthr)        |          |    2.55 clk/byte |    2.57 clk/byte  |  1680.44 MiB/s |  1668.52 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    3.96 clk/byte |    3.98 clk/byte  |  1080.93 MiB/s |  1075.87 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    3.52 clk/byte |    3.54 clk/byte  |  1216.82 MiB/s |  1209.69 MiB/s |
-  dec avx2 (perm, sngl gthr)        |          |    2.80 clk/byte |    2.83 clk/byte  |  1529.96 MiB/s |  1512.85 MiB/s |
-rANS32x16 16w                    10 | -        | -                | -                 | -              | -              |
-  enc scalar                        |  16.34 % |    6.78 clk/byte |    6.82 clk/byte  |   631.37 MiB/s |   627.80 MiB/s |
-  dec scalar                        |          |    5.68 clk/byte |    5.73 clk/byte  |   753.84 MiB/s |   747.02 MiB/s |
-  dec avx2 (shfl, sym dpndt)        |          |    3.61 clk/byte |    3.64 clk/byte  |  1187.55 MiB/s |  1176.11 MiB/s |
-  dec avx2 (shfl, sym indpt)        |          |    3.46 clk/byte |    3.50 clk/byte  |  1238.84 MiB/s |  1223.07 MiB/s |
-  dec avx2 (shfl, sngl gthr)        |          |    2.52 clk/byte |    2.55 clk/byte  |  1701.32 MiB/s |  1679.00 MiB/s |
-  dec avx2 (perm, sym dpndt)        |          |    3.91 clk/byte |    3.95 clk/byte  |  1094.72 MiB/s |  1083.36 MiB/s |
-  dec avx2 (perm, sym indpt)        |          |    3.49 clk/byte |    3.52 clk/byte  |  1228.73 MiB/s |  1217.37 MiB/s |
-  dec avx2 (perm, sngl gthr)        |          |    2.77 clk/byte |    2.81 clk/byte  |  1544.35 MiB/s |  1523.33 MiB/s |
+rANS32x32 16w                    15 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.59 % |    6.28 clk/byte |    6.29 clk/byte |   682.55 MiB/s |   680.80 MiB/s |
+  dec scalar                        |          |    5.21 clk/byte |    5.32 clk/byte |   821.48 MiB/s |   804.64 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.43 clk/byte |    2.46 clk/byte |  1759.64 MiB/s |  1739.65 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.80 clk/byte |    2.81 clk/byte |  1528.61 MiB/s |  1521.78 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.59 clk/byte |    2.62 clk/byte |  1653.06 MiB/s |  1637.83 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    3.01 clk/byte |    3.02 clk/byte |  1423.46 MiB/s |  1418.15 MiB/s |
+rANS32x32 16w                    14 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.62 % |    6.28 clk/byte |    6.31 clk/byte |   681.83 MiB/s |   678.78 MiB/s |
+  dec scalar                        |          |    5.31 clk/byte |    5.33 clk/byte |   806.73 MiB/s |   804.27 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.40 clk/byte |    2.41 clk/byte |  1786.11 MiB/s |  1774.01 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.70 clk/byte |    2.71 clk/byte |  1588.62 MiB/s |  1578.66 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.56 clk/byte |    2.57 clk/byte |  1676.19 MiB/s |  1666.93 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.88 clk/byte |    2.90 clk/byte |  1486.06 MiB/s |  1477.57 MiB/s |
+rANS32x32 16w                    13 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.71 % |    6.29 clk/byte |    6.32 clk/byte |   681.06 MiB/s |   678.25 MiB/s |
+  dec scalar                        |          |    5.27 clk/byte |    5.30 clk/byte |   812.93 MiB/s |   808.74 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.37 clk/byte |    2.38 clk/byte |  1804.99 MiB/s |  1797.87 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.57 clk/byte |    2.58 clk/byte |  1669.50 MiB/s |  1660.65 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.54 clk/byte |    2.56 clk/byte |  1689.08 MiB/s |  1674.06 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.77 clk/byte |    2.79 clk/byte |  1544.27 MiB/s |  1535.11 MiB/s |
+rANS32x32 16w                    12 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.99 % |    6.36 clk/byte |    6.37 clk/byte |   673.91 MiB/s |   672.47 MiB/s |
+  dec scalar                        |          |    5.30 clk/byte |    5.37 clk/byte |   808.46 MiB/s |   797.51 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.37 clk/byte |    2.38 clk/byte |  1807.73 MiB/s |  1797.18 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.43 clk/byte |    2.46 clk/byte |  1761.24 MiB/s |  1743.51 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    1.57 clk/byte |    1.59 clk/byte |  2732.98 MiB/s |  2698.21 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.56 clk/byte |    2.57 clk/byte |  1674.59 MiB/s |  1665.05 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.68 clk/byte |    2.70 clk/byte |  1600.40 MiB/s |  1585.18 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    1.71 clk/byte |    1.73 clk/byte |  2498.73 MiB/s |  2471.75 MiB/s |
+rANS32x32 16w                    11 | -        | -                | -                | -              | -              |
+  enc scalar                        |  13.73 % |    6.45 clk/byte |    6.47 clk/byte |   664.59 MiB/s |   662.12 MiB/s |
+  dec scalar                        |          |    5.40 clk/byte |    5.43 clk/byte |   793.91 MiB/s |   789.05 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.38 clk/byte |    2.41 clk/byte |  1797.36 MiB/s |  1780.45 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.44 clk/byte |    2.46 clk/byte |  1754.25 MiB/s |  1744.37 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    1.57 clk/byte |    1.58 clk/byte |  2730.31 MiB/s |  2705.41 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.56 clk/byte |    2.58 clk/byte |  1673.70 MiB/s |  1662.29 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.66 clk/byte |    2.67 clk/byte |  1612.21 MiB/s |  1602.44 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    1.72 clk/byte |    1.73 clk/byte |  2491.58 MiB/s |  2471.98 MiB/s |
+rANS32x32 16w                    10 | -        | -                | -                | -              | -              |
+  enc scalar                        |  16.34 % |    6.78 clk/byte |    6.82 clk/byte |   632.15 MiB/s |   628.14 MiB/s |
+  dec scalar                        |          |    5.81 clk/byte |    5.88 clk/byte |   737.34 MiB/s |   728.37 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.38 clk/byte |    2.39 clk/byte |  1800.70 MiB/s |  1790.78 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.43 clk/byte |    2.46 clk/byte |  1759.59 MiB/s |  1744.06 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    1.56 clk/byte |    1.58 clk/byte |  2737.97 MiB/s |  2715.31 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.53 clk/byte |    2.57 clk/byte |  1690.76 MiB/s |  1667.33 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.65 clk/byte |    2.67 clk/byte |  1618.62 MiB/s |  1601.42 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    1.70 clk/byte |    1.73 clk/byte |  2517.48 MiB/s |  2481.76 MiB/s |
+rANS32x32 32blk 16w              15 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.59 % |    6.10 clk/byte |    6.14 clk/byte |   702.34 MiB/s |   697.27 MiB/s |
+  dec scalar                        |          |    5.25 clk/byte |    5.28 clk/byte |   815.87 MiB/s |   811.29 MiB/s |
+  dec avx2 (sym dpndt)              |          |    2.94 clk/byte |    2.96 clk/byte |  1456.62 MiB/s |  1447.36 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.64 clk/byte |    2.67 clk/byte |  1624.87 MiB/s |  1607.02 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.30 clk/byte |    3.32 clk/byte |  1299.77 MiB/s |  1289.25 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    3.00 clk/byte |    3.03 clk/byte |  1429.80 MiB/s |  1415.78 MiB/s |
+rANS32x32 32blk 16w              14 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.62 % |    6.23 clk/byte |    6.29 clk/byte |   687.06 MiB/s |   681.27 MiB/s |
+  dec scalar                        |          |    5.32 clk/byte |    5.36 clk/byte |   805.28 MiB/s |   799.82 MiB/s |
+  dec avx2 (sym dpndt)              |          |    2.93 clk/byte |    2.94 clk/byte |  1459.82 MiB/s |  1454.66 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.62 clk/byte |    2.65 clk/byte |  1635.37 MiB/s |  1618.07 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.21 clk/byte |    3.22 clk/byte |  1333.80 MiB/s |  1328.29 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    2.90 clk/byte |    2.92 clk/byte |  1478.46 MiB/s |  1468.47 MiB/s |
+rANS32x32 32blk 16w              13 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.71 % |    6.21 clk/byte |    6.25 clk/byte |   689.95 MiB/s |   684.93 MiB/s |
+  dec scalar                        |          |    5.26 clk/byte |    5.29 clk/byte |   814.78 MiB/s |   809.73 MiB/s |
+  dec avx2 (sym dpndt)              |          |    2.93 clk/byte |    2.97 clk/byte |  1461.07 MiB/s |  1444.33 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.64 clk/byte |    2.65 clk/byte |  1623.37 MiB/s |  1615.86 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.10 clk/byte |    3.12 clk/byte |  1382.52 MiB/s |  1374.45 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    2.78 clk/byte |    2.81 clk/byte |  1538.81 MiB/s |  1526.52 MiB/s |
+rANS32x32 32blk 16w              12 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.99 % |    6.24 clk/byte |    6.30 clk/byte |   686.60 MiB/s |   680.26 MiB/s |
+  dec scalar                        |          |    5.28 clk/byte |    5.31 clk/byte |   810.74 MiB/s |   806.16 MiB/s |
+  dec avx2 (sym dpndt)              |          |    2.94 clk/byte |    2.95 clk/byte |  1457.50 MiB/s |  1450.50 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.63 clk/byte |    2.65 clk/byte |  1626.48 MiB/s |  1616.02 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.07 clk/byte |    3.09 clk/byte |  1396.02 MiB/s |  1388.33 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    2.66 clk/byte |    2.68 clk/byte |  1608.71 MiB/s |  1595.64 MiB/s |
+  dec avx2 (sngl gthr)              |          |    2.20 clk/byte |    2.23 clk/byte |  1943.09 MiB/s |  1924.81 MiB/s |
+  dec avx2 (sngl gthr 2x)           |          |    1.79 clk/byte |    1.81 clk/byte |  2391.11 MiB/s |  2366.07 MiB/s |
+rANS32x32 32blk 16w              11 | -        | -                | -                | -              | -              |
+  enc scalar                        |  13.73 % |    6.37 clk/byte |    6.43 clk/byte |   672.69 MiB/s |   666.61 MiB/s |
+  dec scalar                        |          |    5.38 clk/byte |    5.44 clk/byte |   796.16 MiB/s |   787.62 MiB/s |
+  dec avx2 (sym dpndt)              |          |    2.95 clk/byte |    2.99 clk/byte |  1449.62 MiB/s |  1434.11 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.64 clk/byte |    2.68 clk/byte |  1619.91 MiB/s |  1600.32 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.08 clk/byte |    3.10 clk/byte |  1389.34 MiB/s |  1381.45 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    2.68 clk/byte |    2.69 clk/byte |  1599.23 MiB/s |  1592.94 MiB/s |
+  dec avx2 (sngl gthr)              |          |    2.19 clk/byte |    2.20 clk/byte |  1954.62 MiB/s |  1947.53 MiB/s |
+  dec avx2 (sngl gthr 2x)           |          |    1.85 clk/byte |    1.86 clk/byte |  2319.74 MiB/s |  2296.92 MiB/s |
+rANS32x32 32blk 16w              10 | -        | -                | -                | -              | -              |
+  enc scalar                        |  16.34 % |    6.71 clk/byte |    6.75 clk/byte |   638.00 MiB/s |   634.74 MiB/s |
+  dec scalar                        |          |    5.79 clk/byte |    5.85 clk/byte |   739.32 MiB/s |   732.72 MiB/s |
+  dec avx2 (sym dpndt)              |          |    2.97 clk/byte |    3.01 clk/byte |  1441.73 MiB/s |  1424.86 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.65 clk/byte |    2.67 clk/byte |  1614.63 MiB/s |  1601.86 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.12 clk/byte |    3.14 clk/byte |  1373.01 MiB/s |  1364.69 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    2.67 clk/byte |    2.69 clk/byte |  1604.31 MiB/s |  1589.51 MiB/s |
+  dec avx2 (sngl gthr)              |          |    2.20 clk/byte |    2.21 clk/byte |  1948.04 MiB/s |  1936.20 MiB/s |
+  dec avx2 (sngl gthr 2x)           |          |    1.84 clk/byte |    1.86 clk/byte |  2324.27 MiB/s |  2300.85 MiB/s |
+rANS32x32 32blk 8w               15 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.58 % |    7.06 clk/byte |    7.10 clk/byte |   606.91 MiB/s |   603.46 MiB/s |
+  dec scalar                        |          |    6.49 clk/byte |    6.52 clk/byte |   659.68 MiB/s |   656.67 MiB/s |
+  dec avx2 (sym dpndt)              |          |    3.36 clk/byte |    3.38 clk/byte |  1273.90 MiB/s |  1267.59 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    3.03 clk/byte |    3.05 clk/byte |  1414.08 MiB/s |  1402.93 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.85 clk/byte |    3.88 clk/byte |  1113.44 MiB/s |  1102.92 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    3.53 clk/byte |    3.55 clk/byte |  1214.31 MiB/s |  1207.01 MiB/s |
+rANS32x32 32blk 8w               14 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.61 % |    7.07 clk/byte |    7.09 clk/byte |   606.03 MiB/s |   604.43 MiB/s |
+  dec scalar                        |          |    6.38 clk/byte |    6.44 clk/byte |   671.67 MiB/s |   665.51 MiB/s |
+  dec avx2 (sym dpndt)              |          |    3.25 clk/byte |    3.26 clk/byte |  1317.88 MiB/s |  1312.18 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.96 clk/byte |    2.97 clk/byte |  1448.41 MiB/s |  1441.11 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.57 clk/byte |    3.59 clk/byte |  1198.39 MiB/s |  1192.50 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    3.34 clk/byte |    3.36 clk/byte |  1283.61 MiB/s |  1275.38 MiB/s |
+rANS32x32 32blk 8w               13 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.70 % |    7.09 clk/byte |    7.13 clk/byte |   603.86 MiB/s |   600.59 MiB/s |
+  dec scalar                        |          |    6.36 clk/byte |    6.39 clk/byte |   673.21 MiB/s |   670.15 MiB/s |
+  dec avx2 (sym dpndt)              |          |    3.26 clk/byte |    3.29 clk/byte |  1314.82 MiB/s |  1302.09 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.97 clk/byte |    2.99 clk/byte |  1442.91 MiB/s |  1434.87 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.40 clk/byte |    3.42 clk/byte |  1258.40 MiB/s |  1253.10 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    3.13 clk/byte |    3.16 clk/byte |  1369.02 MiB/s |  1357.36 MiB/s |
+rANS32x32 32blk 8w               12 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.99 % |    7.10 clk/byte |    7.15 clk/byte |   603.56 MiB/s |   599.31 MiB/s |
+  dec scalar                        |          |    6.37 clk/byte |    6.40 clk/byte |   672.58 MiB/s |   668.79 MiB/s |
+  dec avx2 (sym dpndt)              |          |    3.24 clk/byte |    3.27 clk/byte |  1324.01 MiB/s |  1310.90 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.94 clk/byte |    2.96 clk/byte |  1456.96 MiB/s |  1447.56 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.26 clk/byte |    3.29 clk/byte |  1312.03 MiB/s |  1301.61 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    2.89 clk/byte |    2.91 clk/byte |  1483.60 MiB/s |  1472.79 MiB/s |
+  dec avx2 (sngl gthr)              |          |    2.42 clk/byte |    2.45 clk/byte |  1768.85 MiB/s |  1749.19 MiB/s |
+  dec avx2 (sngl gthr 2x)           |          |    2.07 clk/byte |    2.09 clk/byte |  2066.72 MiB/s |  2051.62 MiB/s |
+rANS32x32 32blk 8w               11 | -        | -                | -                | -              | -              |
+  enc scalar                        |  13.73 % |    7.13 clk/byte |    7.17 clk/byte |   600.82 MiB/s |   597.13 MiB/s |
+  dec scalar                        |          |    6.33 clk/byte |    6.36 clk/byte |   677.06 MiB/s |   673.07 MiB/s |
+  dec avx2 (sym dpndt)              |          |    3.28 clk/byte |    3.30 clk/byte |  1305.47 MiB/s |  1296.14 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.97 clk/byte |    2.99 clk/byte |  1439.92 MiB/s |  1434.07 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.29 clk/byte |    3.33 clk/byte |  1303.53 MiB/s |  1285.27 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    2.90 clk/byte |    2.93 clk/byte |  1475.39 MiB/s |  1462.28 MiB/s |
+  dec avx2 (sngl gthr)              |          |    2.38 clk/byte |    2.40 clk/byte |  1796.74 MiB/s |  1785.82 MiB/s |
+  dec avx2 (sngl gthr 2x)           |          |    2.12 clk/byte |    2.13 clk/byte |  2016.90 MiB/s |  2011.26 MiB/s |
+rANS32x32 32blk 8w               10 | -        | -                | -                | -              | -              |
+  enc scalar                        |  16.34 % |    7.10 clk/byte |    7.17 clk/byte |   603.58 MiB/s |   597.39 MiB/s |
+  dec scalar                        |          |    6.44 clk/byte |    6.51 clk/byte |   665.02 MiB/s |   658.15 MiB/s |
+  dec avx2 (sym dpndt)              |          |    3.28 clk/byte |    3.31 clk/byte |  1305.38 MiB/s |  1295.84 MiB/s |
+  dec avx2 (sym dpndt 2x)           |          |    2.99 clk/byte |    3.00 clk/byte |  1434.06 MiB/s |  1426.52 MiB/s |
+  dec avx2 (sym indpt)              |          |    3.26 clk/byte |    3.29 clk/byte |  1315.74 MiB/s |  1302.51 MiB/s |
+  dec avx2 (sym indpt 2x)           |          |    2.89 clk/byte |    2.91 clk/byte |  1480.90 MiB/s |  1471.40 MiB/s |
+  dec avx2 (sngl gthr)              |          |    2.39 clk/byte |    2.40 clk/byte |  1792.14 MiB/s |  1785.99 MiB/s |
+  dec avx2 (sngl gthr 2x)           |          |    2.11 clk/byte |    2.13 clk/byte |  2026.25 MiB/s |  2014.03 MiB/s |
+rANS32x64 16w                    15 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.59 % |    6.25 clk/byte |    6.29 clk/byte |   685.61 MiB/s |   681.24 MiB/s |
+  dec scalar                        |          |    5.26 clk/byte |    5.30 clk/byte |   815.08 MiB/s |   808.33 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.52 clk/byte |    2.55 clk/byte |  1700.73 MiB/s |  1679.42 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.88 clk/byte |    2.89 clk/byte |  1488.88 MiB/s |  1481.13 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.65 clk/byte |    2.66 clk/byte |  1616.92 MiB/s |  1610.15 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    3.00 clk/byte |    3.02 clk/byte |  1429.01 MiB/s |  1420.43 MiB/s |
+rANS32x64 16w                    14 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.62 % |    6.22 clk/byte |    6.25 clk/byte |   688.41 MiB/s |   685.03 MiB/s |
+  dec scalar                        |          |    5.27 clk/byte |    5.33 clk/byte |   812.79 MiB/s |   803.48 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.51 clk/byte |    2.56 clk/byte |  1703.13 MiB/s |  1674.18 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.76 clk/byte |    2.78 clk/byte |  1552.02 MiB/s |  1538.60 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.60 clk/byte |    2.64 clk/byte |  1645.70 MiB/s |  1620.66 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.89 clk/byte |    2.90 clk/byte |  1482.62 MiB/s |  1477.79 MiB/s |
+rANS32x64 16w                    13 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.71 % |    6.34 clk/byte |    6.37 clk/byte |   675.57 MiB/s |   672.37 MiB/s |
+  dec scalar                        |          |    5.29 clk/byte |    5.33 clk/byte |   809.62 MiB/s |   804.08 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.51 clk/byte |    2.53 clk/byte |  1704.55 MiB/s |  1691.07 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.68 clk/byte |    2.70 clk/byte |  1595.44 MiB/s |  1588.21 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.59 clk/byte |    2.61 clk/byte |  1651.80 MiB/s |  1639.91 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.80 clk/byte |    2.82 clk/byte |  1528.82 MiB/s |  1518.91 MiB/s |
+rANS32x64 16w                    12 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.99 % |    6.29 clk/byte |    6.32 clk/byte |   680.48 MiB/s |   677.62 MiB/s |
+  dec scalar                        |          |    5.30 clk/byte |    5.35 clk/byte |   807.82 MiB/s |   800.81 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.53 clk/byte |    2.54 clk/byte |  1695.66 MiB/s |  1689.01 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.65 clk/byte |    2.67 clk/byte |  1617.88 MiB/s |  1601.66 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    1.61 clk/byte |    1.63 clk/byte |  2662.59 MiB/s |  2627.34 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.61 clk/byte |    2.62 clk/byte |  1641.84 MiB/s |  1634.23 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.77 clk/byte |    2.79 clk/byte |  1547.66 MiB/s |  1536.26 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    1.79 clk/byte |    1.80 clk/byte |  2391.66 MiB/s |  2375.20 MiB/s |
+rANS32x64 16w                    11 | -        | -                | -                | -              | -              |
+  enc scalar                        |  13.73 % |    6.41 clk/byte |    6.46 clk/byte |   667.73 MiB/s |   662.95 MiB/s |
+  dec scalar                        |          |    5.44 clk/byte |    5.48 clk/byte |   787.68 MiB/s |   782.14 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.53 clk/byte |    2.55 clk/byte |  1696.15 MiB/s |  1677.93 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.78 clk/byte |    2.80 clk/byte |  1537.98 MiB/s |  1529.77 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    1.60 clk/byte |    1.61 clk/byte |  2680.67 MiB/s |  2660.27 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.60 clk/byte |    2.62 clk/byte |  1644.23 MiB/s |  1635.10 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.78 clk/byte |    2.80 clk/byte |  1542.47 MiB/s |  1527.13 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    1.76 clk/byte |    1.77 clk/byte |  2434.20 MiB/s |  2418.83 MiB/s |
+rANS32x64 16w                    10 | -        | -                | -                | -              | -              |
+  enc scalar                        |  16.34 % |    6.76 clk/byte |    6.79 clk/byte |   633.31 MiB/s |   631.08 MiB/s |
+  dec scalar                        |          |    5.87 clk/byte |    5.92 clk/byte |   729.99 MiB/s |   723.11 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    2.53 clk/byte |    2.55 clk/byte |  1690.36 MiB/s |  1680.95 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    2.64 clk/byte |    2.66 clk/byte |  1619.58 MiB/s |  1609.99 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    1.59 clk/byte |    1.60 clk/byte |  2700.02 MiB/s |  2670.48 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    2.59 clk/byte |    2.61 clk/byte |  1654.11 MiB/s |  1638.14 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    2.77 clk/byte |    2.80 clk/byte |  1543.97 MiB/s |  1528.67 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    1.74 clk/byte |    1.76 clk/byte |  2458.22 MiB/s |  2428.02 MiB/s |
+rANS32x16 16w                    15 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.59 % |    6.32 clk/byte |    6.36 clk/byte |   678.24 MiB/s |   673.80 MiB/s |
+  dec scalar                        |          |    5.14 clk/byte |    5.20 clk/byte |   833.42 MiB/s |   823.43 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    3.82 clk/byte |    3.88 clk/byte |  1121.45 MiB/s |  1104.05 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    3.96 clk/byte |    4.01 clk/byte |  1081.59 MiB/s |  1067.08 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    4.14 clk/byte |    4.19 clk/byte |  1033.69 MiB/s |  1023.14 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    4.06 clk/byte |    4.10 clk/byte |  1056.22 MiB/s |  1044.07 MiB/s |
+rANS32x16 16w                    14 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.62 % |    6.36 clk/byte |    6.38 clk/byte |   673.61 MiB/s |   671.55 MiB/s |
+  dec scalar                        |          |    5.19 clk/byte |    5.24 clk/byte |   826.05 MiB/s |   818.17 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    3.65 clk/byte |    3.68 clk/byte |  1172.88 MiB/s |  1165.41 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    3.90 clk/byte |    3.94 clk/byte |  1097.34 MiB/s |  1087.25 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    3.96 clk/byte |    4.00 clk/byte |  1082.18 MiB/s |  1071.27 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    4.01 clk/byte |    4.03 clk/byte |  1069.28 MiB/s |  1061.62 MiB/s |
+rANS32x16 16w                    13 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.71 % |    6.38 clk/byte |    6.42 clk/byte |   670.94 MiB/s |   666.68 MiB/s |
+  dec scalar                        |          |    5.20 clk/byte |    5.24 clk/byte |   823.02 MiB/s |   816.90 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    3.64 clk/byte |    3.67 clk/byte |  1176.86 MiB/s |  1168.08 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    3.70 clk/byte |    3.75 clk/byte |  1157.95 MiB/s |  1143.32 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    3.91 clk/byte |    3.96 clk/byte |  1096.04 MiB/s |  1080.80 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    3.84 clk/byte |    3.88 clk/byte |  1115.38 MiB/s |  1105.01 MiB/s |
+rANS32x16 16w                    12 | -        | -                | -                | -              | -              |
+  enc scalar                        |  12.99 % |    6.40 clk/byte |    6.43 clk/byte |   669.32 MiB/s |   665.81 MiB/s |
+  dec scalar                        |          |    5.24 clk/byte |    5.27 clk/byte |   817.86 MiB/s |   812.97 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    3.60 clk/byte |    3.63 clk/byte |  1190.34 MiB/s |  1179.82 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    3.46 clk/byte |    3.49 clk/byte |  1238.45 MiB/s |  1226.55 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    2.56 clk/byte |    2.58 clk/byte |  1673.44 MiB/s |  1660.39 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    3.91 clk/byte |    3.96 clk/byte |  1095.27 MiB/s |  1081.83 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    3.53 clk/byte |    3.57 clk/byte |  1213.61 MiB/s |  1199.79 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    2.78 clk/byte |    2.82 clk/byte |  1539.43 MiB/s |  1517.41 MiB/s |
+rANS32x16 16w                    11 | -        | -                | -                | -              | -              |
+  enc scalar                        |  13.73 % |    6.59 clk/byte |    6.62 clk/byte |   650.32 MiB/s |   647.13 MiB/s |
+  dec scalar                        |          |    5.34 clk/byte |    5.40 clk/byte |   802.19 MiB/s |   793.65 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    3.62 clk/byte |    3.66 clk/byte |  1181.77 MiB/s |  1171.18 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    3.50 clk/byte |    3.52 clk/byte |  1223.93 MiB/s |  1215.85 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    2.55 clk/byte |    2.57 clk/byte |  1680.44 MiB/s |  1668.52 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    3.96 clk/byte |    3.98 clk/byte |  1080.93 MiB/s |  1075.87 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    3.52 clk/byte |    3.54 clk/byte |  1216.82 MiB/s |  1209.69 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    2.80 clk/byte |    2.83 clk/byte |  1529.96 MiB/s |  1512.85 MiB/s |
+rANS32x16 16w                    10 | -        | -                | -                | -              | -              |
+  enc scalar                        |  16.34 % |    6.78 clk/byte |    6.82 clk/byte |   631.37 MiB/s |   627.80 MiB/s |
+  dec scalar                        |          |    5.68 clk/byte |    5.73 clk/byte |   753.84 MiB/s |   747.02 MiB/s |
+  dec avx2 (shfl, sym dpndt)        |          |    3.61 clk/byte |    3.64 clk/byte |  1187.55 MiB/s |  1176.11 MiB/s |
+  dec avx2 (shfl, sym indpt)        |          |    3.46 clk/byte |    3.50 clk/byte |  1238.84 MiB/s |  1223.07 MiB/s |
+  dec avx2 (shfl, sngl gthr)        |          |    2.52 clk/byte |    2.55 clk/byte |  1701.32 MiB/s |  1679.00 MiB/s |
+  dec avx2 (perm, sym dpndt)        |          |    3.91 clk/byte |    3.95 clk/byte |  1094.72 MiB/s |  1083.36 MiB/s |
+  dec avx2 (perm, sym indpt)        |          |    3.49 clk/byte |    3.52 clk/byte |  1228.73 MiB/s |  1217.37 MiB/s |
+  dec avx2 (perm, sngl gthr)        |          |    2.77 clk/byte |    2.81 clk/byte |  1544.35 MiB/s |  1523.33 MiB/s |
 
 ## License
 Two Clause BSD
