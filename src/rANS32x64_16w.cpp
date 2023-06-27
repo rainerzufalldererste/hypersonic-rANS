@@ -838,7 +838,7 @@ size_t rANS32x64_16w_decode_avx2_varA(const uint8_t *pInData, const size_t inLen
     return 0;
 
   if constexpr (!WriteAligned32)
-    if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
+    if ((reinterpret_cast<size_t>(pOutData) & (32 - 1)) == 0)
       return rANS32x64_16w_decode_avx2_varA<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
@@ -1334,7 +1334,7 @@ size_t rANS32x64_16w_decode_avx2_varB(const uint8_t *pInData, const size_t inLen
     return 0;
 
   if constexpr (!WriteAligned32)
-    if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
+    if ((reinterpret_cast<size_t>(pOutData) & (32 - 1)) == 0)
       return rANS32x64_16w_decode_avx2_varB<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
@@ -1835,7 +1835,7 @@ size_t rANS32x64_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLen
     return 0;
 
   if constexpr (!WriteAligned32)
-    if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
+    if ((reinterpret_cast<size_t>(pOutData) & (32 - 1)) == 0)
       return rANS32x64_16w_decode_avx2_varC<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
