@@ -814,7 +814,7 @@ static const uint8_t _ShuffleLutPerm32[256 * 8] =
 
 //////////////////////////////////////////////////////////////////////////
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle>
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool WriteAligned32 = false>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
@@ -822,6 +822,10 @@ size_t rANS32x32_16w_decode_avx2_varA(const uint8_t *pInData, const size_t inLen
 {
   if (inLength <= sizeof(uint64_t) * 2)
     return 0;
+
+  if constexpr (!WriteAligned32)
+    if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
+      return rANS32x32_16w_decode_avx2_varA<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -903,8 +907,11 @@ size_t rANS32x32_16w_decode_avx2_varA(const uint8_t *pInData, const size_t inLen
     const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
 
-    // We intentionally encoded in a way to not have to do horrible things here. (TODO: make variant with `_mm256_stream_si256`/`_mm256_store_si256` if output buffer is 32 byte aligned)
-    _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
+    // We intentionally encoded in a way to not have to do horrible things here.
+    if constexpr (WriteAligned32)
+      _mm256_stream_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
+    else
+      _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
 
     // retrieve pack.
     const simd_t pack0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&hist.symbols), symbol0, sizeof(uint32_t));
@@ -1137,7 +1144,7 @@ size_t rANS32x32_16w_decode_avx2_varA(const uint8_t *pInData, const size_t inLen
   return expectedOutputLength;
 }
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle>
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool WriteAligned32 = false>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
@@ -1145,6 +1152,10 @@ size_t rANS32x32_16w_decode_avx2_varB(const uint8_t *pInData, const size_t inLen
 {
   if (inLength <= sizeof(uint64_t) * 2)
     return 0;
+
+  if constexpr (!WriteAligned32)
+    if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
+      return rANS32x32_16w_decode_avx2_varB<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -1242,7 +1253,10 @@ size_t rANS32x32_16w_decode_avx2_varB(const uint8_t *pInData, const size_t inLen
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
 
     // We intentionally encoded in a way to not have to do horrible things here.
-    _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
+    if constexpr (WriteAligned32)
+      _mm256_stream_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
+    else
+      _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
 
     // freq, cumul.
     const simd_t cumul0 = _mm256_srli_epi32(pack0, 16);
@@ -1465,7 +1479,7 @@ size_t rANS32x32_16w_decode_avx2_varB(const uint8_t *pInData, const size_t inLen
 
 //////////////////////////////////////////////////////////////////////////
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle>
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool WriteAligned32 = false>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
@@ -1473,6 +1487,10 @@ size_t rANS32x32_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLen
 {
   if (inLength <= sizeof(uint64_t) * 2)
     return 0;
+
+  if constexpr (!WriteAligned32)
+    if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
+      return rANS32x32_16w_decode_avx2_varC<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -1564,7 +1582,10 @@ size_t rANS32x32_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLen
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
 
     // We intentionally encoded in a way to not have to do horrible things here.
-    _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
+    if constexpr (WriteAligned32)
+      _mm256_stream_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
+    else
+      _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
 
     // unpack freq, cumul.
     const simd_t cumul0 = _mm256_and_si256(_mm256_srli_epi32(pack0, 8), lower12);
