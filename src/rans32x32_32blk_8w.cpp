@@ -356,7 +356,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA(const uint8_t *pInData, const size_t 
     symbol2 = _mm256_and_si256(symbol2, lower8);
     symbol3 = _mm256_and_si256(symbol3, lower8);
 
-    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -655,7 +655,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA2(const uint8_t *pInData, const size_t
       symbol2 = _mm256_and_si256(symbol2, lower8);
       symbol3 = _mm256_and_si256(symbol3, lower8);
 
-      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
       const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
       const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
       const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -800,7 +800,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA2(const uint8_t *pInData, const size_t
       symbol2 = _mm256_and_si256(symbol2, lower8);
       symbol3 = _mm256_and_si256(symbol3, lower8);
 
-      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
       const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
       const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
       const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -941,7 +941,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varA2(const uint8_t *pInData, const size_t
     symbol2 = _mm256_and_si256(symbol2, lower8);
     symbol3 = _mm256_and_si256(symbol3, lower8);
 
-    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -1245,7 +1245,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB(const uint8_t *pInData, const size_t 
     symbol2 = _mm256_and_si256(symbol2, lower8);
     symbol3 = _mm256_and_si256(symbol3, lower8);
 
-    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -1521,7 +1521,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB2(const uint8_t *pInData, const size_t
       symbol2 = _mm256_and_si256(symbol2, lower8);
       symbol3 = _mm256_and_si256(symbol3, lower8);
 
-      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
       const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
       const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
       const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -1666,7 +1666,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB2(const uint8_t *pInData, const size_t
       symbol2 = _mm256_and_si256(symbol2, lower8);
       symbol3 = _mm256_and_si256(symbol3, lower8);
 
-      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
       const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
       const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
       const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -1807,7 +1807,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varB2(const uint8_t *pInData, const size_t
     symbol2 = _mm256_and_si256(symbol2, lower8);
     symbol3 = _mm256_and_si256(symbol3, lower8);
 
-    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -2069,7 +2069,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC(const uint8_t *pInData, const size_t 
     const simd_t symbol2 = _mm256_and_si256(pack2, lower8);
     const simd_t symbol3 = _mm256_and_si256(pack3, lower8);
 
-    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -2339,7 +2339,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC2(const uint8_t *pInData, const size_t
       const simd_t symbol2 = _mm256_and_si256(pack2, lower8);
       const simd_t symbol3 = _mm256_and_si256(pack3, lower8);
 
-      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
       const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
       const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
       const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -2478,7 +2478,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC2(const uint8_t *pInData, const size_t
       const simd_t symbol2 = _mm256_and_si256(pack2, lower8);
       const simd_t symbol3 = _mm256_and_si256(pack3, lower8);
 
-      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+      // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
       const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
       const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
       const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
@@ -2613,7 +2613,7 @@ size_t rANS32x32_32blk_8w_decode_avx2_varC2(const uint8_t *pInData, const size_t
     const simd_t symbol2 = _mm256_and_si256(pack2, lower8);
     const simd_t symbol3 = _mm256_and_si256(pack3, lower8);
 
-    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`

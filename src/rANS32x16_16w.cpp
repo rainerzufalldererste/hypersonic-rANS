@@ -619,7 +619,7 @@ size_t rANS32x16_xmmShfl_16w_decode_avx2_varA(const uint8_t *pInData, const size
     symbol0 = _mm256_and_si256(symbol0, lower8);
     symbol1 = _mm256_and_si256(symbol1, lower8);
 
-    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t packed16 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t packed8 = _mm256_packus_epi16(packed16, packed16);
     const simd_t permuted = _mm256_permute4x64_epi64(packed8, 0b1000); // `abcdijklefghmnop`
@@ -827,7 +827,7 @@ size_t rANS32x16_xmmShfl_16w_decode_avx2_varB(const uint8_t *pInData, const size
     symbol0 = _mm256_and_si256(symbol0, lower8);
     symbol1 = _mm256_and_si256(symbol1, lower8);
 
-    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t packed16 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t packed8 = _mm256_packus_epi16(packed16, packed16);
     const simd_t permuted = _mm256_permute4x64_epi64(packed8, 0b1000); // `abcdijklefghmnop`
@@ -1025,7 +1025,7 @@ size_t rANS32x16_xmmShfl_16w_decode_avx2_varC(const uint8_t *pInData, const size
     const simd_t symbol0 = _mm256_and_si256(pack0, lower8);
     const simd_t symbol1 = _mm256_and_si256(pack1, lower8);
 
-    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t packed16 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t packed8 = _mm256_packus_epi16(packed16, packed16);
     const simd_t permuted = _mm256_permute4x64_epi64(packed8, 0b1000); // `abcdijklefghmnop`
@@ -1522,7 +1522,7 @@ size_t rANS32x16_ymmPerm_16w_decode_avx2_varA(const uint8_t *pInData, const size
     symbol0 = _mm256_and_si256(symbol0, lower8);
     symbol1 = _mm256_and_si256(symbol1, lower8);
 
-    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t packed16 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t packed8 = _mm256_packus_epi16(packed16, packed16);
     const simd_t permuted = _mm256_permute4x64_epi64(packed8, 0b1000); // `abcdijklefghmnop`
@@ -1734,7 +1734,7 @@ size_t rANS32x16_ymmPerm_16w_decode_avx2_varB(const uint8_t *pInData, const size
     symbol0 = _mm256_and_si256(symbol0, lower8);
     symbol1 = _mm256_and_si256(symbol1, lower8);
 
-    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t packed16 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t packed8 = _mm256_packus_epi16(packed16, packed16);
     const simd_t permuted = _mm256_permute4x64_epi64(packed8, 0b1000); // `abcdijklefghmnop`
@@ -1935,7 +1935,7 @@ size_t rANS32x16_ymmPerm_16w_decode_avx2_varC(const uint8_t *pInData, const size
     const simd_t symbol0 = _mm256_and_si256(pack0, lower8);
     const simd_t symbol1 = _mm256_and_si256(pack1, lower8);
 
-    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl)
+    // pack symbols to one si128. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t packed16 = _mm256_packus_epi32(symbol0, symbol1);
     const simd_t packed8 = _mm256_packus_epi16(packed16, packed16);
     const simd_t permuted = _mm256_permute4x64_epi64(packed8, 0b1000); // `abcdijklefghmnop`
