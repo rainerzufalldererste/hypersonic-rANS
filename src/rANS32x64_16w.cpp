@@ -2,6 +2,8 @@
 #include "simd_platform.h"
 
 #include <string.h>
+#include <inttypes.h>
+#include <stdio.h>
 
 constexpr size_t StateCount = 64; // Needs to be a power of two.
 constexpr bool DecodeNoBranch = false;
@@ -11,6 +13,11 @@ size_t rANS32x64_16w_capacity(const size_t inputSize)
 {
   return inputSize + StateCount + sizeof(uint16_t) * 256 + sizeof(uint32_t) * StateCount + sizeof(uint64_t) * 2; // buffer + histogram + state
 }
+
+#define IF_RELEVANT if (false)
+#ifndef _MSC_VER
+#define __debugbreak __builtin_trap
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -23,6 +30,8 @@ inline static uint8_t decode_symbol_scalar_32x64_16w(uint32_t *pState, const his
   const uint32_t slot = state & (TotalSymbolCount - 1);
   const uint8_t symbol = pHist->cumulInv[slot];
   const uint32_t previousState = (state >> TotalSymbolCountBits) * (uint32_t)pHist->symbolCount[symbol] + slot - (uint32_t)pHist->cumul[symbol];
+
+  IF_RELEVANT printf("%8" PRIX32 " (slot: %4" PRIX32 ", freq: %4" PRIX16 ", cumul %4" PRIX16 ")", previousState, slot, pHist->symbolCount[symbol], pHist->cumul[symbol]);
 
   *pState = previousState;
 
@@ -227,7 +236,11 @@ size_t rANS32x64_16w_decode_scalar(const uint8_t *pInData, const size_t inLength
       const uint8_t index = idx2idx[j];
       uint32_t state = states[j];
 
+      IF_RELEVANT printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
+
       pOutData[i + index] = decode_symbol_scalar_32x64_16w<TotalSymbolCountBits>(&state, &hist);
+
+      IF_RELEVANT printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
       if constexpr (DecodeNoBranch)
       {
@@ -241,12 +254,15 @@ size_t rANS32x64_16w_decode_scalar(const uint8_t *pInData, const size_t inLength
         if (state < DecodeConsumePoint16)
         {
           state = state << 16 | *pReadHead;
+          IF_RELEVANT printf(" (consumed %04" PRIX16 ": %8" PRIX32 ")", *pReadHead, state);
           pReadHead++;
         }
       }
-      
+
+      IF_RELEVANT puts("");
       states[j] = state;
     }
+    IF_RELEVANT puts("");
   }
 
   for (size_t j = 0; j < StateCount; j++)
@@ -2426,12 +2442,6 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
     const simd_t symPack0123 = _mm512_packus_epi16(symPack01, symPack23); // only god knows how this is packed now.
     const simd_t symPackCompat = _mm512_permutexvar_epi32(symbolPermuteMask, symPack0123); // we could get rid of this if we'd chose to reorder everything fittingly.
 
-    // We intentionally encoded in a way to not have to do horrible things here.
-    if constexpr (WriteAligned64)
-      _mm512_stream_si512(reinterpret_cast<simd_t *>(pOutData + i), symPackCompat);
-    else
-      _mm512_storeu_si512(reinterpret_cast<simd_t *>(pOutData + i), symPackCompat);
-
     // unpack freq, cumul.
     const simd_t cumul0 = _mm512_and_si512(_mm512_srli_epi32(pack0, 8), lower12);
     const simd_t freq0 = _mm512_srli_epi32(pack0, 20);
@@ -2441,6 +2451,12 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
     const simd_t freq2 = _mm512_srli_epi32(pack2, 20);
     const simd_t cumul3 = _mm512_and_si512(_mm512_srli_epi32(pack3, 8), lower12);
     const simd_t freq3 = _mm512_srli_epi32(pack3, 20);
+
+    // We intentionally encoded in a way to not have to do horrible things here.
+    if constexpr (WriteAligned64)
+      _mm512_stream_si512(reinterpret_cast<simd_t *>(pOutData + i), symPackCompat);
+    else
+      _mm512_storeu_si512(reinterpret_cast<simd_t *>(pOutData + i), symPackCompat);
 
     // const uint32_t freqScaled = shiftedState * freq;
     const simd_t freqScaled0 = _mm512_mullo_epi32(shiftedState0, freq0);
@@ -2507,15 +2523,15 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
 
     pReadHead += advance2 + advance3;
 
-    const __m256i nonShuf0 = _mm256_setr_m128i(lut0a, _mm_add_epi8(lut0b, _mm_set1_epi8(maskPop0a)));
-    const __m256i nonShuf1 = _mm256_add_epi8(_mm256_setr_m128i(lut1a, _mm_add_epi8(lut1b, _mm_set1_epi8(maskPop1a))), _mm256_set1_epi8(advance0));
-    const __m256i nonShuf2 = _mm256_setr_m128i(lut2a, _mm_add_epi8(lut2b, _mm_set1_epi8(maskPop2a)));
-    const __m256i nonShuf3 = _mm256_add_epi8(_mm256_setr_m128i(lut3a, _mm_add_epi8(lut3b, _mm_set1_epi8(maskPop3a))), _mm256_set1_epi8(advance2));
+    const __m128i nonShuf0 = _mm_unpacklo_epi64(lut0a, _mm_add_epi8(lut0b, _mm_set1_epi8(maskPop0a)));
+    const __m128i nonShuf1 = _mm_add_epi8(_mm_unpacklo_epi64(lut1a, _mm_add_epi8(lut1b, _mm_set1_epi8(maskPop1a))), _mm_set1_epi8(advance0));
+    const __m128i nonShuf2 = _mm_unpacklo_epi64(lut2a, _mm_add_epi8(lut2b, _mm_set1_epi8(maskPop2a)));
+    const __m128i nonShuf3 = _mm_add_epi8(_mm_unpacklo_epi64(lut3a, _mm_add_epi8(lut3b, _mm_set1_epi8(maskPop3a))), _mm_set1_epi8(advance2));
 
-    const simd_t lut0 = _mm512_cvtepu8_epi32(_mm512_castsi512_si128(_mm512_permutexvar_epi32(lutPermuteMask, _mm512_castsi256_si512(nonShuf0))));
-    const simd_t lut1 = _mm512_cvtepu8_epi32(_mm512_castsi512_si128(_mm512_permutexvar_epi32(lutPermuteMask, _mm512_castsi256_si512(nonShuf1))));
-    const simd_t lut2 = _mm512_cvtepu8_epi32(_mm512_castsi512_si128(_mm512_permutexvar_epi32(lutPermuteMask, _mm512_castsi256_si512(nonShuf2))));
-    const simd_t lut3 = _mm512_cvtepu8_epi32(_mm512_castsi512_si128(_mm512_permutexvar_epi32(lutPermuteMask, _mm512_castsi256_si512(nonShuf3))));
+    const simd_t lut0 = _mm512_cvtepu8_epi32(nonShuf0);
+    const simd_t lut1 = _mm512_cvtepu8_epi32(nonShuf1);
+    const simd_t lut2 = _mm512_cvtepu8_epi32(nonShuf2);
+    const simd_t lut3 = _mm512_cvtepu8_epi32(nonShuf3);
 
     const simd_t selectedNewWord0 = _mm512_permutexvar_epi16(lut0, newWords01);
     const simd_t selectedNewWord1 = _mm512_permutexvar_epi16(lut1, newWords01);
@@ -2529,9 +2545,9 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
 
     // matching: state << 16
     const simd_t matchShiftedState0 = _mm512_mask_slli_epi32(state0, cmpMask0, state0, 16);
-    const simd_t matchShiftedState1 = _mm512_mask_slli_epi32(state1, cmpMask0, state0, 16);
-    const simd_t matchShiftedState2 = _mm512_mask_slli_epi32(state2, cmpMask0, state0, 16);
-    const simd_t matchShiftedState3 = _mm512_mask_slli_epi32(state3, cmpMask0, state0, 16);
+    const simd_t matchShiftedState1 = _mm512_mask_slli_epi32(state1, cmpMask1, state1, 16);
+    const simd_t matchShiftedState2 = _mm512_mask_slli_epi32(state2, cmpMask2, state2, 16);
+    const simd_t matchShiftedState3 = _mm512_mask_slli_epi32(state3, cmpMask3, state3, 16);
 
     // state = state << 16 | newWord;
     statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
