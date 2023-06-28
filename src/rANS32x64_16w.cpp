@@ -2,8 +2,6 @@
 #include "simd_platform.h"
 
 #include <string.h>
-#include <inttypes.h>
-#include <stdio.h>
 
 constexpr size_t StateCount = 64; // Needs to be a power of two.
 constexpr bool DecodeNoBranch = false;
@@ -13,11 +11,6 @@ size_t rANS32x64_16w_capacity(const size_t inputSize)
 {
   return inputSize + StateCount + sizeof(uint16_t) * 256 + sizeof(uint32_t) * StateCount + sizeof(uint64_t) * 2; // buffer + histogram + state
 }
-
-#define IF_RELEVANT if (false)
-#ifndef _MSC_VER
-#define __debugbreak __builtin_trap
-#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -30,8 +23,6 @@ inline static uint8_t decode_symbol_scalar_32x64_16w(uint32_t *pState, const his
   const uint32_t slot = state & (TotalSymbolCount - 1);
   const uint8_t symbol = pHist->cumulInv[slot];
   const uint32_t previousState = (state >> TotalSymbolCountBits) * (uint32_t)pHist->symbolCount[symbol] + slot - (uint32_t)pHist->cumul[symbol];
-
-  IF_RELEVANT printf("%8" PRIX32 " (slot: %4" PRIX32 ", freq: %4" PRIX16 ", cumul %4" PRIX16 ")", previousState, slot, pHist->symbolCount[symbol], pHist->cumul[symbol]);
 
   *pState = previousState;
 
@@ -236,11 +227,7 @@ size_t rANS32x64_16w_decode_scalar(const uint8_t *pInData, const size_t inLength
       const uint8_t index = idx2idx[j];
       uint32_t state = states[j];
 
-      IF_RELEVANT printf("<< [%02" PRIX64 "] state: %8" PRIX32 " => ", j, state);
-
       pOutData[i + index] = decode_symbol_scalar_32x64_16w<TotalSymbolCountBits>(&state, &hist);
-
-      IF_RELEVANT printf(" | wrote %02" PRIX8 " (at %8" PRIX64 ")", pOutData[i + index], i + index);
 
       if constexpr (DecodeNoBranch)
       {
@@ -254,15 +241,12 @@ size_t rANS32x64_16w_decode_scalar(const uint8_t *pInData, const size_t inLength
         if (state < DecodeConsumePoint16)
         {
           state = state << 16 | *pReadHead;
-          IF_RELEVANT printf(" (consumed %04" PRIX16 ": %8" PRIX32 ")", *pReadHead, state);
           pReadHead++;
         }
       }
 
-      IF_RELEVANT puts("");
       states[j] = state;
     }
-    IF_RELEVANT puts("");
   }
 
   for (size_t j = 0; j < StateCount; j++)
