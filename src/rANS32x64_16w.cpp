@@ -2388,7 +2388,6 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
   const simd_t lower8 = _mm512_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm512_set1_epi32(DecodeConsumePoint16);
   const simd_t symbolPermuteMask = _mm512_set_epi32(15, 7, 14, 6, 11, 3, 10, 2, 13, 5, 12, 4, 9, 1, 8, 0);
-  const simd_t lutPermuteMask = _mm512_set_epi32(7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 5, 4, 1, 0);
 
   for (; i < outLengthInStates; i += StateCount)
   {
