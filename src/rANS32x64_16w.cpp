@@ -2316,18 +2316,22 @@ size_t rANS32x64_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLen
 
 //////////////////////////////////////////////////////////////////////////
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool WriteAligned32 = false>
+template <uint32_t TotalSymbolCountBits, bool WriteAligned64 = false>
 #ifndef _MSC_VER
-__attribute__((target("avx512pd")))
+#ifdef __llvm__
+__attribute__((target("avx512bw")))
+#else
+__attribute__((target("avx512f", "avx512dq", "avx512bw")))
 #endif
-size_t rANS32x64_16w_decode_avx512f_varC(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
+#endif
+size_t rANS32x64_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
 {
   if (inLength <= sizeof(uint64_t) * 2)
     return 0;
 
-  if constexpr (!WriteAligned32)
-    if ((reinterpret_cast<size_t>(pOutData) & (32 - 1)) == 0)
-      return rANS32x64_16w_decode_avx512f_varC<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
+  if constexpr (!WriteAligned64)
+    if ((reinterpret_cast<size_t>(pOutData) & (64 - 1)) == 0)
+      return rANS32x64_16w_decode_avx512fdqbw_varC<TotalSymbolCountBits, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -2379,19 +2383,19 @@ size_t rANS32x64_16w_decode_avx512f_varC(const uint8_t *pInData, const size_t in
   size_t i = 0;
 
   const simd_t symCountMask = _mm512_set1_epi32(TotalSymbolCount - 1);
+  const simd_t lower16 = _mm512_set1_epi32(0xFFFF);
   const simd_t lower12 = _mm512_set1_epi32((1 << 12) - 1);
   const simd_t lower8 = _mm512_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm512_set1_epi32(DecodeConsumePoint16);
-  const simd_t _1 = _mm512_set1_epi32(1);
-  const simd_t upper16Bit = _mm512_set1_epi16(0x0100);
-
-#define _ -1, -1
-  const simd_t shuffleDoubleMask = _mm512_setr_epi8(0, 0, _, 1, 1, _, 2, 2, _, 3, 3, _, 4, 4, _, 5, 5, _, 6, 6, _, 7, 7, _, 16, 16, _, 17, 17, _, 18, 18, _, 19, 19, _, 20, 20, _, 21, 21, _, 22, 22, _, 23, 23, _);
-#undef _
-
+  const simd_t symbolPermuteMask = _mm512_set_epi32(15, 7, 14, 6, 11, 3, 10, 2, 13, 5, 12, 4, 9, 1, 8, 0);
+  const simd_t lutPermuteMask = _mm512_set_epi32(7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 5, 4, 1, 0);
 
   for (; i < outLengthInStates; i += StateCount)
   {
+#ifndef _MSC_VER
+    __asm volatile("# LLVM-MCA-BEGIN");
+#endif
+
     // const uint32_t slot = state & (TotalSymbolCount - 1);
     const simd_t slot0 = _mm512_and_si512(statesX8[0], symCountMask);
     const simd_t slot1 = _mm512_and_si512(statesX8[1], symCountMask);
@@ -2420,12 +2424,13 @@ size_t rANS32x64_16w_decode_avx512f_varC(const uint8_t *pInData, const size_t in
     const simd_t symPack01 = _mm512_packus_epi32(symbol0, symbol1);
     const simd_t symPack23 = _mm512_packus_epi32(symbol2, symbol3);
     const simd_t symPack0123 = _mm512_packus_epi16(symPack01, symPack23); // only god knows how this is packed now.
+    const simd_t symPackCompat = _mm512_permutexvar_epi32(symbolPermuteMask, symPack0123); // we could get rid of this if we'd chose to reorder everything fittingly.
 
     // We intentionally encoded in a way to not have to do horrible things here.
-    if constexpr (WriteAligned32)
-      _mm512_stream_si512(reinterpret_cast<simd_t *>(pOutData + i), symPack0123);
+    if constexpr (WriteAligned64)
+      _mm512_stream_si512(reinterpret_cast<simd_t *>(pOutData + i), symPackCompat);
     else
-      _mm512_storeu_si512(reinterpret_cast<simd_t *>(pOutData + i), symPack0123);
+      _mm512_storeu_si512(reinterpret_cast<simd_t *>(pOutData + i), symPackCompat);
 
     // unpack freq, cumul.
     const simd_t cumul0 = _mm512_and_si512(_mm512_srli_epi32(pack0, 8), lower12);
@@ -2450,222 +2455,93 @@ size_t rANS32x64_16w_decode_avx512f_varC(const uint8_t *pInData, const size_t in
     const simd_t state3 = _mm512_add_epi32(freqScaled3, _mm512_sub_epi32(slot3, cumul3));
 
     // now to the messy part...
-    if constexpr (XmmShuffle)
-    {
-      // read input for blocks 0, 1.
-      const __m512i newWords01 = _mm512_loadu_si512(reinterpret_cast<const simd_t *>(pReadHead));
 
-      // (state < DecodeConsumePoint16) ? -1 : 0 | well, actually (DecodeConsumePoint16 > state) ? -1 : 0
-      const __mmask16 cmpMask0 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state0);
-      const __mmask16 cmpMask1 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state1);
-      const __mmask16 cmpMask2 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state2);
-      const __mmask16 cmpMask3 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state3);
+    // read input for blocks 0, 1.
+    const __m512i newWords01 = _mm512_loadu_si512(reinterpret_cast<const simd_t *>(pReadHead));
 
-      // get masks of those compares & start loading shuffle masks.
-      const uint32_t cmpMask0a = cmpMask0 & 0xFF;
-      const uint32_t cmpMask0b = cmpMask0 >> 8;
-      __m128i lut0a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0a << 3])); // `* 8`.
-      __m128i lut0b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0b << 3])); // `* 8`.
-      
-      const uint32_t cmpMask1a = cmpMask1 & 0xFF;
-      const uint32_t cmpMask1b = cmpMask1 >> 8;
-      __m128i lut1a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1a << 3])); // `* 8`.
-      __m128i lut1b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1b << 3])); // `* 8`.
-      
-      const uint32_t cmpMask2a = cmpMask2 & 0xFF;
-      const uint32_t cmpMask2b = cmpMask2 >> 8;
-      __m128i lut2a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask2a << 3])); // `* 8`.
-      __m128i lut2b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask2b << 3])); // `* 8`.
-      
-      const uint32_t cmpMask3a = cmpMask3 & 0xFF;
-      const uint32_t cmpMask3b = cmpMask3 >> 8;
-      __m128i lut3a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask3a << 3])); // `* 8`.
-      __m128i lut3b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask3b << 3])); // `* 8`.
+    // (state < DecodeConsumePoint16) ? -1 : 0 | well, actually (DecodeConsumePoint16 > state) ? -1 : 0
+    const __mmask16 cmpMask0 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state0);
+    const __mmask16 cmpMask1 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state1);
+    const __mmask16 cmpMask2 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state2);
+    const __mmask16 cmpMask3 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state3);
 
-      // advance read head.
-      const uint8_t maskPop0a = (uint8_t)__builtin_popcount(cmpMask0a);
-      const uint8_t advance0 = (uint8_t)__builtin_popcount(cmpMask0);
+    // get masks of those compares & start loading shuffle masks.
+    const uint32_t cmpMask0a = cmpMask0 & 0xFF;
+    const uint32_t cmpMask0b = cmpMask0 >> 8;
+    __m128i lut0a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask0a << 3])); // `* 8`.
+    __m128i lut0b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask0b << 3])); // `* 8`.
 
-      const uint8_t maskPop1a = (uint8_t)__builtin_popcount(cmpMask1a);
-      const uint8_t advance1 = (uint8_t)__builtin_popcount(cmpMask1);
+    const uint32_t cmpMask1a = cmpMask1 & 0xFF;
+    const uint32_t cmpMask1b = cmpMask1 >> 8;
+    __m128i lut1a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask1a << 3])); // `* 8`.
+    __m128i lut1b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask1b << 3])); // `* 8`.
 
-      pReadHead += advance0 + advance1;
+    const uint32_t cmpMask2a = cmpMask2 & 0xFF;
+    const uint32_t cmpMask2b = cmpMask2 >> 8;
+    __m128i lut2a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask2a << 3])); // `* 8`.
+    __m128i lut2b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask2b << 3])); // `* 8`.
 
-      // read input for blocks 2, 3.
-      const __m512i newWords23 = _mm512_loadu_si512(reinterpret_cast<const simd_t *>(pReadHead));
+    const uint32_t cmpMask3a = cmpMask3 & 0xFF;
+    const uint32_t cmpMask3b = cmpMask3 >> 8;
+    __m128i lut3a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask3a << 3])); // `* 8`.
+    __m128i lut3b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask3b << 3])); // `* 8`.
 
-      // advance read head.
-      const uint8_t maskPop2a = (uint8_t)__builtin_popcount(cmpMask2a);
-      const uint8_t advance2 = (uint8_t)__builtin_popcount(cmpMask2);
+    // advance read head.
+    const uint8_t maskPop0a = (uint8_t)__builtin_popcount(cmpMask0a);
+    const uint8_t advance0 = (uint8_t)__builtin_popcount(cmpMask0);
 
-      const uint8_t maskPop3a = (uint8_t)__builtin_popcount(cmpMask3a);
-      const uint8_t advance3 = (uint8_t)__builtin_popcount(cmpMask3);
+    const uint8_t maskPop1a = (uint8_t)__builtin_popcount(cmpMask1a);
+    const uint8_t advance1 = (uint8_t)__builtin_popcount(cmpMask1);
 
-      pReadHead += advance2 + advance3;
+    pReadHead += advance0 + advance1;
 
-      const __m256i nonShuf0 = _mm256_setr_m128i(lut0a, _mm_add_epi8(lut0b, _mm_set1_epi8(maskPop0a << 1)));
-      const __m256i nonShuf1 = _mm256_add_epi8(_mm256_setr_m128i(lut1a, _mm_add_epi8(lut1b, _mm_set1_epi8(maskPop1a << 1))), _mm256_set1_epi8(advance0 << 1));
-      const __m256i nonShuf2 = _mm256_setr_m128i(lut2a, _mm_add_epi8(lut2b, _mm_set1_epi8(maskPop2a << 1)));
-      const __m256i nonShuf3 = _mm256_add_epi8(_mm256_setr_m128i(lut3a, _mm_add_epi8(lut3b, _mm_set1_epi8(maskPop3a << 1))), _mm256_set1_epi8(advance2 << 1));
+    // read input for blocks 2, 3.
+    const __m512i newWords23 = _mm512_loadu_si512(reinterpret_cast<const simd_t *>(pReadHead));
 
-      const simd_t lut0 = _mm512_or_si512(upper16Bit, _mm512_shuffle_epi8(_mm512_castsi256_si512(nonShuf0), shuffleDoubleMask));
-      const simd_t lut1 = _mm512_or_si512(upper16Bit, _mm512_shuffle_epi8(_mm512_castsi256_si512(nonShuf1), shuffleDoubleMask));
-      const simd_t lut2 = _mm512_or_si512(upper16Bit, _mm512_shuffle_epi8(_mm512_castsi256_si512(nonShuf2), shuffleDoubleMask));
-      const simd_t lut3 = _mm512_or_si512(upper16Bit, _mm512_shuffle_epi8(_mm512_castsi256_si512(nonShuf3), shuffleDoubleMask));
+    // advance read head.
+    const uint8_t maskPop2a = (uint8_t)__builtin_popcount(cmpMask2a);
+    const uint8_t advance2 = (uint8_t)__builtin_popcount(cmpMask2);
 
-      const simd_t newWord0 = _mm512_mask_mov_epi32(_mm512_setzero_si512(), cmpMask0, _mm512_shuffle_epi8(newWords01, lut0));
-      const simd_t newWord1 = _mm512_mask_mov_epi32(_mm512_setzero_si512(), cmpMask1, _mm512_shuffle_epi8(newWords01, lut1));
-      const simd_t newWord2 = _mm512_mask_mov_epi32(_mm512_setzero_si512(), cmpMask2, _mm512_shuffle_epi8(newWords23, lut2));
-      const simd_t newWord3 = _mm512_mask_mov_epi32(_mm512_setzero_si512(), cmpMask3, _mm512_shuffle_epi8(newWords23, lut3));
+    const uint8_t maskPop3a = (uint8_t)__builtin_popcount(cmpMask3a);
+    const uint8_t advance3 = (uint8_t)__builtin_popcount(cmpMask3);
 
-      // matching: state << 16
-      const simd_t matchShiftedState0 = _mm512_mask_slli_epi32(state0, cmpMask0, state0, 16);
-      const simd_t matchShiftedState1 = _mm512_mask_slli_epi32(state1, cmpMask0, state0, 16);
-      const simd_t matchShiftedState2 = _mm512_mask_slli_epi32(state2, cmpMask0, state0, 16);
-      const simd_t matchShiftedState3 = _mm512_mask_slli_epi32(state3, cmpMask0, state0, 16);
+    pReadHead += advance2 + advance3;
 
-      // state = state << 16 | newWord;
-      statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
-      statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
-      statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
-      statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
-    }
-    else
-    {
-      //// read input for blocks 0, 1.
-      //const simd_t newWords01 = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(pReadHead));
-      //
-      //// (state < DecodeConsumePoint16) ? -1 : 0 | well, actually (DecodeConsumePoint16 > state) ? -1 : 0
-      //const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
-      //const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
-      //const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
-      //const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
-      //const simd_t cmp4 = _mm256_cmpgt_epi32(decodeConsumePoint, state4);
-      //const simd_t cmp5 = _mm256_cmpgt_epi32(decodeConsumePoint, state5);
-      //const simd_t cmp6 = _mm256_cmpgt_epi32(decodeConsumePoint, state6);
-      //const simd_t cmp7 = _mm256_cmpgt_epi32(decodeConsumePoint, state7);
-      //
-      //// get masks of those compares & start loading shuffle masks.
-      //const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
-      //__m128i lutXmm0 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask0 << 3])); // `* 8`.
-      //
-      //const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
-      //__m128i lutXmm1 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask1 << 3])); // `* 8`.
-      //
-      //const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
-      //__m128i lutXmm2 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask2 << 3])); // `* 8`.
-      //
-      //const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
-      //__m128i lutXmm3 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask3 << 3])); // `* 8`.
-      //
-      //const uint32_t cmpMask4 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp4));
-      //__m128i lutXmm4 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask4 << 3])); // `* 8`.
-      //
-      //const uint32_t cmpMask5 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp5));
-      //__m128i lutXmm5 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask5 << 3])); // `* 8`.
-      //
-      //const uint32_t cmpMask6 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp6));
-      //__m128i lutXmm6 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask6 << 3])); // `* 8`.
-      //
-      //const uint32_t cmpMask7 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp7));
-      //__m128i lutXmm7 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask7 << 3])); // `* 8`.
-      //
-      //// advance read head & read input for blocks 2, 3.
-      //const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
-      //const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
-      //pReadHead += maskPop0 + maskPop1;
-      //
-      //const simd_t newWords23 = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(pReadHead));
-      //
-      //const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
-      //const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
-      //pReadHead += maskPop2 + maskPop3;
-      //
-      //// read input for blocks 4, 5
-      //const simd_t newWords45 = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(pReadHead));
-      //
-      //// advance read head & read input for blocks 6, 7.
-      //const uint32_t maskPop4 = (uint32_t)__builtin_popcount(cmpMask4);
-      //const uint32_t maskPop5 = (uint32_t)__builtin_popcount(cmpMask5);
-      //pReadHead += maskPop4 + maskPop5;
-      //
-      //const simd_t newWords67 = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(pReadHead));
-      //
-      //const uint32_t maskPop6 = (uint32_t)__builtin_popcount(cmpMask6);
-      //const uint32_t maskPop7 = (uint32_t)__builtin_popcount(cmpMask7);
-      //pReadHead += maskPop6 + maskPop7;
-      //
-      //// finalize lookups.
-      //const simd_t lut0 = _mm256_cvtepi8_epi32(lutXmm0);
-      //const simd_t lut2 = _mm256_cvtepi8_epi32(lutXmm2);
-      //const simd_t lut4 = _mm256_cvtepi8_epi32(lutXmm4);
-      //const simd_t lut6 = _mm256_cvtepi8_epi32(lutXmm6);
-      //const simd_t lut1 = _mm256_add_epi32(_mm256_cvtepi8_epi32(lutXmm1), _mm256_set1_epi32(maskPop0));
-      //const simd_t lut3 = _mm256_add_epi32(_mm256_cvtepi8_epi32(lutXmm3), _mm256_set1_epi32(maskPop2));
-      //const simd_t lut5 = _mm256_add_epi32(_mm256_cvtepi8_epi32(lutXmm5), _mm256_set1_epi32(maskPop4));
-      //const simd_t lut7 = _mm256_add_epi32(_mm256_cvtepi8_epi32(lutXmm7), _mm256_set1_epi32(maskPop6));
-      //
-      //// lut /= 2 for corresponding word-pair that will be permuted in place.
-      //const simd_t halfLut0 = _mm256_srli_epi32(lut0, 1);
-      //const simd_t halfLut2 = _mm256_srli_epi32(lut2, 1);
-      //const simd_t halfLut1 = _mm256_srli_epi32(lut1, 1);
-      //const simd_t halfLut3 = _mm256_srli_epi32(lut3, 1);
-      //const simd_t halfLut4 = _mm256_srli_epi32(lut4, 1);
-      //const simd_t halfLut6 = _mm256_srli_epi32(lut6, 1);
-      //const simd_t halfLut5 = _mm256_srli_epi32(lut5, 1);
-      //const simd_t halfLut7 = _mm256_srli_epi32(lut7, 1);
-      //
-      //// create `16` wherever we want to keep the lower word of the word pair.
-      //const simd_t shiftLutMask0 = _mm256_slli_epi32(_mm256_andnot_si256(lut0, _1), 4);
-      //const simd_t shiftLutMask1 = _mm256_slli_epi32(_mm256_andnot_si256(lut1, _1), 4);
-      //const simd_t shiftLutMask2 = _mm256_slli_epi32(_mm256_andnot_si256(lut2, _1), 4);
-      //const simd_t shiftLutMask3 = _mm256_slli_epi32(_mm256_andnot_si256(lut3, _1), 4);
-      //const simd_t shiftLutMask4 = _mm256_slli_epi32(_mm256_andnot_si256(lut4, _1), 4);
-      //const simd_t shiftLutMask5 = _mm256_slli_epi32(_mm256_andnot_si256(lut5, _1), 4);
-      //const simd_t shiftLutMask6 = _mm256_slli_epi32(_mm256_andnot_si256(lut6, _1), 4);
-      //const simd_t shiftLutMask7 = _mm256_slli_epi32(_mm256_andnot_si256(lut7, _1), 4);
-      //
-      //// select corresponding word-pair.
-      //const __m256i selectedWordPair0 = _mm256_permutevar8x32_epi32(newWords01, halfLut0);
-      //const __m256i selectedWordPair1 = _mm256_permutevar8x32_epi32(newWords01, halfLut1);
-      //const __m256i selectedWordPair2 = _mm256_permutevar8x32_epi32(newWords23, halfLut2);
-      //const __m256i selectedWordPair3 = _mm256_permutevar8x32_epi32(newWords23, halfLut3);
-      //const __m256i selectedWordPair4 = _mm256_permutevar8x32_epi32(newWords45, halfLut4);
-      //const __m256i selectedWordPair5 = _mm256_permutevar8x32_epi32(newWords45, halfLut5);
-      //const __m256i selectedWordPair6 = _mm256_permutevar8x32_epi32(newWords67, halfLut6);
-      //const __m256i selectedWordPair7 = _mm256_permutevar8x32_epi32(newWords67, halfLut7);
-      //
-      //// selectively shift up by the `shiftLutMask` wherever we want to keep the lower word and then shift all down to clear the upper word and select the correct one of the pair.
-      //// then `and` with `cmp` mask, because `permute` (unlike `shuffle`) doesn't set the values with indexes > 8 to 0...
-      //const simd_t newWord0 = _mm256_and_si256(cmp0, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair0, shiftLutMask0), 16));
-      //const simd_t newWord1 = _mm256_and_si256(cmp1, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair1, shiftLutMask1), 16));
-      //const simd_t newWord2 = _mm256_and_si256(cmp2, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair2, shiftLutMask2), 16));
-      //const simd_t newWord3 = _mm256_and_si256(cmp3, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair3, shiftLutMask3), 16));
-      //const simd_t newWord4 = _mm256_and_si256(cmp4, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair4, shiftLutMask4), 16));
-      //const simd_t newWord5 = _mm256_and_si256(cmp5, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair5, shiftLutMask5), 16));
-      //const simd_t newWord6 = _mm256_and_si256(cmp6, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair6, shiftLutMask6), 16));
-      //const simd_t newWord7 = _mm256_and_si256(cmp7, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair7, shiftLutMask7), 16));
-      //
-      //// matching: state << 16
-      //const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
-      //const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
-      //const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
-      //const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
-      //const simd_t matchShiftedState4 = _mm256_sllv_epi32(state4, _mm256_and_si256(cmp4, _16));
-      //const simd_t matchShiftedState5 = _mm256_sllv_epi32(state5, _mm256_and_si256(cmp5, _16));
-      //const simd_t matchShiftedState6 = _mm256_sllv_epi32(state6, _mm256_and_si256(cmp6, _16));
-      //const simd_t matchShiftedState7 = _mm256_sllv_epi32(state7, _mm256_and_si256(cmp7, _16));
-      //
-      //// state = state << 16 | newWord;
-      //statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
-      //statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
-      //statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
-      //statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
-      //statesX8[4] = _mm256_or_si256(matchShiftedState4, newWord4);
-      //statesX8[5] = _mm256_or_si256(matchShiftedState5, newWord5);
-      //statesX8[6] = _mm256_or_si256(matchShiftedState6, newWord6);
-      //statesX8[7] = _mm256_or_si256(matchShiftedState7, newWord7);
-    }
+    const __m256i nonShuf0 = _mm256_setr_m128i(lut0a, _mm_add_epi8(lut0b, _mm_set1_epi8(maskPop0a)));
+    const __m256i nonShuf1 = _mm256_add_epi8(_mm256_setr_m128i(lut1a, _mm_add_epi8(lut1b, _mm_set1_epi8(maskPop1a))), _mm256_set1_epi8(advance0));
+    const __m256i nonShuf2 = _mm256_setr_m128i(lut2a, _mm_add_epi8(lut2b, _mm_set1_epi8(maskPop2a)));
+    const __m256i nonShuf3 = _mm256_add_epi8(_mm256_setr_m128i(lut3a, _mm_add_epi8(lut3b, _mm_set1_epi8(maskPop3a))), _mm256_set1_epi8(advance2));
+
+    const simd_t lut0 = _mm512_cvtepu8_epi32(_mm512_castsi512_si128(_mm512_permutexvar_epi32(lutPermuteMask, _mm512_castsi256_si512(nonShuf0))));
+    const simd_t lut1 = _mm512_cvtepu8_epi32(_mm512_castsi512_si128(_mm512_permutexvar_epi32(lutPermuteMask, _mm512_castsi256_si512(nonShuf1))));
+    const simd_t lut2 = _mm512_cvtepu8_epi32(_mm512_castsi512_si128(_mm512_permutexvar_epi32(lutPermuteMask, _mm512_castsi256_si512(nonShuf2))));
+    const simd_t lut3 = _mm512_cvtepu8_epi32(_mm512_castsi512_si128(_mm512_permutexvar_epi32(lutPermuteMask, _mm512_castsi256_si512(nonShuf3))));
+
+    const simd_t selectedNewWord0 = _mm512_permutexvar_epi16(lut0, newWords01);
+    const simd_t selectedNewWord1 = _mm512_permutexvar_epi16(lut1, newWords01);
+    const simd_t selectedNewWord2 = _mm512_permutexvar_epi16(lut2, newWords23);
+    const simd_t selectedNewWord3 = _mm512_permutexvar_epi16(lut3, newWords23);
+
+    const simd_t newWord0 = _mm512_mask_and_epi32(_mm512_setzero_si512(), cmpMask0, selectedNewWord0, lower16);
+    const simd_t newWord1 = _mm512_mask_and_epi32(_mm512_setzero_si512(), cmpMask1, selectedNewWord1, lower16);
+    const simd_t newWord2 = _mm512_mask_and_epi32(_mm512_setzero_si512(), cmpMask2, selectedNewWord2, lower16);
+    const simd_t newWord3 = _mm512_mask_and_epi32(_mm512_setzero_si512(), cmpMask3, selectedNewWord3, lower16);
+
+    // matching: state << 16
+    const simd_t matchShiftedState0 = _mm512_mask_slli_epi32(state0, cmpMask0, state0, 16);
+    const simd_t matchShiftedState1 = _mm512_mask_slli_epi32(state1, cmpMask0, state0, 16);
+    const simd_t matchShiftedState2 = _mm512_mask_slli_epi32(state2, cmpMask0, state0, 16);
+    const simd_t matchShiftedState3 = _mm512_mask_slli_epi32(state3, cmpMask0, state0, 16);
+
+    // state = state << 16 | newWord;
+    statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+    statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+    statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+    statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+
+#ifndef _MSC_VER
+    __asm volatile("# LLVM-MCA-END");
+#endif
   }
 
   for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)
@@ -2718,9 +2594,9 @@ size_t rANS32x64_16w_decode_avx512f_varC(const uint8_t *pInData, const size_t in
   return expectedOutputLength;
 }
 
-size_t rANS32x64_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512f_varC<12, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x64_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512f_varC<11, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x64_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512f_varC<10, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<12>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<11>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<10>(pInData, inLength, pOutData, outCapacity); }
 
 //////////////////////////////////////////////////////////////////////////
 
