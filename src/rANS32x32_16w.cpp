@@ -278,7 +278,7 @@ __declspec(align(32))
 #else
 __attribute__((aligned(32)))
 #endif
-static const uint8_t _ShuffleLutShfl32[256 * 8] = 
+extern const uint8_t _ShuffleLutShfl32[256 * 8] =
 {
   ___, ___, ___, ___, ___, ___, ___, ___, // 0000 0000
   0x0, ___, ___, ___, ___, ___, ___, ___, // 1000 0000
@@ -550,7 +550,7 @@ __declspec(align(32))
 #else
 __attribute__((aligned(32)))
 #endif
-static const uint8_t _ShuffleLutPerm32[256 * 8] =
+extern const uint8_t _ShuffleLutPerm32[256 * 8] =
 {
   _, _, _, _, _, _, _, _, // 0000 0000
   0, _, _, _, _, _, _, _, // 1000 0000
@@ -814,7 +814,279 @@ static const uint8_t _ShuffleLutPerm32[256 * 8] =
 
 //////////////////////////////////////////////////////////////////////////
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool WriteAligned32 = false>
+#define ___ 0xEE
+
+// `_ShuffleLutShfl32`, but actually double the size to be a complete lookup without requiring any further action to be taken.
+#ifdef _MSC_VER
+__declspec(align(32))
+#else
+__attribute__((aligned(32)))
+#endif
+extern const uint8_t _DoubleShuffleLutShfl32[256 * 8 * 2] =
+{
+  ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___,  // 0000 0000
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___,  // 1000 0000
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___,  // 0100 0000
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___,  // 1100 0000
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___,  // 0010 0000
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___,  // 1010 0000
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___,  // 0110 0000
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___,  // 1110 0000
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___,  // 0001 0000
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___,  // 1001 0000
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___,  // 0101 0000
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___, ___, ___, ___, ___,  // 1101 0000
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___,  // 0011 0000
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___, ___, ___,  // 1011 0000
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___, ___, ___,  // 0111 0000
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___, ___, ___, ___, ___,  // 1111 0000
+  ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___,  // 0000 1000
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___,  // 1000 1000
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___,  // 0100 1000
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___, ___, ___, ___, ___,  // 1100 1000
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___,  // 0010 1000
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___, ___, ___,  // 1010 1000
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___, ___, ___,  // 0110 1000
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___, ___, ___, ___, ___,  // 1110 1000
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___,  // 0001 1000
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___,  // 1001 1000
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___,  // 0101 1000
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___, ___, ___,  // 1101 1000
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___,  // 0011 1000
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___, ___, ___,  // 1011 1000
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___, ___, ___,  // 0111 1000
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___, ___, ___, ___, ___,  // 1111 1000
+  ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___,  // 0000 0100
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___,  // 1000 0100
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___,  // 0100 0100
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5, ___, ___, ___, ___,  // 1100 0100
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___,  // 0010 0100
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___, ___, ___,  // 1010 0100
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___, ___, ___,  // 0110 0100
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7, ___, ___, ___, ___,  // 1110 0100
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___,  // 0001 0100
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___,  // 1001 0100
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___,  // 0101 0100
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___, ___, ___,  // 1101 0100
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___,  // 0011 0100
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___, ___, ___,  // 1011 0100
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___, ___, ___,  // 0111 0100
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9, ___, ___, ___, ___,  // 1111 0100
+  ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___,  // 0000 1100
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___,  // 1000 1100
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___,  // 0100 1100
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___,  // 1100 1100
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___,  // 0010 1100
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___,  // 1010 1100
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___,  // 0110 1100
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9, ___, ___, ___, ___,  // 1110 1100
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___,  // 0001 1100
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___,  // 1001 1100
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___,  // 0101 1100
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___, ___, ___,  // 1101 1100
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___,  // 0011 1100
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___, ___, ___,  // 1011 1100
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___, ___, ___,  // 0111 1100
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, ___, ___, ___, ___,  // 1111 1100
+  ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___,  // 0000 0010
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___,  // 1000 0010
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___,  // 0100 0010
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___, 0x4, 0x5, ___, ___,  // 1100 0010
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___,  // 0010 0010
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5, ___, ___,  // 1010 0010
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5, ___, ___,  // 0110 0010
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___, 0x6, 0x7, ___, ___,  // 1110 0010
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___,  // 0001 0010
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___,  // 1001 0010
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___,  // 0101 0010
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7, ___, ___,  // 1101 0010
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___,  // 0011 0010
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7, ___, ___,  // 1011 0010
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7, ___, ___,  // 0111 0010
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___, 0x8, 0x9, ___, ___,  // 1111 0010
+  ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___,  // 0000 1010
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___,  // 1000 1010
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___,  // 0100 1010
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___,  // 1100 1010
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___,  // 0010 1010
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___,  // 1010 1010
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___,  // 0110 1010
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___, 0x8, 0x9, ___, ___,  // 1110 1010
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___,  // 0001 1010
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___,  // 1001 1010
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___,  // 0101 1010
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9, ___, ___,  // 1101 1010
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___,  // 0011 1010
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9, ___, ___,  // 1011 1010
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9, ___, ___,  // 0111 1010
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___, 0xA, 0xB, ___, ___,  // 1111 1010
+  ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___,  // 0000 0110
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___,  // 1000 0110
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___,  // 0100 0110
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___,  // 1100 0110
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___,  // 0010 0110
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___,  // 1010 0110
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___,  // 0110 0110
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7, 0x8, 0x9, ___, ___,  // 1110 0110
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___,  // 0001 0110
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___,  // 1001 0110
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___,  // 0101 0110
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9, ___, ___,  // 1101 0110
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___,  // 0011 0110
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9, ___, ___,  // 1011 0110
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9, ___, ___,  // 0111 0110
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9, 0xA, 0xB, ___, ___,  // 1111 0110
+  ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___,  // 0000 1110
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___,  // 1000 1110
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___,  // 0100 1110
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___,  // 1100 1110
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___,  // 0010 1110
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___,  // 1010 1110
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___,  // 0110 1110
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, ___, ___,  // 1110 1110
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___,  // 0001 1110
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___,  // 1001 1110
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___,  // 0101 1110
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, ___, ___,  // 1101 1110
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___,  // 0011 1110
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, ___, ___,  // 1011 1110
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, ___, ___,  // 0111 1110
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, ___, ___,  // 1111 1110
+  ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1,  // 0000 0001
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3,  // 1000 0001
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3,  // 0100 0001
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x4, 0x5,  // 1100 0001
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3,  // 0010 0001
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___, 0x4, 0x5,  // 1010 0001
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___, 0x4, 0x5,  // 0110 0001
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___, ___, ___, 0x6, 0x7,  // 1110 0001
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3,  // 0001 0001
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5,  // 1001 0001
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5,  // 0101 0001
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___, ___, ___, 0x6, 0x7,  // 1101 0001
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5,  // 0011 0001
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___, 0x6, 0x7,  // 1011 0001
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___, 0x6, 0x7,  // 0111 0001
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___, ___, ___, 0x8, 0x9,  // 1111 0001
+  ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3,  // 0000 1001
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5,  // 1000 1001
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5,  // 0100 1001
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7,  // 1100 1001
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5,  // 0010 1001
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7,  // 1010 1001
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7,  // 0110 1001
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___, ___, ___, 0x8, 0x9,  // 1110 1001
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5,  // 0001 1001
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7,  // 1001 1001
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7,  // 0101 1001
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___, 0x8, 0x9,  // 1101 1001
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7,  // 0011 1001
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___, 0x8, 0x9,  // 1011 1001
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___, 0x8, 0x9,  // 0111 1001
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___, ___, ___, 0xA, 0xB,  // 1111 1001
+  ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3,  // 0000 0101
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5,  // 1000 0101
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5,  // 0100 0101
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7,  // 1100 0101
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5,  // 0010 0101
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7,  // 1010 0101
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7,  // 0110 0101
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7, ___, ___, 0x8, 0x9,  // 1110 0101
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5,  // 0001 0101
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7,  // 1001 0101
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7,  // 0101 0101
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___, 0x8, 0x9,  // 1101 0101
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7,  // 0011 0101
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___, 0x8, 0x9,  // 1011 0101
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___, 0x8, 0x9,  // 0111 0101
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9, ___, ___, 0xA, 0xB,  // 1111 0101
+  ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5,  // 0000 1101
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7,  // 1000 1101
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7,  // 0100 1101
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9,  // 1100 1101
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7,  // 0010 1101
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9,  // 1010 1101
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9,  // 0110 1101
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9, ___, ___, 0xA, 0xB,  // 1110 1101
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7,  // 0001 1101
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9,  // 1001 1101
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9,  // 0101 1101
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___, 0xA, 0xB,  // 1101 1101
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9,  // 0011 1101
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___, 0xA, 0xB,  // 1011 1101
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___, 0xA, 0xB,  // 0111 1101
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, ___, ___, 0xC, 0xD,  // 1111 1101
+  ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3,  // 0000 0011
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5,  // 1000 0011
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5,  // 0100 0011
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7,  // 1100 0011
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5,  // 0010 0011
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7,  // 1010 0011
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7,  // 0110 0011
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, ___, ___, 0x6, 0x7, 0x8, 0x9,  // 1110 0011
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5,  // 0001 0011
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7,  // 1001 0011
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7,  // 0101 0011
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7, 0x8, 0x9,  // 1101 0011
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7,  // 0011 0011
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7, 0x8, 0x9,  // 1011 0011
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7, 0x8, 0x9,  // 0111 0011
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, ___, ___, 0x8, 0x9, 0xA, 0xB,  // 1111 0011
+  ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5,  // 0000 1011
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7,  // 1000 1011
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7,  // 0100 1011
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9,  // 1100 1011
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7,  // 0010 1011
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9,  // 1010 1011
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9,  // 0110 1011
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, ___, ___, 0x8, 0x9, 0xA, 0xB,  // 1110 1011
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7,  // 0001 1011
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9,  // 1001 1011
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9,  // 0101 1011
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9, 0xA, 0xB,  // 1101 1011
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9,  // 0011 1011
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9, 0xA, 0xB,  // 1011 1011
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9, 0xA, 0xB,  // 0111 1011
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, ___, ___, 0xA, 0xB, 0xC, 0xD,  // 1111 1011
+  ___, ___, ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5,  // 0000 0111
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,  // 1000 0111
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,  // 0100 0111
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,  // 1100 0111
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,  // 0010 0111
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,  // 1010 0111
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,  // 0110 0111
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, ___, ___, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB,  // 1110 0111
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,  // 0001 0111
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,  // 1001 0111
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,  // 0101 0111
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB,  // 1101 0111
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,  // 0011 0111
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB,  // 1011 0111
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB,  // 0111 0111
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, ___, ___, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD,  // 1111 0111
+  ___, ___, ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,  // 0000 1111
+  0x0, 0x1, ___, ___, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,  // 1000 1111
+  ___, ___, 0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,  // 0100 1111
+  0x0, 0x1, 0x2, 0x3, ___, ___, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB,  // 1100 1111
+  ___, ___, ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,  // 0010 1111
+  0x0, 0x1, ___, ___, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB,  // 1010 1111
+  ___, ___, 0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB,  // 0110 1111
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, ___, ___, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD,  // 1110 1111
+  ___, ___, ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,  // 0001 1111
+  0x0, 0x1, ___, ___, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB,  // 1001 1111
+  ___, ___, 0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB,  // 0101 1111
+  0x0, 0x1, 0x2, 0x3, ___, ___, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD,  // 1101 1111
+  ___, ___, ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB,  // 0011 1111
+  0x0, 0x1, ___, ___, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD,  // 1011 1111
+  ___, ___, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD,  // 0111 1111
+  0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF,  // 1111 1111
+};
+
+#undef ___
+
+//////////////////////////////////////////////////////////////////////////
+
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool WriteAligned32 = false>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
@@ -825,7 +1097,7 @@ size_t rANS32x32_16w_decode_avx2_varA(const uint8_t *pInData, const size_t inLen
 
   if constexpr (!WriteAligned32)
     if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
-      return rANS32x32_16w_decode_avx2_varA<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x32_16w_decode_avx2_varA<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -959,67 +1231,128 @@ size_t rANS32x32_16w_decode_avx2_varA(const uint8_t *pInData, const size_t inLen
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
-      // get masks of those compares & start loading shuffle masks.
-      const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
-      __m128i lut0 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0 << 3])); // `* 8`.
+      if constexpr (ShuffleMask16)
+      {
+        // get masks of those compares & start loading shuffle masks.
+        const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
+        __m128i lut0 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask0 << 4])); // `* 16`.
 
-      const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
-      __m128i lut1 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1 << 3])); // `* 8`.
+        const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
+        __m128i lut1 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask1 << 4])); // `* 16`.
 
-      const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
-      __m128i lut2 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask2 << 3])); // `* 8`.
+        const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
+        __m128i lut2 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask2 << 4])); // `* 16`.
 
-      const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
-      __m128i lut3 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask3 << 3])); // `* 8`.
+        const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
+        __m128i lut3 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask3 << 4])); // `* 16`.
 
-      // advance read head & read input for blocks 1, 2, 3.
-      const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
-      pReadHead += maskPop0;
+        // advance read head & read input for blocks 1, 2, 3.
+        const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
+        pReadHead += maskPop0;
 
-      const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
-      pReadHead += maskPop1;
+        const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
+        pReadHead += maskPop1;
 
-      const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
-      pReadHead += maskPop2;
+        const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
+        pReadHead += maskPop2;
 
-      const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
-      pReadHead += maskPop3;
+        const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
+        pReadHead += maskPop3;
 
-      // finalize lookups.
-      lut0 = _mm_or_si128(_mm_shuffle_epi8(lut0, shuffleDoubleMask), shuffleUpper16Bit);
-      lut1 = _mm_or_si128(_mm_shuffle_epi8(lut1, shuffleDoubleMask), shuffleUpper16Bit);
-      lut2 = _mm_or_si128(_mm_shuffle_epi8(lut2, shuffleDoubleMask), shuffleUpper16Bit);
-      lut3 = _mm_or_si128(_mm_shuffle_epi8(lut3, shuffleDoubleMask), shuffleUpper16Bit);
+        // matching: state << 16
+        const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+        const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+        const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+        const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
-      // matching: state << 16
-      const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
-      const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
-      const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
-      const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
+        // shuffle new words in place.
+        const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
+        const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
+        const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
+        const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
 
-      // shuffle new words in place.
-      const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
-      const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
-      const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
-      const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
+        // expand new word.
+        const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
+        const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
+        const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
+        const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
 
-      // expand new word.
-      const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
-      const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
-      const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
-      const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
+        // state = state << 16 | newWord;
+        statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
+        statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
+        statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
+        statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
+      }
+      else
+      {
+        // get masks of those compares & start loading shuffle masks.
+        const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
+        __m128i lut0 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0 << 3])); // `* 8`.
 
-      // state = state << 16 | newWord;
-      statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
-      statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
-      statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
-      statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
+        const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
+        __m128i lut1 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1 << 3])); // `* 8`.
+
+        const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
+        __m128i lut2 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask2 << 3])); // `* 8`.
+
+        const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
+        __m128i lut3 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask3 << 3])); // `* 8`.
+
+        // advance read head & read input for blocks 1, 2, 3.
+        const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
+        pReadHead += maskPop0;
+
+        const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
+        pReadHead += maskPop1;
+
+        const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
+        pReadHead += maskPop2;
+
+        const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
+        pReadHead += maskPop3;
+
+        // finalize lookups.
+        lut0 = _mm_or_si128(_mm_shuffle_epi8(lut0, shuffleDoubleMask), shuffleUpper16Bit);
+        lut1 = _mm_or_si128(_mm_shuffle_epi8(lut1, shuffleDoubleMask), shuffleUpper16Bit);
+        lut2 = _mm_or_si128(_mm_shuffle_epi8(lut2, shuffleDoubleMask), shuffleUpper16Bit);
+        lut3 = _mm_or_si128(_mm_shuffle_epi8(lut3, shuffleDoubleMask), shuffleUpper16Bit);
+
+        // matching: state << 16
+        const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+        const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+        const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+        const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
+
+        // shuffle new words in place.
+        const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
+        const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
+        const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
+        const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
+
+        // expand new word.
+        const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
+        const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
+        const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
+        const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
+
+        // state = state << 16 | newWord;
+        statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
+        statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
+        statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
+        statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
+      }
     }
     else
     {
@@ -1144,7 +1477,7 @@ size_t rANS32x32_16w_decode_avx2_varA(const uint8_t *pInData, const size_t inLen
   return expectedOutputLength;
 }
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool WriteAligned32 = false>
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool WriteAligned32 = false>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
@@ -1155,7 +1488,7 @@ size_t rANS32x32_16w_decode_avx2_varB(const uint8_t *pInData, const size_t inLen
 
   if constexpr (!WriteAligned32)
     if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
-      return rANS32x32_16w_decode_avx2_varB<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x32_16w_decode_avx2_varB<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -1292,67 +1625,128 @@ size_t rANS32x32_16w_decode_avx2_varB(const uint8_t *pInData, const size_t inLen
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
-      // get masks of those compares & start loading shuffle masks.
-      const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
-      __m128i lut0 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0 << 3])); // `* 8`.
+      if constexpr (ShuffleMask16)
+      {
+        // get masks of those compares & start loading shuffle masks.
+        const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
+        __m128i lut0 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask0 << 4])); // `* 16`.
 
-      const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
-      __m128i lut1 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1 << 3])); // `* 8`.
+        const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
+        __m128i lut1 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask1 << 4])); // `* 16`.
 
-      const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
-      __m128i lut2 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask2 << 3])); // `* 8`.
+        const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
+        __m128i lut2 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask2 << 4])); // `* 16`.
 
-      const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
-      __m128i lut3 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask3 << 3])); // `* 8`.
+        const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
+        __m128i lut3 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask3 << 4])); // `* 16`.
 
-      // advance read head & read input for blocks 1, 2, 3.
-      const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
-      pReadHead += maskPop0;
+        // advance read head & read input for blocks 1, 2, 3.
+        const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
+        pReadHead += maskPop0;
 
-      const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
-      pReadHead += maskPop1;
+        const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
+        pReadHead += maskPop1;
 
-      const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
-      pReadHead += maskPop2;
+        const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
+        pReadHead += maskPop2;
 
-      const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
-      pReadHead += maskPop3;
+        const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
+        pReadHead += maskPop3;
 
-      // finalize lookups.
-      lut0 = _mm_or_si128(_mm_shuffle_epi8(lut0, shuffleDoubleMask), shuffleUpper16Bit);
-      lut1 = _mm_or_si128(_mm_shuffle_epi8(lut1, shuffleDoubleMask), shuffleUpper16Bit);
-      lut2 = _mm_or_si128(_mm_shuffle_epi8(lut2, shuffleDoubleMask), shuffleUpper16Bit);
-      lut3 = _mm_or_si128(_mm_shuffle_epi8(lut3, shuffleDoubleMask), shuffleUpper16Bit);
+        // matching: state << 16
+        const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+        const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+        const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+        const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
-      // matching: state << 16
-      const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
-      const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
-      const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
-      const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
+        // shuffle new words in place.
+        const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
+        const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
+        const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
+        const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
 
-      // shuffle new words in place.
-      const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
-      const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
-      const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
-      const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
+        // expand new word.
+        const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
+        const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
+        const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
+        const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
 
-      // expand new word.
-      const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
-      const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
-      const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
-      const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
+        // state = state << 16 | newWord;
+        statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
+        statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
+        statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
+        statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
+      }
+      else
+      {
+        // get masks of those compares & start loading shuffle masks.
+        const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
+        __m128i lut0 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0 << 3])); // `* 8`.
 
-      // state = state << 16 | newWord;
-      statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
-      statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
-      statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
-      statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
+        const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
+        __m128i lut1 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1 << 3])); // `* 8`.
+
+        const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
+        __m128i lut2 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask2 << 3])); // `* 8`.
+
+        const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
+        __m128i lut3 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask3 << 3])); // `* 8`.
+
+        // advance read head & read input for blocks 1, 2, 3.
+        const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
+        pReadHead += maskPop0;
+
+        const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
+        pReadHead += maskPop1;
+
+        const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
+        pReadHead += maskPop2;
+
+        const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
+        pReadHead += maskPop3;
+
+        // finalize lookups.
+        lut0 = _mm_or_si128(_mm_shuffle_epi8(lut0, shuffleDoubleMask), shuffleUpper16Bit);
+        lut1 = _mm_or_si128(_mm_shuffle_epi8(lut1, shuffleDoubleMask), shuffleUpper16Bit);
+        lut2 = _mm_or_si128(_mm_shuffle_epi8(lut2, shuffleDoubleMask), shuffleUpper16Bit);
+        lut3 = _mm_or_si128(_mm_shuffle_epi8(lut3, shuffleDoubleMask), shuffleUpper16Bit);
+
+        // matching: state << 16
+        const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+        const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+        const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+        const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
+
+        // shuffle new words in place.
+        const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
+        const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
+        const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
+        const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
+
+        // expand new word.
+        const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
+        const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
+        const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
+        const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
+
+        // state = state << 16 | newWord;
+        statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
+        statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
+        statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
+        statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
+      }
     }
     else
     {
@@ -1479,7 +1873,7 @@ size_t rANS32x32_16w_decode_avx2_varB(const uint8_t *pInData, const size_t inLen
 
 //////////////////////////////////////////////////////////////////////////
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool WriteAligned32 = false>
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool WriteAligned32 = false>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
@@ -1490,7 +1884,7 @@ size_t rANS32x32_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLen
 
   if constexpr (!WriteAligned32)
     if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
-      return rANS32x32_16w_decode_avx2_varC<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x32_16w_decode_avx2_varC<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -1621,67 +2015,128 @@ size_t rANS32x32_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLen
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
-      // get masks of those compares & start loading shuffle masks.
-      const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
-      __m128i lut0 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0 << 3])); // `* 8`.
+      if constexpr (ShuffleMask16)
+      {
+        // get masks of those compares & start loading shuffle masks.
+        const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
+        __m128i lut0 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask0 << 4])); // `* 16`.
 
-      const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
-      __m128i lut1 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1 << 3])); // `* 8`.
+        const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
+        __m128i lut1 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask1 << 4])); // `* 16`.
 
-      const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
-      __m128i lut2 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask2 << 3])); // `* 8`.
+        const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
+        __m128i lut2 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask2 << 4])); // `* 16`.
 
-      const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
-      __m128i lut3 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask3 << 3])); // `* 8`.
+        const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
+        __m128i lut3 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask3 << 4])); // `* 16`.
 
-      // advance read head & read input for blocks 1, 2, 3.
-      const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
-      pReadHead += maskPop0;
+        // advance read head & read input for blocks 1, 2, 3.
+        const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
+        pReadHead += maskPop0;
 
-      const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
-      pReadHead += maskPop1;
+        const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
+        pReadHead += maskPop1;
 
-      const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
-      pReadHead += maskPop2;
+        const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
+        pReadHead += maskPop2;
 
-      const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
-      pReadHead += maskPop3;
+        const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
+        pReadHead += maskPop3;
 
-      // finalize lookups.
-      lut0 = _mm_or_si128(_mm_shuffle_epi8(lut0, shuffleDoubleMask), shuffleUpper16Bit);
-      lut1 = _mm_or_si128(_mm_shuffle_epi8(lut1, shuffleDoubleMask), shuffleUpper16Bit);
-      lut2 = _mm_or_si128(_mm_shuffle_epi8(lut2, shuffleDoubleMask), shuffleUpper16Bit);
-      lut3 = _mm_or_si128(_mm_shuffle_epi8(lut3, shuffleDoubleMask), shuffleUpper16Bit);
+        // matching: state << 16
+        const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+        const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+        const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+        const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
 
-      // matching: state << 16
-      const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
-      const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
-      const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
-      const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
+        // shuffle new words in place.
+        const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
+        const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
+        const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
+        const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
 
-      // shuffle new words in place.
-      const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
-      const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
-      const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
-      const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
+        // expand new word.
+        const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
+        const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
+        const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
+        const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
 
-      // expand new word.
-      const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
-      const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
-      const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
-      const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
+        // state = state << 16 | newWord;
+        statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
+        statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
+        statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
+        statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
+      }
+      else
+      {
+        // get masks of those compares & start loading shuffle masks.
+        const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
+        __m128i lut0 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0 << 3])); // `* 8`.
 
-      // state = state << 16 | newWord;
-      statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
-      statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
-      statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
-      statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
+        const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
+        __m128i lut1 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1 << 3])); // `* 8`.
+
+        const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
+        __m128i lut2 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask2 << 3])); // `* 8`.
+
+        const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
+        __m128i lut3 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask3 << 3])); // `* 8`.
+
+        // advance read head & read input for blocks 1, 2, 3.
+        const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
+        pReadHead += maskPop0;
+
+        const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
+        pReadHead += maskPop1;
+
+        const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
+        pReadHead += maskPop2;
+
+        const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
+        pReadHead += maskPop3;
+
+        // finalize lookups.
+        lut0 = _mm_or_si128(_mm_shuffle_epi8(lut0, shuffleDoubleMask), shuffleUpper16Bit);
+        lut1 = _mm_or_si128(_mm_shuffle_epi8(lut1, shuffleDoubleMask), shuffleUpper16Bit);
+        lut2 = _mm_or_si128(_mm_shuffle_epi8(lut2, shuffleDoubleMask), shuffleUpper16Bit);
+        lut3 = _mm_or_si128(_mm_shuffle_epi8(lut3, shuffleDoubleMask), shuffleUpper16Bit);
+
+        // matching: state << 16
+        const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
+        const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
+        const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
+        const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
+
+        // shuffle new words in place.
+        const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
+        const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
+        const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
+        const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
+
+        // expand new word.
+        const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
+        const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
+        const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
+        const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
+
+        // state = state << 16 | newWord;
+        statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
+        statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
+        statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
+        statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
+      }
     }
     else
     {
@@ -1808,7 +2263,7 @@ size_t rANS32x32_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLen
 
 //////////////////////////////////////////////////////////////////////////
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool WriteAligned32 = false>
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool WriteAligned32 = false>
 #ifndef _MSC_VER
 #ifdef __llvm__
 __attribute__((target("avx512bw")))
@@ -1823,7 +2278,7 @@ size_t rANS32x32_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
 
   if constexpr (!WriteAligned32)
     if ((reinterpret_cast<size_t>(pOutData) & (32 - 1)) == 0)
-      return rANS32x32_16w_decode_avx512fdqbw_varC<TotalSymbolCountBits, XmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x32_16w_decode_avx512fdqbw_varC<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -1935,59 +2390,112 @@ size_t rANS32x32_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
       const __mmask16 cmpMask0 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state0);
       const __mmask16 cmpMask1 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state1);
 
-      // get masks of those compares & start loading shuffle masks.
-      const uint32_t cmpMask0a = cmpMask0 & 0xFF;
-      const uint32_t cmpMask0b = cmpMask0 >> 8;
-      __m128i lut0a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0a << 3])); // `* 8`.
-      __m128i lut0b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0b << 3])); // `* 8`.
+      if constexpr (ShuffleMask16)
+      {
+        // get masks of those compares & start loading shuffle masks.
+        const uint32_t cmpMask0a = cmpMask0 & 0xFF;
+        const uint32_t cmpMask0b = cmpMask0 >> 8;
+        __m128i lut0a = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask0a << 4])); // `* 16`.
+        __m128i lut0b = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask0b << 4])); // `* 16`.
 
-      const uint32_t cmpMask1a = cmpMask1 & 0xFF;
-      const uint32_t cmpMask1b = cmpMask1 >> 8;
-      __m128i lut1a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1a << 3])); // `* 8`.
-      __m128i lut1b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1b << 3])); // `* 8`.
+        const uint32_t cmpMask1a = cmpMask1 & 0xFF;
+        const uint32_t cmpMask1b = cmpMask1 >> 8;
+        __m128i lut1a = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask1a << 4])); // `* 16`.
+        __m128i lut1b = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask1b << 4])); // `* 16`.
 
-      // advance read head & read input for blocks 1, 2, 3, 4, 5, 6, 7.
-      const uint32_t maskPop0a = (uint32_t)__builtin_popcount(cmpMask0a);
-      pReadHead += maskPop0a;
+        // advance read head & read input for blocks 1, 2, 3.
+        const uint32_t maskPop0a = (uint32_t)__builtin_popcount(cmpMask0a);
+        pReadHead += maskPop0a;
 
-      const __m128i newWords0b = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords0b = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop0b = (uint32_t)__builtin_popcount(cmpMask0b);
-      pReadHead += maskPop0b;
+        const uint32_t maskPop0b = (uint32_t)__builtin_popcount(cmpMask0b);
+        pReadHead += maskPop0b;
 
-      const __m128i newWords1a = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords1a = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop1a = (uint32_t)__builtin_popcount(cmpMask1a);
-      pReadHead += maskPop1a;
+        const uint32_t maskPop1a = (uint32_t)__builtin_popcount(cmpMask1a);
+        pReadHead += maskPop1a;
 
-      const __m128i newWords1b = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+        const __m128i newWords1b = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      const uint32_t maskPop1b = (uint32_t)__builtin_popcount(cmpMask1b);
-      pReadHead += maskPop1b;
+        const uint32_t maskPop1b = (uint32_t)__builtin_popcount(cmpMask1b);
+        pReadHead += maskPop1b;
 
-      // finalize lookups.
-      lut0a = _mm_or_si128(_mm_shuffle_epi8(lut0a, shuffleDoubleMask), shuffleUpper16Bit);
-      lut0b = _mm_or_si128(_mm_shuffle_epi8(lut0b, shuffleDoubleMask), shuffleUpper16Bit);
-      lut1a = _mm_or_si128(_mm_shuffle_epi8(lut1a, shuffleDoubleMask), shuffleUpper16Bit);
-      lut1b = _mm_or_si128(_mm_shuffle_epi8(lut1b, shuffleDoubleMask), shuffleUpper16Bit);
+        // matching: state << 16
+        const simd_t matchShiftedState0 = _mm512_mask_slli_epi32(state0, cmpMask0, state0, 16);
+        const simd_t matchShiftedState1 = _mm512_mask_slli_epi32(state1, cmpMask1, state1, 16);
 
-      // matching: state << 16
-      const simd_t matchShiftedState0 = _mm512_mask_slli_epi32(state0, cmpMask0, state0, 16);
-      const simd_t matchShiftedState1 = _mm512_mask_slli_epi32(state1, cmpMask1, state1, 16);
+        // shuffle new words in place.
+        const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
+        const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
+        const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
+        const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
 
-      // shuffle new words in place.
-      const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
-      const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
-      const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
-      const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
+        // expand new word.
+        const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
+        const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
 
-      // expand new word.
-      const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
-      const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
+        // state = state << 16 | newWord;
+        statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+        statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+      }
+      else
+      {
+        // get masks of those compares & start loading shuffle masks.
+        const uint32_t cmpMask0a = cmpMask0 & 0xFF;
+        const uint32_t cmpMask0b = cmpMask0 >> 8;
+        __m128i lut0a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0a << 3])); // `* 8`.
+        __m128i lut0b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask0b << 3])); // `* 8`.
 
-      // state = state << 16 | newWord;
-      statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
-      statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+        const uint32_t cmpMask1a = cmpMask1 & 0xFF;
+        const uint32_t cmpMask1b = cmpMask1 >> 8;
+        __m128i lut1a = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1a << 3])); // `* 8`.
+        __m128i lut1b = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMask1b << 3])); // `* 8`.
+
+        // advance read head & read input for blocks 1, 2, 3.
+        const uint32_t maskPop0a = (uint32_t)__builtin_popcount(cmpMask0a);
+        pReadHead += maskPop0a;
+
+        const __m128i newWords0b = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop0b = (uint32_t)__builtin_popcount(cmpMask0b);
+        pReadHead += maskPop0b;
+
+        const __m128i newWords1a = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop1a = (uint32_t)__builtin_popcount(cmpMask1a);
+        pReadHead += maskPop1a;
+
+        const __m128i newWords1b = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop1b = (uint32_t)__builtin_popcount(cmpMask1b);
+        pReadHead += maskPop1b;
+
+        // finalize lookups.
+        lut0a = _mm_or_si128(_mm_shuffle_epi8(lut0a, shuffleDoubleMask), shuffleUpper16Bit);
+        lut0b = _mm_or_si128(_mm_shuffle_epi8(lut0b, shuffleDoubleMask), shuffleUpper16Bit);
+        lut1a = _mm_or_si128(_mm_shuffle_epi8(lut1a, shuffleDoubleMask), shuffleUpper16Bit);
+        lut1b = _mm_or_si128(_mm_shuffle_epi8(lut1b, shuffleDoubleMask), shuffleUpper16Bit);
+
+        // matching: state << 16
+        const simd_t matchShiftedState0 = _mm512_mask_slli_epi32(state0, cmpMask0, state0, 16);
+        const simd_t matchShiftedState1 = _mm512_mask_slli_epi32(state1, cmpMask1, state1, 16);
+
+        // shuffle new words in place.
+        const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
+        const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
+        const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
+        const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
+
+        // expand new word.
+        const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
+        const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
+
+        // state = state << 16 | newWord;
+        statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+        statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+      }
     }
     else
     {
@@ -2087,36 +2595,51 @@ size_t rANS32x32_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
 
 size_t rANS32x32_16w_encode_scalar_15(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_16w_encode_scalar<15>(pInData, length, pOutData, outCapacity, pHist); }
 size_t rANS32x32_16w_decode_scalar_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_scalar<15>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<15, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<15, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<15, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<15, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varA_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<15, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varB_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<15, true, true>(pInData, inLength, pOutData, outCapacity); }
 
 size_t rANS32x32_16w_encode_scalar_14(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_16w_encode_scalar<14>(pInData, length, pOutData, outCapacity, pHist); }
 size_t rANS32x32_16w_decode_scalar_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_scalar<14>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<14, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<14, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<14, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<14, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varA_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<14, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varB_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<14, true, true>(pInData, inLength, pOutData, outCapacity); }
 
 size_t rANS32x32_16w_encode_scalar_13(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_16w_encode_scalar<13>(pInData, length, pOutData, outCapacity, pHist); }
 size_t rANS32x32_16w_decode_scalar_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_scalar<13>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<13, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<13, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<13, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<13, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varA_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<13, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varB_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<13, true, true>(pInData, inLength, pOutData, outCapacity); }
 
 size_t rANS32x32_16w_encode_scalar_12(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_16w_encode_scalar<12>(pInData, length, pOutData, outCapacity, pHist); }
 size_t rANS32x32_16w_decode_scalar_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_scalar<12>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<12, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<12, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<12, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<12, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<12, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<12, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varA_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<12, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varB_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<12, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<12, true, true>(pInData, inLength, pOutData, outCapacity); }
 
 size_t rANS32x32_16w_encode_scalar_11(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_16w_encode_scalar<11>(pInData, length, pOutData, outCapacity, pHist); }
 size_t rANS32x32_16w_decode_scalar_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_scalar<11>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<11, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<11, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<11, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<11, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<11, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<11, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varA_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<11, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varB_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<11, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<11, true, true>(pInData, inLength, pOutData, outCapacity); }
 
 size_t rANS32x32_16w_encode_scalar_10(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity, const hist_t *pHist) { return rANS32x32_16w_encode_scalar<10>(pInData, length, pOutData, outCapacity, pHist); }
 size_t rANS32x32_16w_decode_scalar_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_scalar<10>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<10, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<10, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<10, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varA_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<10, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varB_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<10, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<10, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varA_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<10, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varB_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<10, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<10, true, true>(pInData, inLength, pOutData, outCapacity); }
 
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varA_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varA<15, false>(pInData, inLength, pOutData, outCapacity); }
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varB_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varB<15, false>(pInData, inLength, pOutData, outCapacity); }
@@ -2141,9 +2664,12 @@ size_t rANS32x32_ymmPerm_16w_decode_avx2_varC_10(const uint8_t *pInData, const s
 
 //////////////////////////////////////////////////////////////////////////
 
-size_t rANS32x32_xmmShfl_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<12, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<11, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<10, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<12, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<11, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<10, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<12, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<11, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<10, true, true>(pInData, inLength, pOutData, outCapacity); }
 
 size_t rANS32x32_zmmPerm_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<12, false>(pInData, inLength, pOutData, outCapacity); }
 size_t rANS32x32_zmmPerm_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<11, false>(pInData, inLength, pOutData, outCapacity); }
