@@ -25,7 +25,7 @@
 
 ### [enwik8](http://mattmahoney.net/dc/textdata.html) (Wikipedia Extract, 100,000,000 Bytes)
 
-| Codec Type | Ratio | Clocks/Byte | Throughput | Clocks/Byte | Throughput |
+| Codec Type | Ratio | Encoder<br/>Clocks/Byte | Encoder<br/>Throughput | Decoder<br/>Clocks/Byte | Decoder<br/>Throughput |
 | -- | --: | --: | --: | --: | --: |
 | **rANS32x64 16w        10** |  65.59 % |   12.54 clk/byte |   341.55 MiB/s |   1.53 clk/byte |  2791.45 MiB/s |
 | **rANS32x64 16w        11** |  64.33 % |   12.36 clk/byte |   346.52 MiB/s |   1.54 clk/byte |  2785.87 MiB/s |
