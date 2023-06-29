@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>hypersonic rANS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="style.css">
+    <meta name="google-site-verification" content="cwxr5nWjkgCiCKgPyuEOTuEH9ziCxHKO4gZRZft1tAE" />
+  </head>
+  <body>
+    <div class="main">
+      <div class="header">
+        <a href="https://github.com/rainerzufalldererste/hypersonic-rANS"><img src="logo.png" alt="hypersonic rANS logo"/></a>
+        <h2>some of the fastest decoding range-based asymetric numeral systems (rANS) codecs for x64</h2>
+      </div>
+      <div class="text">
+        <ul>
+          <li>Written in C++.</li>
+          <li>Licensed under Two Clause BSD.</li>
+          <li>I don't consider these codecs finalized yet, so the the repository is eventually going to be made more friendly towards integration with other applications.</li>
+          <li>Obligatory <a href="https://github.com/rainerzufalldererste/hypersonic-rANS">link to the repository</a>.</li>
+        </ul>
+      </div>
+      <script>
+function reveal() {
+  var reveals = document.querySelectorAll(".revealable");
+  
+  for (var i = 0; i < reveals.length; i++) {
+    var windowHeight = window.innerHeight;
+    var elementTop = reveals[i].getBoundingClientRect().top;
+    var elementVisible = 150;
+  
+    if (elementTop < windowHeight - elementVisible) {
+      reveals[i].classList.add("active");
+    } else {
+      reveals[i].classList.remove("active");
+    }
+  }
+}
+
+window.addEventListener("scroll", reveal);
+      </script>
+      <div class="tooltip_hidden" id="tooltip">
+        <p>
+          <b id="tooltip_text">headline</b>
+          <b id="tooltip_pareto" title="decoder throughput vs compression ratio pareto">decode/ratio pareto</b>
+          <b id="tooltip_pareto2" title="encoder throughput vs compression ratio pareto">encode/ratio pareto</b>
+          <b id="tooltip_pareto3" title="decoder throughput vs entropy compressibility pareto">decode/entropy pareto</b>
+          <b id="tooltip_pareto4" title="encoder throughput vs entropy compressibility pareto">encode/entropy pareto</b>
+        </p>
+        <p id="tooltip_sub1">text1</p>
+        <p id="tooltip_sub2">text2</p>
+        <p id="tooltip_sub3">text3</p>
+        <p id="tooltip_sub4">text4</p>
+      </div>
+      <script>
+          function point(ctx, x, y, radius, fillStyle, strokeStyle, lineWidth) {
+              ctx.beginPath();
+              ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+              ctx.fillStyle = fillStyle;
+              ctx.fill();
+              ctx.strokeStyle = strokeStyle;
+              ctx.lineWidth = lineWidth;
+              ctx.stroke();
+          }
+
+          function line(ctx, sX, sY, tX, tY, strokeStyle, lineWidth) {
+              ctx.beginPath();
+              ctx.moveTo(sX, sY);
+              ctx.moveTo(tX, tY);
+              ctx.strokeStyle = strokeStyle;
+              ctx.lineWidth = lineWidth;
+              ctx.stroke();
+          }
+
+          var lastColorIndex = 0;
+
+          function getColor() {
+            lastColorIndex++;
+            return "hsl(" + ((lastColorIndex - 1) / 20 * 320 + 250.0) + "deg, 60%, 70%, 0.4)"
+          }
+
+          function init_obj(obj) {
+            obj.minDecode = 0;
+            obj.maxDecode = 0;
+            obj.minRatio = 100;
+            obj.maxRatio = 0;
+            obj.minEncode = 0;
+            obj.maxEncode = 0;
+            obj.minEntropy = 100;
+            obj.maxEntropy = 0;
+            obj.points = [];
+            obj.lines = [];
+            obj.xStat = "decode";
+            obj.yStat = "ratio";
+
+            lastColorIndex = 0;
+          }
+
+          function add_point(obj, decode, ratio, encode, entropy, label, foreign = false) {
+            if (decode > obj.maxDecode) obj.maxDecode = decode;
+            if (ratio > obj.maxRatio) obj.maxRatio = ratio;
+            if (encode > obj.maxEncode) obj.maxEncode = encode;
+            if (decode < obj.minDecode) obj.minDecode = decode;
+            if (ratio < obj.minRatio) obj.minRatio = ratio;
+            if (encode < obj.minEncode) obj.minEncode = encode;
+
+            if (entropy != null) {
+              if (entropy > obj.maxEntropy) obj.maxEntropy = entropy;
+              if (entropy < obj.minEntropy) obj.minEntropy = entropy;
+            }
+
+            obj.points[label] = { decode: decode, name: label, ratio: ratio, encode: encode, foreign: !!foreign, entropy: entropy };
+          }
+
+          function add_point_no_entropy(obj, decode, ratio, encode, label, foreign = false) {
+            add_point(obj, decode, ratio, encode, null, label, foreign);
+          }
+
+          function add_line(obj, labels, color) {
+            let points = [];
+            let foreign = false;
+
+            for (let i = 0; i < labels.length; i++) {
+                points[points.length] = obj.points[labels[i]];
+                points[points.length - 1].name = labels[i];
+                foreign |= (points[points.length - 1].foreign == true);
+            }
+
+            obj.lines[obj.lines.length] = { points: points, color: color, foreign: foreign };
+          }
+
+          function transformX(obj, x, rangeX, offsetX) {
+            return offsetX + (x - obj.minX) / rangeX;
+          }
+
+          function transformY(obj, y, rangeY, offsetY) {
+            return offsetY + (y - obj.minY) / rangeY;
+          }
+
+          function pixelRatio() {
+            return (1 + window.devicePixelRatio) * 0.5;
+          } 
+
+          function draw_point(ctx, obj, p, rangeX, rangeY, offsetX, offsetY, paretoName) {
+            point(ctx, transformX(obj, p[obj.xStat], rangeX, offsetX), transformY(obj, p[obj.yStat], rangeY, offsetY), (p[paretoName] == true ? 10 : 6) * pixelRatio(), (p.name == obj.bestP ? "#EF7" : p.foreign ? "#333" : "#DDD"), p.foreign ? "#777" : "#DDD", 2 * pixelRatio());
+          }
+
+          function draw_line(ctx, obj, l, rangeX, rangeY, offsetX, offsetY, lineWidth) {
+            let points = l.points;
+
+            ctx.beginPath();
+
+            if (obj.yStat != 'entropy' || points[0].entropy != null)
+              ctx.moveTo(transformX(obj, points[0][obj.xStat], rangeX, offsetX), transformY(obj, points[0][obj.yStat], rangeY, offsetY));
+            
+            for (let i = 1; i < points.length; i++)
+              if (obj.yStat != 'entropy' || points[i].entropy != null)
+                ctx.lineTo(transformX(obj, points[i][obj.xStat], rangeX, offsetX), transformY(obj, points[i][obj.yStat], rangeY, offsetY));
+
+            ctx.strokeStyle = l.color;
+            ctx.lineWidth = lineWidth * pixelRatio() * (l.pareto == true ? 4 : 1);
+            ctx.stroke();
+          }
+
+          function draw_line_xy(ctx, obj, l, rangeX, rangeY, offsetX, offsetY, lineWidth) {
+            let points = l.points;
+
+            ctx.beginPath();
+            ctx.moveTo(transformX(obj, points[0].x, rangeX, offsetX), transformY(obj, points[0].y, rangeY, offsetY));
+            
+            for (let i = 1; i < points.length; i++)
+                ctx.lineTo(transformX(obj, points[i].x, rangeX, offsetX), transformY(obj, points[i].y, rangeY, offsetY));
+
+            ctx.strokeStyle = l.color;
+            ctx.lineWidth = lineWidth * pixelRatio() * (l.pareto == true ? 4 : 1);
+            ctx.stroke();
+          }
+
+          function draw_label(ctx, obj, x, y, text, rangeX, rangeY, offsetX, offsetY, font, fillStyle) {
+            ctx.font = font;
+            ctx.fillStyle = fillStyle;
+            ctx.fillText(text, transformX(obj, x, rangeX, offsetX), transformY(obj, y, rangeY, offsetY));
+          }
+
+          function calc_pareto_line(obj) {
+            let points = [];
+            let n = {};
+            n.decode = 0;
+            n.ratio = 0;
+
+            for (let p in obj.points) {
+                if (obj.points[p].decode > n.decode)
+                    n = obj.points[p];
+            }
+
+            let found = false;
+
+            do {
+                points[points.length] = n;
+                n.pareto_dvr = true;
+
+                found = false;
+
+                let last = n;
+                n = {};
+                n.decode = 0;
+                n.ratio = 0;
+
+                for (let p in obj.points) {
+                    if (obj.points[p].decode > n.decode && obj.points[p].ratio < last.ratio && obj.points[p].decode < last.decode) {
+                        n = obj.points[p];
+                        found = true
+                    }
+                }
+            } while (found);
+
+            obj.lines[obj.lines.length] = { points: points, color: "#AAFF2244", pareto: true, pareto_dvr: true };
+          }
+
+          function calc_pareto_line2(obj) {
+            let points = [];
+            let n = {};
+            n.encode = 0;
+            n.ratio = 0;
+
+            for (let p in obj.points) {
+                if (obj.points[p].encode > n.encode)
+                    n = obj.points[p];
+            }
+
+            let found = false;
+
+            do {
+                points[points.length] = n;
+                n.pareto_evr = true;
+
+                found = false;
+
+                let last = n;
+                n = {};
+                n.encode = 0;
+                n.ratio = 0;
+
+                for (let p in obj.points) {
+                    if (obj.points[p].encode > n.encode && obj.points[p].ratio < last.ratio && obj.points[p].encode < last.encode) {
+                        n = obj.points[p];
+                        found = true
+                    }
+                }
+            } while (found);
+
+            obj.lines[obj.lines.length] = { points: points, color: "#DDEE2208", pareto: true, pareto_evr: true };
+          }
+
+          function calc_pareto_line3(obj) {
+            let points = [];
+            let n = {};
+            n.decode = 0;
+            n.entropy = 0;
+
+            for (let p in obj.points) {
+                if (obj.points[p].decode > n.decode)
+                    n = obj.points[p];
+            }
+
+            let found = false;
+
+            do {
+                points[points.length] = n;
+                n.pareto_dve = true;
+
+                found = false;
+
+                let last = n;
+                n = {};
+                n.decode = 0;
+                n.entropy = 0;
+
+                for (let p in obj.points) {
+                    if (obj.points[p].entropy != null && obj.points[p].decode > n.decode && obj.points[p].entropy < last.entropy && obj.points[p].decode < last.decode) {
+                        n = obj.points[p];
+                        found = true
+                    }
+                }
+            } while (found);
+
+            obj.lines[obj.lines.length] = { points: points, color: "#44AAFF08", pareto: true, pareto_dve: true };
+          }
+
+          function calc_pareto_line4(obj) {
+            let points = [];
+            let n = {};
+            n.encode = 0;
+            n.entropy = 0;
+
+            for (let p in obj.points) {
+                if (obj.points[p].entropy != null && obj.points[p].encode > n.encode)
+                    n = obj.points[p];
+            }
+
+            let found = false;
+
+            do {
+                points[points.length] = n;
+                n.pareto_eve = true;
+
+                found = false;
+
+                let last = n;
+                n = {};
+                n.encode = 0;
+                n.entropy = 0;
+
+                for (let p in obj.points) {
+                    if (obj.points[p].entropy != null && obj.points[p].encode > n.encode && obj.points[p].entropy < last.entropy && obj.points[p].encode < last.encode) {
+                        n = obj.points[p];
+                        found = true
+                    }
+                }
+            } while (found);
+
+            obj.lines[obj.lines.length] = { points: points, color: "#44FFAA08", pareto: true, pareto_eve: true };
+          }
+
+          function draw_obj(ctx, obj) {
+            obj.width = obj.scrollWidth * 2;
+            obj.height = obj.scrollHeight * 2;
+
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            let borderX = 75;
+            let borderY = 50;
+
+            let topX = 50;
+            let topY = 10;
+
+            let visible_pareto_line = "";
+
+            if (obj.xStat == "decode") {
+              visible_pareto_line = "d";
+              obj.minX = obj.minDecode;
+              obj.maxX = obj.maxDecode;
+            } else {
+              visible_pareto_line = "e";
+              obj.minX = obj.minEncode;
+              obj.maxX = obj.maxEncode;
+            }
+
+            visible_pareto_line += "v";
+
+            if (obj.yStat == "ratio") {
+              visible_pareto_line += "r";
+              obj.minY = Math.floor(obj.minRatio / 10) * 10;
+              obj.maxY = obj.maxRatio;
+            } else {
+              visible_pareto_line += "e";
+              obj.minY = Math.floor(obj.minEntropy / 2) * 2;
+              obj.maxY = obj.maxEntropy;
+            }
+            
+            let nativeYRange = obj.maxY - obj.minY;
+            let stepY = Math.max(1, Math.floor(nativeYRange / 6));
+            
+            let nativeXRange = obj.maxX - obj.minX;
+            let stepX = (Math.max(1, Math.floor(nativeXRange / 9 / 500)) * 500);
+
+            let rangeX = (obj.maxX - obj.minX) / (obj.width - borderX);
+            let rangeY = (obj.maxY - obj.minY) / (obj.height - borderY);
+            
+            // X Axis.
+            for (let x = obj.minX; x <= obj.maxX; x += stepX) {
+              draw_line_xy(ctx, obj, { points: [{ y: obj.minY, x: x }, { y: obj.maxY, x: x }], color: x == obj.minX ? "#555" : "#333" }, rangeX, rangeY, topX, topY, x == obj.minX ? 4 : 2);
+            }
+
+            // Y Axis.
+            for (let y = obj.minY; y <= obj.maxY; y += stepY) {
+              draw_line_xy(ctx, obj, { points: [{ x: obj.minX, y: y }, { x: obj.maxX, y: y }], color: y == obj.minY ? "#555" : "#333" }, rangeX, rangeY, topX, topY, y == obj.minY ? 4 : 2);
+            }
+            
+            // X Axis.
+            for (let x = obj.minX; x <= obj.maxX; x += stepX) {
+                if (x > obj.minX) draw_label(ctx, obj, x, obj.minY, x + " MiB/s", rangeX, rangeY, topX, topY, (30 /* * pixelRatio() */) + "px monospace", "#888");
+            }
+
+            // Y Axis.
+            for (let y = obj.minY; y <= obj.maxY; y += stepY) {
+                if (y > obj.minY) draw_label(ctx, obj, obj.minX, y, y + "%", rangeX, rangeY, topX, topY, (30 /* * pixelRatio() */) + "px monospace", "#888");
+            }
+            
+            for (i in obj.lines) {
+              if (obj.lines[i].pareto == true) {
+                if (obj.lines[i]["pareto_" + visible_pareto_line] != null) {
+                  obj.lines[i].color = obj.lines[i].color.substring(0, 7) + "66";
+                } else {
+                  obj.lines[i].color = obj.lines[i].color.substring(0, 7) + "18";
+                }
+              }
+
+              //if (obj.lines[i].pareto == true || obj.lines[i].foreign == true)
+                draw_line(ctx, obj, obj.lines[i], rangeX, rangeY, topX, topY, 4);
+            }
+
+            function contains(arr, i) {
+              for (l in arr)
+                if (arr[l].name == i)
+                  return true;
+              
+              return false;
+            }
+
+            //if (obj.bestP != null)
+            //  for (i in obj.lines)
+            //    if (obj.lines[i].pareto != true && obj.lines[i].foreign != true && contains(obj.lines[i].points, obj.bestP))
+            //        draw_line(ctx, obj, obj.lines[i], rangeX, rangeY, topX, topY, 4);
+
+            for (i in obj.points)
+              if (obj.yStat != 'entropy' || obj.points[i].entropy != null)
+                draw_point(ctx, obj, obj.points[i], rangeX, rangeY, topX, topY, "pareto_" + visible_pareto_line);
+          }
+
+          function handle_mouseover(event, obj) {
+            event = event || window.event;
+
+            if (event.pageX == null && event.clientX != null) {
+                var eventDoc = (event.target && event.target.ownerDocument) || document;
+                var doc = eventDoc.documentElement;
+                var body = eventDoc.body;
+
+                event.pageX = event.clientX + (doc && doc.offsetLeft || body && body.offsetLeft || 0) - (doc && doc.clientLeft || body && body.clientLeft || 0);
+                event.pageY = event.clientY + (doc && doc.offsetTop  || body && body.offsetTop  || 0) - (doc && doc.clientTop  || body && body.clientTop  || 0);
+            }
+
+            var mouseX = event.pageX;
+            var mouseY = event.pageY;
+        
+            if (obj.offsetTop <= mouseY && obj.offsetLeft <= mouseX && obj.offsetTop + obj.offsetHeight >= mouseY && obj.offsetLeft + obj.offsetWidth >= mouseX) {
+                var internalX = (mouseX - obj.offsetLeft) * 2; // because the canvas is scaled internally by factor 2
+                var internalY = (mouseY - obj.offsetTop) * 2; // because the canvas is scaled internally by factor 2
+
+                var borderX = 75;
+                var borderY = 50;
+
+                var topX = 50;
+                var topY = -15;
+
+                var rangeX = (obj.maxX - obj.minX) / (obj.width - borderX);
+                var rangeY = (obj.maxY - obj.minY) / (obj.height - borderY);
+
+                function dist(x, y) {
+                    let dx = transformX(obj, x, rangeX, topX) - internalX;
+                    let dy = transformY(obj, y, rangeY, topY) - internalY;
+
+                    return Math.sqrt(dx * dx + dy * dy);
+                }
+
+                var bestP = null;
+                var closest = 99999.9;
+
+                for (let p in obj.points) {
+                    var d = dist(obj.points[p][obj.xStat], obj.points[p][obj.yStat]);
+
+                    if (d < closest) {
+                      closest = d;
+                      bestP = p;
+                    }
+                }
+
+                if (closest > 50 * pixelRatio() || bestP == null) {
+                  var tooltip = document.getElementById("tooltip");
+                  tooltip.style.left = "0px";
+                  tooltip.style.top = "0px";
+                  tooltip.className = "tooltip_hidden";
+                  bestP = null;
+                } else {
+                  var tooltip = document.getElementById("tooltip");
+                  tooltip.style.left = (mouseX + 20 * pixelRatio()) + "px";
+                  tooltip.style.top = mouseY + "px";
+                  tooltip.className = "tooltip_visible";
+                  document.getElementById("tooltip_text").innerText = bestP + (obj.points[bestP].foreign ? " (foreign codec)" : "");
+                  document.getElementById("tooltip_sub1").innerText = "decoder throughput: " + obj.points[bestP].decode + " MiB/s";
+                  document.getElementById("tooltip_sub2").innerText = "encoder throughput: " + obj.points[bestP].encode + " MiB/s";
+                  document.getElementById("tooltip_sub3").innerText = "compression ratio: " + obj.points[bestP].ratio + " %";
+                  document.getElementById("tooltip_sub4").innerText = obj.points[bestP].entropy == null ? "" : "entropy compressible to: " + obj.points[bestP].entropy + " %";
+                  document.getElementById("tooltip_pareto").className = obj.points[bestP].pareto_dvr == true ? "pareto" : "non_pareto";
+                  document.getElementById("tooltip_pareto2").className = obj.points[bestP].pareto_evr == true ? "pareto" : "non_pareto";
+                  document.getElementById("tooltip_pareto3").className = obj.points[bestP].pareto_dve == true ? "pareto" : "non_pareto";
+                  document.getElementById("tooltip_pareto4").className = obj.points[bestP].pareto_eve == true ? "pareto" : "non_pareto";
+                }
+
+                if (obj.bestP != bestP)
+                {
+                  obj.bestP = bestP;
+                  draw_obj(obj.getContext("2d"), obj);
+                }
+            }
+          }
+
+          function setXMetric(metric) {
+            var charts = document.getElementsByClassName("chart");
+
+            for (let i = 0; i < charts.length; i++) {
+              charts[i].xStat = metric;
+              draw_obj(charts[i].getContext("2d"), charts[i]);
+            }
+
+            var active_buttons = document.getElementsByClassName(metric == "decode" ? "graph_metricX l" : "graph_metricX r");
+            var inactive_buttons = document.getElementsByClassName(metric == "decode" ? "graph_metricX r" : "graph_metricX l");
+
+            for (let i = 0; i < active_buttons.length; i++)
+              active_buttons[i].className  = active_buttons[i].className.replace(" active", "") + " active";
+
+            for (let i = 0; i < inactive_buttons.length; i++)
+              inactive_buttons[i].className = inactive_buttons[i].className.replace(" active", "");
+          }
+
+          function setYMetric(metric) {
+            var charts = document.getElementsByClassName("chart");
+
+            for (let i = 0; i < charts.length; i++) {
+              charts[i].yStat = metric;
+              draw_obj(charts[i].getContext("2d"), charts[i]);
+            }
+
+            var active_buttons = document.getElementsByClassName(metric == "ratio" ? "graph_metricY l" : "graph_metricY r");
+            var inactive_buttons = document.getElementsByClassName(metric == "ratio" ? "graph_metricY r" : "graph_metricY l");
+
+            for (let i = 0; i < active_buttons.length; i++)
+              active_buttons[i].className = active_buttons[i].className.replace(" active", "") + " active";
+
+            for (let i = 0; i < inactive_buttons.length; i++)
+              inactive_buttons[i].className = inactive_buttons[i].className.replace(" active", "");
+          }
+
+          function addSeparators(x) {
+            return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+          }
+
+          function print_pareto(obj) {
+            console.log(obj.id);
+
+            var any_foreign = false;
+
+            for (let p in obj.points) {
+                var x = obj.points[p];
+                var relevant = (x.pareto_dvr || x.pareto_evr || (x.pareto_dve && x.pareto_eve)) || x.foreign;
+
+                if (!relevant)
+                  continue;
+
+                if (!any_foreign && x.foreign) {
+                  any_foreign = true;
+                  console.log("-------------------------------------------------------");
+                }
+
+                var line = "| " + x.name.padEnd(31, ' ') + " | ";
+
+                line += "".padStart(6 - ("" + x.ratio.toFixed(2)).length);
+
+                if (x.pareto_dvr || x.pareto_evr)
+                  line += "**" + x.ratio.toFixed(2) + " %** | ";
+                else
+                  line += "  " + x.ratio.toFixed(2) + " %   | ";
+
+                line += "".padStart(8 - addSeparators(x.encode.toFixed(1)).length);
+
+                if (x.pareto_evr)
+                  line += "**" + addSeparators(x.encode.toFixed(1)) + " MiB/s** | ";
+                else
+                  line += "  " + addSeparators(x.encode.toFixed(1)) + " MiB/s   | ";
+
+                line += "".padStart(8 - addSeparators(x.decode.toFixed(1)).length);
+
+                if (x.pareto_dvr)
+                  line += "**" + addSeparators(x.decode.toFixed(1)) + " MiB/s** | ";
+                else
+                  line += "  " + addSeparators(x.decode.toFixed(1)) + " MiB/s   | ";
+
+                if (x.foreign) {
+                  line += " -  |"
+                } else {
+                  line += "".padStart(6 - ("" + x.entropy.toFixed(2)).length);
+                  
+                  if (x.pareto_dve && x.pareto_eve)
+                  line += "**" + x.entropy.toFixed(2) + " %** |";
+                  else
+                  line += "  " + x.entropy.toFixed(2) + " %   |";
+                }
+
+                console.log(line);
+            }
+
+          }
+      </script>
+      <hr/>
+      <h2>benchmarks</h2>
+      <div class="graph_container">
+        <h3>enwik8 (wikipedia extract)</h3>
+        <p>Order 1 codecs excluded, they're not particularly fast, but they compress a lot better, which makes visibility a lot worse.</p>
+        <!--
+        <div class="graph_metric_container">
+          <a class="graph_metricY r" onclick="javascript:setYMetric('entropy')">entropy</a>
+          <a class="graph_metricY l active" onclick="javascript:setYMetric('ratio')">ratio</a>
+        </div>
+        <div class="graph_metric_container">
+          <a class="graph_metricX r" onclick="javascript:setXMetric('encode')">encode</a>
+          <a class="graph_metricX l active" onclick="javascript:setXMetric('decode')">decode</a>
+        </div>
+        -->
+        <canvas id="enwik8" class="chart"></canvas>
+        <script>
+            var obj = document.getElementById("enwik8");
+            var ctx = obj.getContext("2d");
+            ctx.scale(pixelRatio(), pixelRatio());
+
+            init_obj(obj);
+
+            add_point_no_entropy(obj, 1670.92, 63.57,  342.60, "rANS32x32 16w 15"      );
+            add_point_no_entropy(obj, 1770.66, 63.55,  335.79, "rANS32x32 16w 14"      );
+            add_point_no_entropy(obj, 1781.65, 63.61,  331.37, "rANS32x32 16w 13"      );
+            add_point_no_entropy(obj, 2686.87, 63.81,  343.55, "rANS32x32 16w 12"      );
+            add_point_no_entropy(obj, 2710.09, 64.33,  332.64, "rANS32x32 16w 11"      );
+            add_point_no_entropy(obj, 2716.91, 65.59,  327.53, "rANS32x32 16w 10"      );
+            add_point_no_entropy(obj, 1550.93, 63.57,  324.33, "rANS32x32 32blk 16w 15");
+            add_point_no_entropy(obj, 1607.26, 63.55,  329.08, "rANS32x32 32blk 16w 14");
+            add_point_no_entropy(obj, 1582.28, 63.61,  341.16, "rANS32x32 32blk 16w 13");
+            add_point_no_entropy(obj, 2312.10, 63.81,  339.50, "rANS32x32 32blk 16w 12");
+            add_point_no_entropy(obj, 2299.31, 64.33,  338.00, "rANS32x32 32blk 16w 11");
+            add_point_no_entropy(obj, 2289.10, 65.59,  331.80, "rANS32x32 32blk 16w 10");
+            add_point_no_entropy(obj, 1381.63, 63.51,  283.41, "rANS32x32 32blk 8w 15" );
+            add_point_no_entropy(obj, 1429.24, 63.53,  284.45, "rANS32x32 32blk 8w 14" );
+            add_point_no_entropy(obj, 1438.01, 63.60,  284.24, "rANS32x32 32blk 8w 13" );
+            add_point_no_entropy(obj, 1984.68, 63.82,  282.80, "rANS32x32 32blk 8w 12" );
+            add_point_no_entropy(obj, 1988.10, 64.33,  285.45, "rANS32x32 32blk 8w 11" );
+            add_point_no_entropy(obj, 1977.26, 65.60,  291.41, "rANS32x32 32blk 8w 10" );
+            add_point_no_entropy(obj, 1674.05, 63.57,  350.49, "rANS32x64 16w 15"      );
+            add_point_no_entropy(obj, 1726.67, 63.55,  340.14, "rANS32x64 16w 14"      );
+            add_point_no_entropy(obj, 1731.22, 63.61,  348.13, "rANS32x64 16w 13"      );
+            add_point_no_entropy(obj, 2755.96, 63.81,  341.71, "rANS32x64 16w 12"      );
+            add_point_no_entropy(obj, 2785.87, 64.33,  346.52, "rANS32x64 16w 11"      );
+            add_point_no_entropy(obj, 2791.45, 65.59,  341.55, "rANS32x64 16w 10"      );
+            add_point_no_entropy(obj, 1017.12, 63.57,  322.51, "rANS32x16 16w 15"      );
+            add_point_no_entropy(obj, 1175.92, 63.55,  320.41, "rANS32x16 16w 14"      );
+            add_point_no_entropy(obj, 1190.23, 63.61,  325.92, "rANS32x16 16w 13"      );
+            add_point_no_entropy(obj, 1681.73, 63.81,  324.24, "rANS32x16 16w 12"      );
+            add_point_no_entropy(obj, 1676.41, 64.33,  323.17, "rANS32x16 16w 11"      );
+            add_point_no_entropy(obj, 1684.80, 65.59,  323.07, "rANS32x16 16w 10"      );
+            
+            //add_point_no_entropy(obj,   81.63, 47.8 ,   89.60, "arith_dyn 1"           , true);
+            //add_point_no_entropy(obj,  322.22, 51.6 ,  168.22, "rans32avx512 1"        , true);
+            //add_point_no_entropy(obj,  319.15, 51.6 ,  177.36, "rans32avx2 1"          , true);
+            add_point_no_entropy(obj,   75.05, 62.0 ,   88.09, "arith_dyn 0"           , true);
+            add_point_no_entropy(obj,   84.37, 63.2 ,  223.06, "FastAC"                , true);
+            add_point_no_entropy(obj,  966.58, 63.2 ,  736.10, "fse"                   , true);
+            add_point_no_entropy(obj, 2515.23, 63.4 , 1581.32, "fsehuf"                , true);
+            add_point_no_entropy(obj, 2374.04, 63.5 , 1041.93, "rans32avx2 0"          , true);
+            add_point_no_entropy(obj, 2221.93, 63.5 ,  796.70, "rans32avx512 0"        , true);
+            add_point_no_entropy(obj, 1948.66, 63.5 ,  732.08, "rans32sse 0"           , true);
+            add_point_no_entropy(obj,  151.62, 63.6 ,  189.84, "FastHF"                , true);
+
+            add_line(obj, ["rANS32x32 16w 15", "rANS32x32 16w 14", "rANS32x32 16w 13", "rANS32x32 16w 12", "rANS32x32 16w 11", "rANS32x32 16w 10"], getColor());
+            add_line(obj, ["rANS32x32 32blk 16w 15", "rANS32x32 32blk 16w 14", "rANS32x32 32blk 16w 13", "rANS32x32 32blk 16w 12", "rANS32x32 32blk 16w 11", "rANS32x32 32blk 16w 10"], getColor());
+            add_line(obj, ["rANS32x32 32blk 8w 15", "rANS32x32 32blk 8w 14", "rANS32x32 32blk 8w 13", "rANS32x32 32blk 8w 12", "rANS32x32 32blk 8w 11", "rANS32x32 32blk 8w 10"], getColor());
+            add_line(obj, ["rANS32x64 16w 15", "rANS32x64 16w 14", "rANS32x64 16w 13", "rANS32x64 16w 12", "rANS32x64 16w 11", "rANS32x64 16w 10"], getColor());
+            add_line(obj, ["rANS32x16 16w 15", "rANS32x16 16w 14", "rANS32x16 16w 13", "rANS32x16 16w 12", "rANS32x16 16w 11", "rANS32x16 16w 10"], getColor());
+
+            add_line(obj, ["fse", "fsehuf" ], "#55555588");
+            add_line(obj, ["rans32sse 0", "rans32avx2 0", "rans32avx512 0" ], "#55555588");
+            add_line(obj, ["FastAC", "FastHF"], "#55555588");
+
+            calc_pareto_line(obj);
+            calc_pareto_line2(obj);
+
+            window.addEventListener("resize", () => { draw_obj(document.getElementById("enwik8").getContext("2d"), document.getElementById("enwik8")); });
+            window.addEventListener("load", () => { draw_obj(document.getElementById("enwik8").getContext("2d"), document.getElementById("enwik8")); });
+            obj.addEventListener("mousemove", (e) => { handle_mouseover(e, document.getElementById("enwik8")); });
+        </script>
+      </div>
+    </div>
+  </body>
+</html>
