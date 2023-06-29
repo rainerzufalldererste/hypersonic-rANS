@@ -2417,7 +2417,7 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
     const simd_t symbol2 = _mm512_and_si512(pack2, lower8);
     const simd_t symbol3 = _mm512_and_si512(pack3, lower8);
 
-    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
+    // pack symbols to one si512.
     const simd_t symPack01 = _mm512_packus_epi32(symbol0, symbol1);
     const simd_t symPack23 = _mm512_packus_epi32(symbol2, symbol3);
     const simd_t symPack0123 = _mm512_packus_epi16(symPack01, symPack23); // only god knows how this is packed now.
