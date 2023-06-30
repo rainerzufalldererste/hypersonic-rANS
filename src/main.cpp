@@ -255,8 +255,9 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_Codecs[codecId].encoders[i].name == nullptr)
         break;
 
-      if (OnlyRelevantCodecs && !_Codecs[codecId].encoders[i].candidateForFastest)
-        continue;
+      if constexpr (OnlyRelevantCodecs)
+        if (!_Codecs[codecId].encoders[i].candidateForFastest)
+          continue;
 
       printf("%-32s %2" PRIu32 " | -------- | ---------------- | ------------------------------------ | -------------- | ------------------------------------\n", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits);
 
@@ -304,8 +305,9 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_Codecs[codecId].decoders[i].name == nullptr)
         break;
 
-      if (OnlyRelevantCodecs && !_Codecs[codecId].decoders[i].candidateForFastest)
-        continue;
+      if constexpr (OnlyRelevantCodecs)
+        if (!_Codecs[codecId].decoders[i].candidateForFastest)
+          continue;
 
       memset(pDecompressedData, 0xCC, fileSize);
 
