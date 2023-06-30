@@ -16,6 +16,7 @@
       <div class="text">
         <ul>
           <li>Written in C++.</li>
+          <li>Fastest decoders can reach a throughput of > 3.1 GB/s.</li>
           <li>Licensed under Two Clause BSD.</li>
           <li>I don't consider these codecs finalized yet, so the the repository is eventually going to be made more friendly towards integration with other applications.</li>
           <li>Obligatory <a href="https://github.com/rainerzufalldererste/hypersonic-rANS">link to the repository</a>.</li>
@@ -616,58 +617,73 @@ window.addEventListener("scroll", reveal);
 
             init_obj(obj);
 
-            add_point_no_entropy(obj, 1670.92, 63.57,  342.60, "rANS32x32 16w 15"      );
-            add_point_no_entropy(obj, 1770.66, 63.55,  335.79, "rANS32x32 16w 14"      );
-            add_point_no_entropy(obj, 1781.65, 63.61,  331.37, "rANS32x32 16w 13"      );
-            add_point_no_entropy(obj, 2686.87, 63.81,  343.55, "rANS32x32 16w 12"      );
-            add_point_no_entropy(obj, 2710.09, 64.33,  332.64, "rANS32x32 16w 11"      );
-            add_point_no_entropy(obj, 2716.91, 65.59,  327.53, "rANS32x32 16w 10"      );
-            add_point_no_entropy(obj, 1550.93, 63.57,  324.33, "rANS32x32 32blk 16w 15");
-            add_point_no_entropy(obj, 1607.26, 63.55,  329.08, "rANS32x32 32blk 16w 14");
-            add_point_no_entropy(obj, 1582.28, 63.61,  341.16, "rANS32x32 32blk 16w 13");
-            add_point_no_entropy(obj, 2312.10, 63.81,  339.50, "rANS32x32 32blk 16w 12");
-            add_point_no_entropy(obj, 2299.31, 64.33,  338.00, "rANS32x32 32blk 16w 11");
-            add_point_no_entropy(obj, 2289.10, 65.59,  331.80, "rANS32x32 32blk 16w 10");
-            add_point_no_entropy(obj, 1381.63, 63.51,  283.41, "rANS32x32 32blk 8w 15" );
-            add_point_no_entropy(obj, 1429.24, 63.53,  284.45, "rANS32x32 32blk 8w 14" );
-            add_point_no_entropy(obj, 1438.01, 63.60,  284.24, "rANS32x32 32blk 8w 13" );
-            add_point_no_entropy(obj, 1984.68, 63.82,  282.80, "rANS32x32 32blk 8w 12" );
-            add_point_no_entropy(obj, 1988.10, 64.33,  285.45, "rANS32x32 32blk 8w 11" );
-            add_point_no_entropy(obj, 1977.26, 65.60,  291.41, "rANS32x32 32blk 8w 10" );
-            add_point_no_entropy(obj, 1674.05, 63.57,  350.49, "rANS32x64 16w 15"      );
-            add_point_no_entropy(obj, 1726.67, 63.55,  340.14, "rANS32x64 16w 14"      );
-            add_point_no_entropy(obj, 1731.22, 63.61,  348.13, "rANS32x64 16w 13"      );
-            add_point_no_entropy(obj, 2755.96, 63.81,  341.71, "rANS32x64 16w 12"      );
-            add_point_no_entropy(obj, 2785.87, 64.33,  346.52, "rANS32x64 16w 11"      );
-            add_point_no_entropy(obj, 2791.45, 65.59,  341.55, "rANS32x64 16w 10"      );
-            add_point_no_entropy(obj, 1017.12, 63.57,  322.51, "rANS32x16 16w 15"      );
-            add_point_no_entropy(obj, 1175.92, 63.55,  320.41, "rANS32x16 16w 14"      );
-            add_point_no_entropy(obj, 1190.23, 63.61,  325.92, "rANS32x16 16w 13"      );
-            add_point_no_entropy(obj, 1681.73, 63.81,  324.24, "rANS32x16 16w 12"      );
-            add_point_no_entropy(obj, 1676.41, 64.33,  323.17, "rANS32x16 16w 11"      );
-            add_point_no_entropy(obj, 1684.80, 65.59,  323.07, "rANS32x16 16w 10"      );
-            
-            //add_point_no_entropy(obj,   81.63, 47.8 ,   89.60, "arith_dyn 1"           , true);
-            //add_point_no_entropy(obj,  322.22, 51.6 ,  168.22, "rans32avx512 1"        , true);
-            //add_point_no_entropy(obj,  319.15, 51.6 ,  177.36, "rans32avx2 1"          , true);
-            add_point_no_entropy(obj,   75.05, 62.0 ,   88.09, "arith_dyn 0"           , true);
-            add_point_no_entropy(obj,   84.37, 63.2 ,  223.06, "FastAC"                , true);
-            add_point_no_entropy(obj,  966.58, 63.2 ,  736.10, "fse"                   , true);
-            add_point_no_entropy(obj, 2515.23, 63.4 , 1581.32, "fsehuf"                , true);
-            add_point_no_entropy(obj, 2374.04, 63.5 , 1041.93, "rans32avx2 0"          , true);
-            add_point_no_entropy(obj, 2221.93, 63.5 ,  796.70, "rans32avx512 0"        , true);
-            add_point_no_entropy(obj, 1948.66, 63.5 ,  732.08, "rans32sse 0"           , true);
-            add_point_no_entropy(obj,  151.62, 63.6 ,  189.84, "FastHF"                , true);
+            add_point_no_entropy(obj, 1675.11, 63.57,  342.60, "rANS32x32 16w 15"                     );
+            add_point_no_entropy(obj, 1795.66, 63.55,  341.70, "rANS32x32 16w 14"                     );
+            add_point_no_entropy(obj, 1800.28, 63.61,  341.20, "rANS32x32 16w 13"                     );
+            add_point_no_entropy(obj, 2784.13, 63.81,  343.55, "rANS32x32 16w 12"                     );
+            add_point_no_entropy(obj, 2856.20, 64.33,  333.03, "rANS32x32 16w 11"                     );
+            add_point_no_entropy(obj, 2845.56, 65.59,  334.68, "rANS32x32 16w 10"                     );
+
+            add_point_no_entropy(obj, 1828.28, 63.57,  350.49, "rANS32x64 16w 15"                     );
+            add_point_no_entropy(obj, 1876.95, 63.55,  346.57, "rANS32x64 16w 14"                     );
+            add_point_no_entropy(obj, 1872.44, 63.61,  348.13, "rANS32x64 16w 13"                     );
+            add_point_no_entropy(obj, 2967.92, 63.81,  342.31, "rANS32x64 16w 12"                     );
+            add_point_no_entropy(obj, 2973.71, 64.33,  347.24, "rANS32x64 16w 11"                     );
+            add_point_no_entropy(obj, 2989.66, 65.59,  341.55, "rANS32x64 16w 10"                     );
+
+            add_point_no_entropy(obj, 1550.93, 63.57,  324.33, "rANS32x32 32blk 16w 15"               );
+            add_point_no_entropy(obj, 1607.26, 63.55,  329.08, "rANS32x32 32blk 16w 14"               );
+            add_point_no_entropy(obj, 1582.28, 63.61,  341.16, "rANS32x32 32blk 16w 13"               );
+            add_point_no_entropy(obj, 2312.10, 63.81,  339.50, "rANS32x32 32blk 16w 12"               );
+            add_point_no_entropy(obj, 2299.31, 64.33,  338.00, "rANS32x32 32blk 16w 11"               );
+            add_point_no_entropy(obj, 2289.10, 65.59,  331.80, "rANS32x32 32blk 16w 10"               );
+
+            add_point_no_entropy(obj, 1381.63, 63.51,  283.41, "rANS32x32 32blk 8w 15"                );
+            add_point_no_entropy(obj, 1429.24, 63.53,  284.45, "rANS32x32 32blk 8w 14"                );
+            add_point_no_entropy(obj, 1438.01, 63.60,  284.24, "rANS32x32 32blk 8w 13"                );
+            add_point_no_entropy(obj, 1984.68, 63.82,  282.80, "rANS32x32 32blk 8w 12"                );
+            add_point_no_entropy(obj, 1988.10, 64.33,  285.45, "rANS32x32 32blk 8w 11"                );
+            add_point_no_entropy(obj, 1977.26, 65.60,  291.41, "rANS32x32 32blk 8w 10"                );
+
+            add_point_no_entropy(obj, 1017.12, 63.57,  322.51, "rANS32x16 16w 15"                     );
+            add_point_no_entropy(obj, 1175.92, 63.55,  320.41, "rANS32x16 16w 14"                     );
+            add_point_no_entropy(obj, 1190.23, 63.61,  325.92, "rANS32x16 16w 13"                     );
+            add_point_no_entropy(obj, 1681.73, 63.81,  324.24, "rANS32x16 16w 12"                     );
+            add_point_no_entropy(obj, 1676.41, 64.33,  323.17, "rANS32x16 16w 11"                     );
+            add_point_no_entropy(obj, 1684.80, 65.59,  323.07, "rANS32x16 16w 10"                     );
+
+            //add_point_no_entropy(obj,   81.63, 47.8 ,   89.60, "arith_dyn 1"                          , true);
+            //add_point_no_entropy(obj,  322.22, 51.6 ,  168.22, "rans32avx512 1"                       , true);
+            //add_point_no_entropy(obj,  319.15, 51.6 ,  177.36, "rans32avx2 1"                         , true);
+            add_point_no_entropy(obj,   75.05, 62.0 ,   88.09, "arith_dyn 0"                          , true);
+            add_point_no_entropy(obj,   84.37, 63.2 ,  223.06, "FastAC"                               , true);
+            add_point_no_entropy(obj,  966.58, 63.2 ,  736.10, "fse"                                  , true);
+            add_point_no_entropy(obj, 2515.23, 63.4 , 1581.32, "fsehuf"                               , true);
+            add_point_no_entropy(obj, 2374.04, 63.5 , 1041.93, "rans32avx2 0"                         , true);
+            add_point_no_entropy(obj, 2221.93, 63.5 ,  796.70, "rans32avx512 0"                       , true);
+            add_point_no_entropy(obj, 1948.66, 63.5 ,  732.08, "rans32sse 0"                          , true);
+            add_point_no_entropy(obj,  151.62, 63.6 ,  189.84, "FastHF"                               , true);
+            add_point_no_entropy(obj,  942.43, 66.4 ,  522.13, "TurboANX 1  (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 1416.33, 64.0 ,  656.86, "TurboANX 2  (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 1929.18, 63.0 ,  706.92, "TurboANX 4  (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2347.10, 62.7 ,  823.76, "TurboANX 8  (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2631.85, 62.8 ,  902.32, "TurboANX 16 (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2765.31, 63.0 ,  936.12, "TurboANX 24 (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2856.26, 63.1 ,  951.53, "TurboANX 32 (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2883.45, 63.2 ,  964.45, "TurboANX 40 (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2917.59, 63.3 ,  969.72, "TurboANX 48 (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2964.02, 63.4 ,  981.79, "TurboANX 63 (Native Windows Build)"   , true);
 
             add_line(obj, ["rANS32x32 16w 15", "rANS32x32 16w 14", "rANS32x32 16w 13", "rANS32x32 16w 12", "rANS32x32 16w 11", "rANS32x32 16w 10"], getColor());
             add_line(obj, ["rANS32x32 32blk 16w 15", "rANS32x32 32blk 16w 14", "rANS32x32 32blk 16w 13", "rANS32x32 32blk 16w 12", "rANS32x32 32blk 16w 11", "rANS32x32 32blk 16w 10"], getColor());
             add_line(obj, ["rANS32x32 32blk 8w 15", "rANS32x32 32blk 8w 14", "rANS32x32 32blk 8w 13", "rANS32x32 32blk 8w 12", "rANS32x32 32blk 8w 11", "rANS32x32 32blk 8w 10"], getColor());
             add_line(obj, ["rANS32x64 16w 15", "rANS32x64 16w 14", "rANS32x64 16w 13", "rANS32x64 16w 12", "rANS32x64 16w 11", "rANS32x64 16w 10"], getColor());
             add_line(obj, ["rANS32x16 16w 15", "rANS32x16 16w 14", "rANS32x16 16w 13", "rANS32x16 16w 12", "rANS32x16 16w 11", "rANS32x16 16w 10"], getColor());
-
+            
             add_line(obj, ["fse", "fsehuf" ], "#55555588");
             add_line(obj, ["rans32sse 0", "rans32avx2 0", "rans32avx512 0" ], "#55555588");
             add_line(obj, ["FastAC", "FastHF"], "#55555588");
+            add_line(obj, ["TurboANX 1  (Native Windows Build)", "TurboANX 2  (Native Windows Build)", "TurboANX 4  (Native Windows Build)", "TurboANX 8  (Native Windows Build)", "TurboANX 16 (Native Windows Build)", "TurboANX 24 (Native Windows Build)", "TurboANX 32 (Native Windows Build)", "TurboANX 40 (Native Windows Build)", "TurboANX 48 (Native Windows Build)", "TurboANX 63 (Native Windows Build)"], "#55555588");
 
             calc_pareto_line(obj);
             calc_pareto_line2(obj);
