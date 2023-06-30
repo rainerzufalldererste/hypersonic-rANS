@@ -38,8 +38,8 @@ inline size_t rans_min(const T a, const T b) { return a < b ? a : b; }
 //////////////////////////////////////////////////////////////////////////
 
 constexpr bool DisableSleep = false;
-constexpr bool OnlyRelevantCodecs = false;
-constexpr size_t RunCount = 1;
+constexpr bool OnlyRelevantCodecs = true;
+constexpr size_t RunCount = 8;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 
@@ -240,6 +240,8 @@ int32_t main(const int32_t argc, char **pArgv)
     fclose(pFile);
   }
 
+  _DetectCPUFeatures();
+
   puts("Codec Type (Enc/Dec Impl)       Hist  Ratio      Minimum            Average          ( StdDev.         )   Maximum          Average        ( StdDev.           )");
   puts("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
@@ -258,6 +260,17 @@ int32_t main(const int32_t argc, char **pArgv)
       if constexpr (OnlyRelevantCodecs)
         if (!_Codecs[codecId].encoders[i].candidateForFastest)
           continue;
+
+      if (strstr(_Codecs[codecId].encoders[i].name, " avx2 ") != nullptr && !avx2Supported)
+      {
+        printf("  %-33s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].encoders[i].name);
+        continue;
+      }
+      else if (strstr(_Codecs[codecId].encoders[i].name, " avx512 ") != nullptr && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported))
+      {
+        printf("  %-33s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].encoders[i].name);
+        continue;
+      }
 
       printf("%-32s %2" PRIu32 " | -------- | ---------------- | ------------------------------------ | -------------- | ------------------------------------\n", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits);
 
@@ -308,6 +321,17 @@ int32_t main(const int32_t argc, char **pArgv)
       if constexpr (OnlyRelevantCodecs)
         if (!_Codecs[codecId].decoders[i].candidateForFastest)
           continue;
+
+      if (strstr(_Codecs[codecId].decoders[i].name, " avx2 ") != nullptr && !avx2Supported)
+      {
+        printf("  %-33s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].decoders[i].name);
+        continue;
+      }
+      else if (strstr(_Codecs[codecId].decoders[i].name, " avx512 ") != nullptr && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported))
+      {
+        printf("  %-33s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].decoders[i].name);
+        continue;
+      }
 
       memset(pDecompressedData, 0xCC, fileSize);
 
