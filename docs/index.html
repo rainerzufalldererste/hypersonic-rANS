@@ -652,16 +652,16 @@ window.addEventListener("scroll", reveal);
             add_point_no_entropy(obj, 1676.41, 64.33,  323.17, "rANS32x16 16w 11"                     );
             add_point_no_entropy(obj, 1684.80, 65.59,  323.07, "rANS32x16 16w 10"                     );
 
-            //add_point_no_entropy(obj,   81.63, 47.8 ,   89.60, "arith_dyn 1"                          , true);
-            //add_point_no_entropy(obj,  322.22, 51.6 ,  168.22, "rans32avx512 1"                       , true);
-            //add_point_no_entropy(obj,  319.15, 51.6 ,  177.36, "rans32avx2 1"                         , true);
-            add_point_no_entropy(obj,   75.05, 62.0 ,   88.09, "arith_dyn 0"                          , true);
+            //add_point_no_entropy(obj,   81.63, 47.8 ,   89.60, "htscodecs_arith_dyn 1"              , true);
+            //add_point_no_entropy(obj,  322.22, 51.6 ,  168.22, "htscodecs_rans32avx512 1"           , true);
+            //add_point_no_entropy(obj,  319.15, 51.6 ,  177.36, "htscodecs_rans32avx2 1"             , true);
+            add_point_no_entropy(obj,   75.05, 62.0 ,   88.09, "htscodecs_arith_dyn 0"                , true);
             add_point_no_entropy(obj,   84.37, 63.2 ,  223.06, "FastAC"                               , true);
             add_point_no_entropy(obj,  966.58, 63.2 ,  736.10, "fse"                                  , true);
             add_point_no_entropy(obj, 2515.23, 63.4 , 1581.32, "fsehuf"                               , true);
-            add_point_no_entropy(obj, 2374.04, 63.5 , 1041.93, "rans32avx2 0"                         , true);
-            add_point_no_entropy(obj, 2221.93, 63.5 ,  796.70, "rans32avx512 0"                       , true);
-            add_point_no_entropy(obj, 1948.66, 63.5 ,  732.08, "rans32sse 0"                          , true);
+            add_point_no_entropy(obj, 2374.04, 63.5 , 1041.93, "htscodecs_rans32avx2 0"               , true);
+            add_point_no_entropy(obj, 2221.93, 63.5 ,  796.70, "htscodecs_rans32avx512 0"             , true);
+            add_point_no_entropy(obj, 1948.66, 63.5 ,  732.08, "htscodecs_rans32sse 0"                , true);
             add_point_no_entropy(obj,  151.62, 63.6 ,  189.84, "FastHF"                               , true);
             add_point_no_entropy(obj,  942.43, 66.4 ,  522.13, "TurboANX 1  (Native Windows Build)"   , true);
             add_point_no_entropy(obj, 1416.33, 64.0 ,  656.86, "TurboANX 2  (Native Windows Build)"   , true);
@@ -681,7 +681,7 @@ window.addEventListener("scroll", reveal);
             add_line(obj, ["rANS32x16 16w 15", "rANS32x16 16w 14", "rANS32x16 16w 13", "rANS32x16 16w 12", "rANS32x16 16w 11", "rANS32x16 16w 10"], getColor());
             
             add_line(obj, ["fse", "fsehuf" ], "#55555588");
-            add_line(obj, ["rans32sse 0", "rans32avx2 0", "rans32avx512 0" ], "#55555588");
+            add_line(obj, ["htscodecs_rans32sse 0", "htscodecs_rans32avx2 0", "htscodecs_rans32avx512 0" ], "#55555588");
             add_line(obj, ["FastAC", "FastHF"], "#55555588");
             add_line(obj, ["TurboANX 1  (Native Windows Build)", "TurboANX 2  (Native Windows Build)", "TurboANX 4  (Native Windows Build)", "TurboANX 8  (Native Windows Build)", "TurboANX 16 (Native Windows Build)", "TurboANX 24 (Native Windows Build)", "TurboANX 32 (Native Windows Build)", "TurboANX 40 (Native Windows Build)", "TurboANX 48 (Native Windows Build)", "TurboANX 63 (Native Windows Build)"], "#55555588");
 

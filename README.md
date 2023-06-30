@@ -42,16 +42,16 @@
 | TurboANX 16                               |  62.8 %  |   -              |   902.32 MiB/s |  -              |  2631.85 MiB/s |
 | **rANS32x32 16w        12**               |  63.81 % |   12.83 clk/byte |   343.55 MiB/s |   1.54 clk/byte |  2784.13 MiB/s |
 | fsehuf                                    |  63.4 %  |   -              |  1581.32 MiB/s |  -              |  2515.23 MiB/s |
-| rans32avx2 0                              |  63.5 %  |   -              |  1041.93 MiB/s |  -              |  2374.04 MiB/s |
+| htscodecs_rans32avx2 0                    |  63.5 %  |   -              |  1041.93 MiB/s |  -              |  2374.04 MiB/s |
 | TurboANX 8                                |  62.7 %  |   -              |   823.76 MiB/s |  -              |  2347.10 MiB/s |
 | **rANS32x32 32blk 16w  12**               |  63.81 % |   12.62 clk/byte |   339.50 MiB/s |   1.85 clk/byte |  2312.10 MiB/s |
 | **rANS32x32 32blk 16w  11**               |  64.33 % |   12.67 clk/byte |   338.00 MiB/s |   1.86 clk/byte |  2299.31 MiB/s |
 | **rANS32x32 32blk 16w  10**               |  65.59 % |   12.91 clk/byte |   331.80 MiB/s |   1.87 clk/byte |  2289.10 MiB/s |
-| rans32avx512 0                            |  63.5 %  |   -              |   796.70 MiB/s |  -              |  2221.93 MiB/s |
+| htscodecs_rans32avx512 0                  |  63.5 %  |   -              |   796.70 MiB/s |  -              |  2221.93 MiB/s |
 | **rANS32x32 32blk 8w   11**               |  64.33 % |   15.01 clk/byte |   285.45 MiB/s |   2.15 clk/byte |  1988.10 MiB/s |
 | **rANS32x32 32blk 8w   12**               |  63.82 % |   15.15 clk/byte |   282.80 MiB/s |   2.16 clk/byte |  1984.68 MiB/s |
 | **rANS32x32 32blk 8w   10**               |  65.60 % |   14.70 clk/byte |   291.41 MiB/s |   2.17 clk/byte |  1977.26 MiB/s |
-| rans32sse 0                               |  63.5 %  |   -              |   732.08 MiB/s |  -              |  1948.66 MiB/s |
+| htscodecs_rans32sse 0                     |  63.5 %  |   -              |   732.08 MiB/s |  -              |  1948.66 MiB/s |
 | TurboANX 4                                |  63.0 %  |   -              |   706.92 MiB/s |  -              |  1929.18 MiB/s |
 | **rANS32x64 16w        13**               |  63.61 % |   12.32 clk/byte |   348.13 MiB/s |   2.29 clk/byte |  1872.44 MiB/s |
 | **rANS32x64 16w        14**               |  63.55 % |   12.36 clk/byte |   346.57 MiB/s |   2.28 clk/byte |  1876.95 MiB/s |
@@ -74,12 +74,12 @@
 | **rANS32x16 16w        15**               |  63.57 % |   13.28 clk/byte |   322.51 MiB/s |   4.21 clk/byte |  1017.12 MiB/s |
 | fse                                       |  63.2 %  |   -              |   736.10 MiB/s |  -              |   966.58 MiB/s |
 | TurboANX 1                                |  66.4 %  |   -              |   522.13 MiB/s |  -              |   942.43 MiB/s |
-| rans32avx512 1                            |  51.6 %  |   -              |   168.22 MiB/s |  -              |   322.22 MiB/s |
-| rans32avx2 1                              |  51.6 %  |   -              |   177.36 MiB/s |  -              |   319.15 MiB/s |
+| htscodecs_rans32avx512 1                  |  51.6 %  |   -              |   168.22 MiB/s |  -              |   322.22 MiB/s |
+| htscodecs_rans32avx2 1                    |  51.6 %  |   -              |   177.36 MiB/s |  -              |   319.15 MiB/s |
 | FastHF                                    |  63.6 %  |   -              |   189.84 MiB/s |  -              |   151.62 MiB/s |
 | FastAC                                    |  63.2 %  |   -              |   223.06 MiB/s |  -              |    84.37 MiB/s |
-| arith_dyn 1                               |  47.8 %  |   -              |    89.60 MiB/s |  -              |    81.63 MiB/s |
-| arith_dyn 0                               |  62.0 %  |   -              |    88.09 MiB/s |  -              |    75.05 MiB/s |
+| htscodecs_arith_dyn 1                     |  47.8 %  |   -              |    89.60 MiB/s |  -              |    81.63 MiB/s |
+| htscodecs_arith_dyn 0                     |  62.0 %  |   -              |    88.09 MiB/s |  -              |    75.05 MiB/s |
 
 The following benchmarks demonstrate, apart from incredibly high decompression speeds, how terrible the histogram generation currently is:
 
@@ -99,10 +99,10 @@ The following benchmarks demonstrate, apart from incredibly high decompression s
 | **rANS32x32 16w                    12**   |  82.57 % |   13.95 clk/byte |   306.97 MiB/s |   1.59 clk/byte |  2693.99 MiB/s |
 | TurboANX 16                               |  79.9  % |   -              |   937.33 MiB/s |   -             |  2661.07 MiB/s |
 | TurboANX 8                                |  80.5  % |   -              |   864.63 MiB/s |   -             |  2360.30 MiB/s |
-| rans32avx2 0                              |  80.6  % |   -              |   966.58 MiB/s |   -             |  2244.87 MiB/s |
-| rans32avx512 0                            |  80.6  % |   -              |   739.14 MiB/s |   -             |  2139.47 MiB/s |
+| htscodecs_rans32avx2 0                    |  80.6  % |   -              |   966.58 MiB/s |   -             |  2244.87 MiB/s |
+| htscodecs_rans32avx512 0                  |  80.6  % |   -              |   739.14 MiB/s |   -             |  2139.47 MiB/s |
 | fsehuf                                    |  80.0  % |   -              |  1395.71 MiB/s |   -             |  1946.34 MiB/s |
-| rans32sse 0                               |  80.6  % |   -              |   723.48 MiB/s |   -             |  1914.15 MiB/s |
+| htscodecs_rans32sse 0                     |  80.6  % |   -              |   723.48 MiB/s |   -             |  1914.15 MiB/s |
 | **rANS32x64 16w                    13**   |  82.57 % |   13.94 clk/byte |   307.28 MiB/s |   2.25 clk/byte |  1903.01 MiB/s |
 | TurboANX 4                                |  81.9  % |   -              |   677.08 MiB/s |   -             |  1883.40 MiB/s |
 | **rANS32x64 16w                    14**   |  82.58 % |   14.09 clk/byte |   304.01 MiB/s |   2.29 clk/byte |  1870.17 MiB/s |
@@ -113,12 +113,12 @@ The following benchmarks demonstrate, apart from incredibly high decompression s
 | TurboANX 2                                |  83.7  % |   -              |   600.46 MiB/s |   -             |  1292.65 MiB/s |
 | fse                                       |  80.3  % |   -              |   696.88 MiB/s |   -             |   990.39 MiB/s |
 | TurboANX 1                                |  85.1  % |   -              |   387.40 MiB/s |   -             |   719.84 MiB/s |
-| rans32avx2 1                              |  74.4  % |   -              |   114.89 MiB/s |   -             |   229.78 MiB/s |
-| rans32avx512 1                            |  74.4  % |   -              |   104.87 MiB/s |   -             |   220.91 MiB/s |
+| htscodecs_rans32avx2 1                    |  74.4  % |   -              |   114.89 MiB/s |   -             |   229.78 MiB/s |
+| htscodecs_rans32avx512 1                  |  74.4  % |   -              |   104.87 MiB/s |   -             |   220.91 MiB/s |
 | FastHF                                    |  80.0  % |   -              |   183.35 MiB/s |   -             |   144.30 MiB/s |
 | FastAC                                    |  79.7  % |   -              |   244.35 MiB/s |   -             |    77.33 MiB/s |
-| arith_dyn 1                               |  67.6  % |   -              |    45.13 MiB/s |   -             |    45.67 MiB/s |
-| arith_dyn 0                               |  79.6  % |   -              |    47.12 MiB/s |   -             |    45.40 MiB/s |
+| htscodecs_arith_dyn 1                     |  67.6  % |   -              |    45.13 MiB/s |   -             |    45.67 MiB/s |
+| htscodecs_arith_dyn 0                     |  79.6  % |   -              |    47.12 MiB/s |   -             |    45.40 MiB/s |
 
 ### [mozilla](https://sun.aei.polsl.pl//~sdeor/index.php?page=silesia) (Tarred executables of Mozilla 1.0, Part of the Silesia Corpus)
 | Codec Type | Ratio | Encoder<br/>Clocks/Byte | Encoder<br/>Throughput | Decoder<br/>Clocks/Byte | Decoder<br/>Throughput |
@@ -135,13 +135,13 @@ The following benchmarks demonstrate, apart from incredibly high decompression s
 | **rANS32x32 16w                    12**   |  77.79 % |   14.25 clk/byte |   300.51 MiB/s |   1.54 clk/byte |  2782.35 MiB/s |
 | TurboANX 24                               |  68.4  % |   -              |   900.92 MiB/s |   -             |  2732.74 MiB/s |
 | TurboANX 16                               |  67.9  % |   -              |   854.34 MiB/s |   -             |  2582.05 MiB/s |
-| rans32avx2 0                              |  69.5  % |   -              |  1014.19 MiB/s |   -             |  2250.58 MiB/s |
+| htscodecs_rans32avx2 0                    |  69.5  % |   -              |  1014.19 MiB/s |   -             |  2250.58 MiB/s |
 | TurboANX 8                                |  67.2  % |   -              |   748.14 MiB/s |   -             |  2183.29 MiB/s |
-| rans32avx512 0                            |  69.5  % |   -              |   760.33 MiB/s |   -             |  2115.31 MiB/s |
+| htscodecs_rans32avx512 0                  |  69.5  % |   -              |   760.33 MiB/s |   -             |  2115.31 MiB/s |
 | fsehuf                                    |  69.2  % |   -              |  1491.60 MiB/s |   -             |  2092.00 MiB/s |
 | **rANS32x32 16w                    14**   |  77.79 % |   14.02 clk/byte |   305.49 MiB/s |   2.37 clk/byte |  1804.10 MiB/s |
 | **rANS32x64 16w                    14**   |  77.79 % |   14.09 clk/byte |   303.97 MiB/s |   2.26 clk/byte |  1891.46 MiB/s |
-| rans32sse 0                               |  69.5  % |   -              |   724.39 MiB/s |   -             |  1884.40 MiB/s |
+| htscodecs_rans32sse 0                     |  69.5  % |   -              |   724.39 MiB/s |   -             |  1884.40 MiB/s |
 | **rANS32x64 16w                    13**   |  77.79 % |   13.89 clk/byte |   308.28 MiB/s |   2.27 clk/byte |  1883.91 MiB/s |
 | **rANS32x64 16w                    15**   |  77.85 % |   13.86 clk/byte |   309.13 MiB/s |   2.31 clk/byte |  1855.74 MiB/s |
 | **rANS32x32 16w                    13**   |  77.78 % |   14.13 clk/byte |   303.23 MiB/s |   2.37 clk/byte |  1806.03 MiB/s |
@@ -150,12 +150,12 @@ The following benchmarks demonstrate, apart from incredibly high decompression s
 | TurboANX 2                                |  68.5  % |   -              |   556.95 MiB/s |   -             |  1106.06 MiB/s |
 | fse                                       |  69.3  % |   -              |   713.08 MiB/s |   -             |   973.71 MiB/s |
 | TurboANX 1                                |  71.6  % |   -              |   392.67 MiB/s |   -             |   677.10 MiB/s |
-| rans32avx512 1                            |  55.7  % |   -              |    81.02 MiB/s |   -             |   168.42 MiB/s |
-| rans32avx2 1                              |  55.7  % |   -              |    83.68 MiB/s |   -             |   167.19 MiB/s |
+| htscodecs_rans32avx512 1                  |  55.7  % |   -              |    81.02 MiB/s |   -             |   168.42 MiB/s |
+| htscodecs_rans32avx2 1                    |  55.7  % |   -              |    83.68 MiB/s |   -             |   167.19 MiB/s |
 | FastHF                                    |  71.8  % |   -              |   174.86 MiB/s |   -             |   130.78 MiB/s |
 | FastAC                                    |  70.7  % |   -              |   234.95 MiB/s |   -             |    81.01 MiB/s |
-| arith_dyn 1                               |  52.1  % |   -              |    62.87 MiB/s |   -             |    62.98 MiB/s |
-| arith_dyn 0                               |  66.4  % |   -              |    63.82 MiB/s |   -             |    59.92 MiB/s |
+| htscodecs_arith_dyn 1                     |  52.1  % |   -              |    62.87 MiB/s |   -             |    62.98 MiB/s |
+| htscodecs_arith_dyn 0                     |  66.4  % |   -              |    63.82 MiB/s |   -             |    59.92 MiB/s |
 
 Thanks to [James Bonfield](https://github.com/jkbonfield) I also have benchmarks for `htscodecs` (MB/s converted to MiB/s) and `hypersonic-rANS` on an `Intel i7-1185G7` (Tiger Lake) via WSL1, where the AVX-512 versions of the 32x64 codecs seemed to be particularly fast:
 
