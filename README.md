@@ -205,5 +205,25 @@ Thanks to [James Bonfield](https://github.com/jkbonfield) I also have benchmarks
 | htscodecs r4x16   -o1                     |  48.80 % |   -              |   328.54 MiB/s |   -             |   449.47 MiB/s |
 | htscodecs r4x8    -o1                     |  49.13 % |   -              |   324.06 MiB/s |   -             |   300.22 MiB/s |
 
+## Building
+### On Linux/WSL
+Clang:
+```bash
+premake/premake5 gmake2
+config=releaseclang_x64 make
+```
+
+GCC:
+```bash
+premake/premake5 gmake2
+config=release_x64 make
+```
+
+### Windows
+```shell
+premake/premake5.exe vs2022
+msbuild /m /p:Configuration=Release /v:m
+```
+
 ## License
 Two Clause BSD
