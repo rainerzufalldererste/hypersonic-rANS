@@ -121,7 +121,7 @@ The following benchmarks demonstrate, apart from incredibly high decompression s
 | arith_dyn 1                               |  67.6  % |   -              |    45.13 MiB/s |   -             |    45.67 MiB/s |
 | arith_dyn 0                               |  79.6  % |   -              |    47.12 MiB/s |   -             |    45.40 MiB/s |
 
-[mozilla](https://sun.aei.polsl.pl//~sdeor/index.php?page=silesia) (Tarred executables of Mozilla 1.0, Part of the Silesia Corpus)
+### [mozilla](https://sun.aei.polsl.pl//~sdeor/index.php?page=silesia) (Tarred executables of Mozilla 1.0, Part of the Silesia Corpus)
 | Codec Type | Ratio | Encoder<br/>Clocks/Byte | Encoder<br/>Throughput | Decoder<br/>Clocks/Byte | Decoder<br/>Throughput |
 | -- | --: | --: | --: | --: | --: |
 | **rANS32x64 16w                    11**   |  77.82 % |   13.84 clk/byte |   309.39 MiB/s |   1.44 clk/byte |  2978.20 MiB/s |
