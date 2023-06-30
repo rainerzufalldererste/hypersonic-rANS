@@ -19,7 +19,7 @@
 - Single-Threaded
 - Running on an `AMD Ryzen 9 7950X`, `32 GB DDR5-6000 CL30` on `Windows 11` via `WSL2`
 - Compiled with `clang++`
-- Compared to `htscodecs`, `fse`, `fse Huffman`, `Fast HF`, `Fast AC`, `TurboANX 32` (Jun 2023 via `TurboBench`, MB/s converted to MiB/s)
+- Compared to `htscodecs`, `fse`, `fse Huffman`, `Fast HF`, `Fast AC`, `TurboANX` (Jun 2023 via `TurboBench`, MB/s converted to MiB/s) (`TurboANX` uses a native Windows build from @powturbo)
 - Notable decompressors selected (the benchmark section would be incredibly long otherwise...)
 - hypersonic-rANS codecs **highlighted**
 - Sorted by decode throughput.
@@ -33,18 +33,18 @@
 | **rANS32x64 16w        10**               |  65.59 % |   12.83 clk/byte |   341.55 MiB/s |   1.43 clk/byte |  2989.66 MiB/s |
 | **rANS32x64 16w        11**               |  64.33 % |   12.34 clk/byte |   347.24 MiB/s |   1.44 clk/byte |  2973.71 MiB/s |
 | **rANS32x64 16w        12**               |  63.81 % |   12.51 clk/byte |   342.31 MiB/s |   1.44 clk/byte |  2967.92 MiB/s |
-| TurboANX 63 (Native Windows Build)        |  63.4 %  |   -              |   981.79 MiB/s |  -              |  2964.02 MiB/s |
-| TurboANX 48 (Native Windows Build)        |  63.3 %  |   -              |   969.72 MiB/s |  -              |  2917.59 MiB/s |
-| TurboANX 40 (Native Windows Build)        |  63.2 %  |   -              |   964.45 MiB/s |  -              |  2883.45 MiB/s |
-| TurboANX 32 (Native Windows Build)        |  66.4 %  |   -              |   951.53 MiB/s |  -              |  2856.26 MiB/s |
+| TurboANX 63                               |  63.4 %  |   -              |   981.79 MiB/s |  -              |  2964.02 MiB/s |
+| TurboANX 48                               |  63.3 %  |   -              |   969.72 MiB/s |  -              |  2917.59 MiB/s |
+| TurboANX 40                               |  63.2 %  |   -              |   964.45 MiB/s |  -              |  2883.45 MiB/s |
+| TurboANX 32                               |  66.4 %  |   -              |   951.53 MiB/s |  -              |  2856.26 MiB/s |
 | **rANS32x32 16w        11**               |  64.33 % |   12.86 clk/byte |   333.03 MiB/s |   1.50 clk/byte |  2856.20 MiB/s |
 | **rANS32x32 16w        10**               |  65.59 % |   12.80 clk/byte |   334.68 MiB/s |   1.51 clk/byte |  2845.56 MiB/s |
-| TurboANX 24 (Native Windows Build)        |  63.0 %  |   -              |   936.12 MiB/s |  -              |  2765.31 MiB/s |
-| TurboANX 16 (Native Windows Build)        |  62.8 %  |   -              |   902.32 MiB/s |  -              |  2631.85 MiB/s |
+| TurboANX 24                               |  63.0 %  |   -              |   936.12 MiB/s |  -              |  2765.31 MiB/s |
+| TurboANX 16                               |  62.8 %  |   -              |   902.32 MiB/s |  -              |  2631.85 MiB/s |
 | **rANS32x32 16w        12**               |  63.81 % |   12.83 clk/byte |   343.55 MiB/s |   1.54 clk/byte |  2784.13 MiB/s |
 | fsehuf                                    |  63.4 %  |   -              |  1581.32 MiB/s |  -              |  2515.23 MiB/s |
 | rans32avx2 0                              |  63.5 %  |   -              |  1041.93 MiB/s |  -              |  2374.04 MiB/s |
-| TurboANX 8  (Native Windows Build)        |  62.7 %  |   -              |   823.76 MiB/s |  -              |  2347.10 MiB/s |
+| TurboANX 8                                |  62.7 %  |   -              |   823.76 MiB/s |  -              |  2347.10 MiB/s |
 | **rANS32x32 32blk 16w  12**               |  63.81 % |   12.62 clk/byte |   339.50 MiB/s |   1.85 clk/byte |  2312.10 MiB/s |
 | **rANS32x32 32blk 16w  11**               |  64.33 % |   12.67 clk/byte |   338.00 MiB/s |   1.86 clk/byte |  2299.31 MiB/s |
 | **rANS32x32 32blk 16w  10**               |  65.59 % |   12.91 clk/byte |   331.80 MiB/s |   1.87 clk/byte |  2289.10 MiB/s |
@@ -53,7 +53,7 @@
 | **rANS32x32 32blk 8w   12**               |  63.82 % |   15.15 clk/byte |   282.80 MiB/s |   2.16 clk/byte |  1984.68 MiB/s |
 | **rANS32x32 32blk 8w   10**               |  65.60 % |   14.70 clk/byte |   291.41 MiB/s |   2.17 clk/byte |  1977.26 MiB/s |
 | rans32sse 0                               |  63.5 %  |   -              |   732.08 MiB/s |  -              |  1948.66 MiB/s |
-| TurboANX 4  (Native Windows Build)        |  63.0 %  |   -              |   706.92 MiB/s |  -              |  1929.18 MiB/s |
+| TurboANX 4                                |  63.0 %  |   -              |   706.92 MiB/s |  -              |  1929.18 MiB/s |
 | **rANS32x64 16w        13**               |  63.61 % |   12.32 clk/byte |   348.13 MiB/s |   2.29 clk/byte |  1872.44 MiB/s |
 | **rANS32x64 16w        14**               |  63.55 % |   12.36 clk/byte |   346.57 MiB/s |   2.28 clk/byte |  1876.95 MiB/s |
 | **rANS32x64 16w        15**               |  63.57 % |   12.30 clk/byte |   350.49 MiB/s |   2.34 clk/byte |  1828.28 MiB/s |
@@ -68,13 +68,13 @@
 | **rANS32x32 32blk 16w  15**               |  63.57 % |   13.21 clk/byte |   324.33 MiB/s |   2.76 clk/byte |  1550.93 MiB/s |
 | **rANS32x32 32blk 8w   13**               |  63.60 % |   15.07 clk/byte |   284.24 MiB/s |   2.98 clk/byte |  1438.01 MiB/s |
 | **rANS32x32 32blk 8w   14**               |  63.53 % |   15.06 clk/byte |   284.45 MiB/s |   3.00 clk/byte |  1429.24 MiB/s |
-| TurboANX 2  (Native Windows Build)        |  64.0 %  |   -              |   656.86 MiB/s |  -              |  1416.33 MiB/s |
+| TurboANX 2                                |  64.0 %  |   -              |   656.86 MiB/s |  -              |  1416.33 MiB/s |
 | **rANS32x32 32blk 8w   15**               |  63.51 % |   15.11 clk/byte |   283.41 MiB/s |   3.10 clk/byte |  1381.63 MiB/s |
 | **rANS32x16 16w        13**               |  63.61 % |   13.14 clk/byte |   325.92 MiB/s |   3.60 clk/byte |  1190.23 MiB/s |
 | **rANS32x16 16w        14**               |  63.55 % |   13.37 clk/byte |   320.41 MiB/s |   3.64 clk/byte |  1175.92 MiB/s |
 | **rANS32x16 16w        15**               |  63.57 % |   13.28 clk/byte |   322.51 MiB/s |   4.21 clk/byte |  1017.12 MiB/s |
 | fse                                       |  63.2 %  |   -              |   736.10 MiB/s |  -              |   966.58 MiB/s |
-| TurboANX 1  (Native Windows Build)        |  66.4 %  |   -              |   522.13 MiB/s |  -              |   942.43 MiB/s |
+| TurboANX 1                                |  66.4 %  |   -              |   522.13 MiB/s |  -              |   942.43 MiB/s |
 | rans32avx512 1                            |  51.6 %  |   -              |   168.22 MiB/s |  -              |   322.22 MiB/s |
 | rans32avx2 1                              |  51.6 %  |   -              |   177.36 MiB/s |  -              |   319.15 MiB/s |
 | FastHF                                    |  63.6 %  |   -              |   189.84 MiB/s |  -              |   151.62 MiB/s |
@@ -89,31 +89,31 @@ The following benchmarks demonstrate, apart from incredibly high decompression s
 | -- | --: | --: | --: | --: | --: |
 | **rANS32x64 16w                    11**   |  82.60 % |   13.75 clk/byte |   311.60 MiB/s |   1.39 clk/byte |  3079.98 MiB/s |
 | **rANS32x64 16w                    10**   |  82.66 % |   14.03 clk/byte |   305.22 MiB/s |   1.42 clk/byte |  3026.65 MiB/s |
-| TurboANX 63 (Native Windows Build)        |  79.6  % |   -              |   989.68 MiB/s |   -             |  2966.83 MiB/s |
-| TurboANX 48 (Native Windows Build)        |  79.6  % |   -              |   979.24 MiB/s |   -             |  2923.90 MiB/s |
-| TurboANX 40 (Native Windows Build)        |  79.7  % |   -              |   982.57 MiB/s |   -             |  2904.99 MiB/s |
+| TurboANX 63                               |  79.6  % |   -              |   989.68 MiB/s |   -             |  2966.83 MiB/s |
+| TurboANX 48                               |  79.6  % |   -              |   979.24 MiB/s |   -             |  2923.90 MiB/s |
+| TurboANX 40                               |  79.7  % |   -              |   982.57 MiB/s |   -             |  2904.99 MiB/s |
 | **rANS32x64 16w                    12**   |  82.57 % |   13.99 clk/byte |   306.19 MiB/s |   1.48 clk/byte |  2900.31 MiB/s |
-| TurboANX 32 (Native Windows Build)        |  79.7  % |   -              |   973.82 MiB/s |   -             |  2860.76 MiB/s |
+| TurboANX 32                               |  79.7  % |   -              |   973.82 MiB/s |   -             |  2860.76 MiB/s |
 | **rANS32x32 16w                    11**   |  82.60 % |   14.31 clk/byte |   299.31 MiB/s |   1.50 clk/byte |  2851.47 MiB/s |
 | **rANS32x32 16w                    10**   |  82.66 % |   13.82 clk/byte |   309.99 MiB/s |   1.52 clk/byte |  2822.97 MiB/s |
-| TurboANX 24 (Native Windows Build)        |  79.8  % |   -              |   962.68 MiB/s |   -             |  2785.82 MiB/s |
+| TurboANX 24                               |  79.8  % |   -              |   962.68 MiB/s |   -             |  2785.82 MiB/s |
 | **rANS32x32 16w                    12**   |  82.57 % |   13.95 clk/byte |   306.97 MiB/s |   1.59 clk/byte |  2693.99 MiB/s |
-| TurboANX 16 (Native Windows Build)        |  79.9  % |   -              |   937.33 MiB/s |   -             |  2661.07 MiB/s |
-| TurboANX 8  (Native Windows Build)        |  80.5  % |   -              |   864.63 MiB/s |   -             |  2360.30 MiB/s |
+| TurboANX 16                               |  79.9  % |   -              |   937.33 MiB/s |   -             |  2661.07 MiB/s |
+| TurboANX 8                                |  80.5  % |   -              |   864.63 MiB/s |   -             |  2360.30 MiB/s |
 | rans32avx2 0                              |  80.6  % |   -              |   966.58 MiB/s |   -             |  2244.87 MiB/s |
 | rans32avx512 0                            |  80.6  % |   -              |   739.14 MiB/s |   -             |  2139.47 MiB/s |
 | fsehuf                                    |  80.0  % |   -              |  1395.71 MiB/s |   -             |  1946.34 MiB/s |
 | rans32sse 0                               |  80.6  % |   -              |   723.48 MiB/s |   -             |  1914.15 MiB/s |
 | **rANS32x64 16w                    13**   |  82.57 % |   13.94 clk/byte |   307.28 MiB/s |   2.25 clk/byte |  1903.01 MiB/s |
-| TurboANX 4  (Native Windows Build)        |  81.9  % |   -              |   677.08 MiB/s |   -             |  1883.40 MiB/s |
+| TurboANX 4                                |  81.9  % |   -              |   677.08 MiB/s |   -             |  1883.40 MiB/s |
 | **rANS32x64 16w                    14**   |  82.58 % |   14.09 clk/byte |   304.01 MiB/s |   2.29 clk/byte |  1870.17 MiB/s |
 | **rANS32x32 16w                    13**   |  82.57 % |   13.97 clk/byte |   306.60 MiB/s |   2.31 clk/byte |  1855.99 MiB/s |
 | **rANS32x64 16w                    15**   |  82.63 % |   13.88 clk/byte |   308.52 MiB/s |   2.39 clk/byte |  1793.13 MiB/s |
 | **rANS32x32 16w                    14**   |  82.58 % |   13.91 clk/byte |   307.92 MiB/s |   2.45 clk/byte |  1749.16 MiB/s |
 | **rANS32x32 16w                    15**   |  82.63 % |   14.20 clk/byte |   301.70 MiB/s |   2.59 clk/byte |  1654.49 MiB/s |
-| TurboANX 2  (Native Windows Build)        |  83.7  % |   -              |   600.46 MiB/s |   -             |  1292.65 MiB/s |
+| TurboANX 2                                |  83.7  % |   -              |   600.46 MiB/s |   -             |  1292.65 MiB/s |
 | fse                                       |  80.3  % |   -              |   696.88 MiB/s |   -             |   990.39 MiB/s |
-| TurboANX 1  (Native Windows Build)        |  85.1  % |   -              |   387.40 MiB/s |   -             |   719.84 MiB/s |
+| TurboANX 1                                |  85.1  % |   -              |   387.40 MiB/s |   -             |   719.84 MiB/s |
 | rans32avx2 1                              |  74.4  % |   -              |   114.89 MiB/s |   -             |   229.78 MiB/s |
 | rans32avx512 1                            |  74.4  % |   -              |   104.87 MiB/s |   -             |   220.91 MiB/s |
 | FastHF                                    |  80.0  % |   -              |   183.35 MiB/s |   -             |   144.30 MiB/s |
