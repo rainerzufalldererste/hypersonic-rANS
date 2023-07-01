@@ -2263,6 +2263,270 @@ size_t rANS32x32_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLen
 
 //////////////////////////////////////////////////////////////////////////
 
+template <uint32_t TotalSymbolCountBits, bool ShuffleMask16, bool YmmShuffle, bool WriteAligned32 = false>
+#ifndef _MSC_VER
+__attribute__((target("avx512f")))
+#endif
+size_t rANS32x32_16w_decode_avx512_256_varC(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
+{
+  if (inLength <= sizeof(uint64_t) * 2)
+    return 0;
+
+  if constexpr (!WriteAligned32)
+    if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
+      return rANS32x32_16w_decode_avx2_varC<TotalSymbolCountBits, ShuffleMask16, YmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
+
+  static_assert(TotalSymbolCountBits < 16);
+  constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
+
+  size_t inputIndex = 0;
+  const uint64_t expectedOutputLength = *reinterpret_cast<const uint64_t *>(pInData + inputIndex);
+  inputIndex += sizeof(uint64_t);
+
+  if (expectedOutputLength > outCapacity)
+    return 0;
+
+  const uint64_t expectedInputLength = *reinterpret_cast<const uint64_t *>(pInData + inputIndex);
+  inputIndex += sizeof(uint64_t);
+
+  if (inLength < expectedInputLength)
+    return 0;
+
+  hist_t hist;
+
+  for (size_t i = 0; i < 256; i++)
+  {
+    hist.symbolCount[i] = *reinterpret_cast<const uint16_t *>(pInData + inputIndex);
+    inputIndex += sizeof(uint16_t);
+  }
+
+  if (!inplace_complete_hist(&hist, TotalSymbolCountBits))
+    return 0;
+
+  hist_dec_pack_t<TotalSymbolCountBits> histDec;
+  make_dec_pack_hist<TotalSymbolCountBits>(&histDec, &hist);
+
+  uint32_t states[StateCount];
+
+  for (size_t i = 0; i < StateCount; i++)
+  {
+    states[i] = *reinterpret_cast<const uint32_t *>(pInData + inputIndex);
+    inputIndex += sizeof(uint32_t);
+  }
+
+  const uint16_t *pReadHead = reinterpret_cast<const uint16_t *>(pInData + inputIndex);
+
+  typedef __m256i simd_t;
+  simd_t statesX8[StateCount / (sizeof(simd_t) / sizeof(uint32_t))];
+
+  for (size_t i = 0; i < sizeof(statesX8) / sizeof(simd_t); i++)
+    statesX8[i] = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(reinterpret_cast<const uint8_t *>(states) + i * sizeof(simd_t)));
+
+  const size_t outLengthInStates = expectedOutputLength - StateCount + 1;
+  size_t i = 0;
+
+  const simd_t symCountMask = _mm256_set1_epi32(TotalSymbolCount - 1);
+  const __m512i lower12 = _mm512_set1_epi32((1 << 12) - 1);
+  const simd_t lower8 = _mm256_set1_epi32(0xFF);
+  const __m512i decodeConsumePoint = _mm512_set1_epi32(DecodeConsumePoint16);
+
+  for (; i < outLengthInStates; i += StateCount)
+  {
+    // const uint32_t slot = state & (TotalSymbolCount - 1);
+    const simd_t slot0 = _mm256_and_si256(statesX8[0], symCountMask);
+    const simd_t slot1 = _mm256_and_si256(statesX8[1], symCountMask);
+    const simd_t slot2 = _mm256_and_si256(statesX8[2], symCountMask);
+    const simd_t slot3 = _mm256_and_si256(statesX8[3], symCountMask);
+
+    // retrieve pack.
+    const simd_t pack0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot0, sizeof(uint32_t));
+    const simd_t pack1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot1, sizeof(uint32_t));
+    const simd_t pack2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot2, sizeof(uint32_t));
+    const simd_t pack3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot3, sizeof(uint32_t));
+
+    // pack states to zmm.
+    const __m512i state01 = _mm512_inserti64x4(_mm512_castsi256_si512(statesX8[0]), statesX8[1], 1);
+    const __m512i state23 = _mm512_inserti64x4(_mm512_castsi256_si512(statesX8[2]), statesX8[3], 1);
+
+    // const uint32_t shiftedState = (state >> TotalSymbolCountBits);
+    const __m512i shiftedState0 = _mm512_srli_epi32(state01, TotalSymbolCountBits);
+    const __m512i shiftedState1 = _mm512_srli_epi32(state23, TotalSymbolCountBits);
+
+    // unpack symbol.
+    const simd_t symbol0 = _mm256_and_si256(pack0, lower8);
+    const simd_t symbol1 = _mm256_and_si256(pack1, lower8);
+    const simd_t symbol2 = _mm256_and_si256(pack2, lower8);
+    const simd_t symbol3 = _mm256_and_si256(pack3, lower8);
+
+    // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
+    const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
+    const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
+    const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
+
+    // We intentionally encoded in a way to not have to do horrible things here.
+    if constexpr (WriteAligned32)
+      _mm256_stream_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
+    else
+      _mm256_storeu_si256(reinterpret_cast<__m256i *>(pOutData + i), symPack0123);
+
+    // pack `pack` to zmm.
+    const __m512i packZmm0 = _mm512_inserti64x4(_mm512_castsi256_si512(pack0), pack1, 1);
+    const __m512i packZmm1 = _mm512_inserti64x4(_mm512_castsi256_si512(pack2), pack3, 1);
+
+    // pack `slot` to zmm.
+    const __m512i slotZmm0 = _mm512_inserti64x4(_mm512_castsi256_si512(slot0), slot1, 1);
+    const __m512i slotZmm1 = _mm512_inserti64x4(_mm512_castsi256_si512(slot2), slot3, 1);
+
+    // unpack freq, cumul.
+    const __m512i cumul0 = _mm512_and_si512(_mm512_srli_epi32(packZmm0, 8), lower12);
+    const __m512i freq0 = _mm512_srli_epi32(packZmm0, 20);
+    const __m512i cumul1 = _mm512_and_si512(_mm512_srli_epi32(packZmm1, 8), lower12);
+    const __m512i freq1 = _mm512_srli_epi32(packZmm1, 20);
+
+    // const uint32_t freqScaled = shiftedState * freq;
+    const __m512i freqScaled0 = _mm512_mullo_epi32(shiftedState0, freq0);
+    const __m512i freqScaled1 = _mm512_mullo_epi32(shiftedState1, freq1);
+
+    // state = freqScaled + slot - cumul;
+    const __m512i state0 = _mm512_add_epi32(freqScaled0, _mm512_sub_epi32(slotZmm0, cumul0));
+    const __m512i state1 = _mm512_add_epi32(freqScaled1, _mm512_sub_epi32(slotZmm1, cumul1));
+
+    // now to the messy part...
+    {
+      // read input for blocks 0.
+      const __m128i newWords0a = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+      // (state < DecodeConsumePoint16) ? -1 : 0 | well, actually (DecodeConsumePoint16 > state) ? -1 : 0
+      const __mmask16 cmpMask0 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state0);
+      const __mmask16 cmpMask1 = _mm512_cmpgt_epi32_mask(decodeConsumePoint, state1);
+
+      if constexpr (ShuffleMask16)
+      {
+        // get masks of those compares & start loading shuffle masks.
+        const uint32_t cmpMask0a = cmpMask0 & 0xFF;
+        const uint32_t cmpMask0b = cmpMask0 >> 8;
+        __m128i lut0a = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask0a << 4])); // `* 16`.
+        __m128i lut0b = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask0b << 4])); // `* 16`.
+
+        const uint32_t cmpMask1a = cmpMask1 & 0xFF;
+        const uint32_t cmpMask1b = cmpMask1 >> 8;
+        __m128i lut1a = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask1a << 4])); // `* 16`.
+        __m128i lut1b = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask1b << 4])); // `* 16`.
+
+        // advance read head & read input for blocks 1, 2, 3.
+        const uint32_t maskPop0a = (uint32_t)__builtin_popcount(cmpMask0a);
+        pReadHead += maskPop0a;
+
+        const __m128i newWords0b = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop0b = (uint32_t)__builtin_popcount(cmpMask0b);
+        pReadHead += maskPop0b;
+
+        const __m128i newWords1a = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop1a = (uint32_t)__builtin_popcount(cmpMask1a);
+        pReadHead += maskPop1a;
+
+        const __m128i newWords1b = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+        const uint32_t maskPop1b = (uint32_t)__builtin_popcount(cmpMask1b);
+        pReadHead += maskPop1b;
+
+        // matching: state << 16
+        const __m512i matchShiftedState0 = _mm512_mask_slli_epi32(state0, cmpMask0, state0, 16);
+        const __m512i matchShiftedState1 = _mm512_mask_slli_epi32(state1, cmpMask1, state1, 16);
+
+        if constexpr (YmmShuffle)
+        {
+          // shuffle new words in place.
+          const __m256i newWordXmm0 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords0b, newWords0a), _mm256_set_m128i(lut0b, lut0a));
+          const __m256i newWordXmm1 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords1b, newWords1a), _mm256_set_m128i(lut1b, lut1a));
+
+          // expand new word.
+          const __m512i newWord0 = _mm512_cvtepu16_epi32(newWordXmm0);
+          const __m512i newWord1 = _mm512_cvtepu16_epi32(newWordXmm1);
+
+          // state = state << 16 | newWord;
+          const __m512i finalState0 = _mm512_or_si512(matchShiftedState0, newWord0);
+          const __m512i finalState1 = _mm512_or_si512(matchShiftedState1, newWord1);
+
+          // store.
+          statesX8[1] = _mm512_extracti64x4_epi64(finalState0, 1);
+          statesX8[3] = _mm512_extracti64x4_epi64(finalState1, 1);
+          statesX8[0] = _mm512_castsi512_si256(finalState0);
+          statesX8[2] = _mm512_castsi512_si256(finalState1);
+        }
+        else
+        {
+          // shuffle new words in place.
+          const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
+          const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
+          const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
+          const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
+
+          // expand new word.
+          const __m512i newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
+          const __m512i newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
+
+          // state = state << 16 | newWord;
+          const __m512i finalState0 = _mm512_or_si512(matchShiftedState0, newWord0);
+          const __m512i finalState1 = _mm512_or_si512(matchShiftedState1, newWord1);
+
+          // store.
+          statesX8[1] = _mm512_extracti64x4_epi64(finalState0, 1);
+          statesX8[3] = _mm512_extracti64x4_epi64(finalState1, 1);
+          statesX8[0] = _mm512_castsi512_si256(finalState0);
+          statesX8[2] = _mm512_castsi512_si256(finalState1);
+        }
+      }
+    }
+  }
+
+  for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)
+    _mm256_storeu_si256(reinterpret_cast<simd_t *>(reinterpret_cast<uint8_t *>(states) + j * sizeof(simd_t)), statesX8[j]);
+
+  const uint8_t idx2idx[] = { 0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13, 0x04, 0x05, 0x06, 0x07, 0x14, 0x15, 0x16, 0x17, 0x08, 0x09, 0x0A, 0x0B, 0x18, 0x19, 0x1A, 0x1B, 0x0C, 0x0D, 0x0E, 0x0F, 0x1C, 0x1D, 0x1E, 0x1F };
+  static_assert(sizeof(idx2idx) == StateCount);
+
+  for (size_t j = 0; j < StateCount; j++)
+  {
+    const uint8_t index = idx2idx[j];
+
+    if (i + index < expectedOutputLength)
+    {
+      uint32_t state = states[j];
+
+      const uint32_t slot = state & (TotalSymbolCount - 1);
+      const uint8_t symbol = histDec.symbol[slot] & 0xFF;
+      state = (state >> TotalSymbolCountBits) * (uint32_t)(histDec.symbol[slot] >> 20) + slot - (uint32_t)((histDec.symbol[slot] >> 8) & 0b1111111111);
+
+      pOutData[i + index] = symbol;
+
+      if constexpr (DecodeNoBranch)
+      {
+        const bool read = state < DecodeConsumePoint16;
+        const uint32_t newState = state << 16 | *pReadHead;
+        state = read ? newState : state;
+        pReadHead += (size_t)read;
+      }
+      else
+      {
+        if (state < DecodeConsumePoint16)
+        {
+          state = state << 16 | *pReadHead;
+          pReadHead++;
+        }
+      }
+
+      states[j] = state;
+    }
+  }
+
+  return expectedOutputLength;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool YmmShuffle = false, bool WriteAligned32 = false>
 #ifndef _MSC_VER
 #ifdef __llvm__
@@ -2717,3 +2981,21 @@ size_t rANS32x32_ymmShfl2_16w_decode_avx512_varC_10(const uint8_t *pInData, cons
 size_t rANS32x32_zmmPerm_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<12, false>(pInData, inLength, pOutData, outCapacity); }
 size_t rANS32x32_zmmPerm_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<11, false>(pInData, inLength, pOutData, outCapacity); }
 size_t rANS32x32_zmmPerm_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512fdqbw_varC<10, false>(pInData, inLength, pOutData, outCapacity); }
+
+//////////////////////////////////////////////////////////////////////////
+
+size_t rANS32x32_xmmShfl_16w_decode_avx512_256_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<12, false, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx512_256_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<11, false, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx512_256_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<10, false, false>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x32_xmmShfl2_16w_decode_avx512_256_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<12, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx512_256_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<11, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx512_256_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<10, true, false>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x32_ymmShfl_16w_decode_avx512_256_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<12, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmShfl_16w_decode_avx512_256_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<11, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmShfl_16w_decode_avx512_256_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<10, false, true>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x32_ymmShfl2_16w_decode_avx512_256_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<12, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmShfl2_16w_decode_avx512_256_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<11, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmShfl2_16w_decode_avx512_256_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx512_256_varC<10, true, true>(pInData, inLength, pOutData, outCapacity); }
