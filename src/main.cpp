@@ -39,7 +39,7 @@ inline size_t rans_min(const T a, const T b) { return a < b ? a : b; }
 
 constexpr bool DisableSleep = false;
 constexpr bool OnlyRelevantCodecs = true;
-constexpr size_t RunCount = 8;
+constexpr size_t RunCount = 1;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
 
