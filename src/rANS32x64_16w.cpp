@@ -2105,7 +2105,7 @@ size_t rANS32x64_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLen
 
 //////////////////////////////////////////////////////////////////////////
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool WriteAligned64 = false>
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool YmmShuffle = false, bool WriteAligned64 = false>
 #ifndef _MSC_VER
 #ifdef __llvm__
 __attribute__((target("avx512bw")))
@@ -2120,7 +2120,7 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varA(const uint8_t *pInData, const size_
 
   if constexpr (!WriteAligned64)
     if ((reinterpret_cast<size_t>(pOutData) & (64 - 1)) == 0)
-      return rANS32x64_16w_decode_avx512fdqbw_varA<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x64_16w_decode_avx512fdqbw_varA<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, YmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -2321,27 +2321,50 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varA(const uint8_t *pInData, const size_
         const simd_t matchShiftedState2 = _mm512_mask_slli_epi32(state2, cmpMask2, state2, 16);
         const simd_t matchShiftedState3 = _mm512_mask_slli_epi32(state3, cmpMask3, state3, 16);
 
-        // shuffle new words in place.
-        const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
-        const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
-        const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
-        const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
-        const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
-        const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
-        const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
-        const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+        if constexpr (YmmShuffle)
+        {
+          // shuffle new words in place.
+          const __m256i newWordXmm0 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords0b, newWords0a), _mm256_set_m128i(lut0b, lut0a));
+          const __m256i newWordXmm1 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords1b, newWords1a), _mm256_set_m128i(lut1b, lut1a));
+          const __m256i newWordXmm2 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords2b, newWords2a), _mm256_set_m128i(lut2b, lut2a));
+          const __m256i newWordXmm3 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords3b, newWords3a), _mm256_set_m128i(lut3b, lut3a));
 
-        // expand new word.
-        const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
-        const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
-        const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
-        const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(newWordXmm0);
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(newWordXmm1);
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(newWordXmm2);
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(newWordXmm3);
 
-        // state = state << 16 | newWord;
-        statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
-        statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
-        statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
-        statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
+        else
+        {
+          // shuffle new words in place.
+          const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
+          const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
+          const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
+          const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
+          const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
+          const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
+          const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
+          const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
       }
       else
       {
@@ -2421,27 +2444,50 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varA(const uint8_t *pInData, const size_
         const simd_t matchShiftedState2 = _mm512_mask_slli_epi32(state2, cmpMask2, state2, 16);
         const simd_t matchShiftedState3 = _mm512_mask_slli_epi32(state3, cmpMask3, state3, 16);
 
-        // shuffle new words in place.
-        const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
-        const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
-        const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
-        const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
-        const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
-        const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
-        const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
-        const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+        if constexpr (YmmShuffle)
+        {
+          // shuffle new words in place.
+          const __m256i newWordXmm0 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords0b, newWords0a), _mm256_set_m128i(lut0b, lut0a));
+          const __m256i newWordXmm1 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords1b, newWords1a), _mm256_set_m128i(lut1b, lut1a));
+          const __m256i newWordXmm2 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords2b, newWords2a), _mm256_set_m128i(lut2b, lut2a));
+          const __m256i newWordXmm3 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords3b, newWords3a), _mm256_set_m128i(lut3b, lut3a));
 
-        // expand new word.
-        const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
-        const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
-        const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
-        const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(newWordXmm0);
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(newWordXmm1);
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(newWordXmm2);
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(newWordXmm3);
 
-        // state = state << 16 | newWord;
-        statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
-        statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
-        statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
-        statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
+        else
+        {
+          // shuffle new words in place.
+          const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
+          const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
+          const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
+          const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
+          const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
+          const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
+          const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
+          const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
       }
     }
     else
@@ -2581,7 +2627,7 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varA(const uint8_t *pInData, const size_
   return expectedOutputLength;
 }
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool WriteAligned64 = false>
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool YmmShuffle = false, bool WriteAligned64 = false>
 #ifndef _MSC_VER
 #ifdef __llvm__
 __attribute__((target("avx512bw")))
@@ -2596,7 +2642,7 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varB(const uint8_t *pInData, const size_
 
   if constexpr (!WriteAligned64)
     if ((reinterpret_cast<size_t>(pOutData) & (64 - 1)) == 0)
-      return rANS32x64_16w_decode_avx512fdqbw_varB<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x64_16w_decode_avx512fdqbw_varB<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, YmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -2800,27 +2846,50 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varB(const uint8_t *pInData, const size_
         const simd_t matchShiftedState2 = _mm512_mask_slli_epi32(state2, cmpMask2, state2, 16);
         const simd_t matchShiftedState3 = _mm512_mask_slli_epi32(state3, cmpMask3, state3, 16);
 
-        // shuffle new words in place.
-        const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
-        const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
-        const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
-        const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
-        const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
-        const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
-        const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
-        const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+        if constexpr (YmmShuffle)
+        {
+          // shuffle new words in place.
+          const __m256i newWordXmm0 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords0b, newWords0a), _mm256_set_m128i(lut0b, lut0a));
+          const __m256i newWordXmm1 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords1b, newWords1a), _mm256_set_m128i(lut1b, lut1a));
+          const __m256i newWordXmm2 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords2b, newWords2a), _mm256_set_m128i(lut2b, lut2a));
+          const __m256i newWordXmm3 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords3b, newWords3a), _mm256_set_m128i(lut3b, lut3a));
 
-        // expand new word.
-        const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
-        const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
-        const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
-        const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(newWordXmm0);
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(newWordXmm1);
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(newWordXmm2);
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(newWordXmm3);
 
-        // state = state << 16 | newWord;
-        statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
-        statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
-        statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
-        statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
+        else
+        {
+          // shuffle new words in place.
+          const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
+          const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
+          const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
+          const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
+          const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
+          const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
+          const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
+          const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
       }
       else
       {
@@ -2900,27 +2969,50 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varB(const uint8_t *pInData, const size_
         const simd_t matchShiftedState2 = _mm512_mask_slli_epi32(state2, cmpMask2, state2, 16);
         const simd_t matchShiftedState3 = _mm512_mask_slli_epi32(state3, cmpMask3, state3, 16);
 
-        // shuffle new words in place.
-        const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
-        const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
-        const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
-        const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
-        const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
-        const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
-        const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
-        const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+        if constexpr (YmmShuffle)
+        {
+          // shuffle new words in place.
+          const __m256i newWordXmm0 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords0b, newWords0a), _mm256_set_m128i(lut0b, lut0a));
+          const __m256i newWordXmm1 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords1b, newWords1a), _mm256_set_m128i(lut1b, lut1a));
+          const __m256i newWordXmm2 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords2b, newWords2a), _mm256_set_m128i(lut2b, lut2a));
+          const __m256i newWordXmm3 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords3b, newWords3a), _mm256_set_m128i(lut3b, lut3a));
 
-        // expand new word.
-        const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
-        const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
-        const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
-        const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(newWordXmm0);
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(newWordXmm1);
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(newWordXmm2);
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(newWordXmm3);
 
-        // state = state << 16 | newWord;
-        statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
-        statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
-        statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
-        statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
+        else
+        {
+          // shuffle new words in place.
+          const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
+          const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
+          const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
+          const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
+          const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
+          const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
+          const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
+          const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
       }
     }
     else
@@ -3062,7 +3154,7 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varB(const uint8_t *pInData, const size_
 
 //////////////////////////////////////////////////////////////////////////
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool WriteAligned64 = false>
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool YmmShuffle = false, bool WriteAligned64 = false>
 #ifndef _MSC_VER
 #ifdef __llvm__
 __attribute__((target("avx512bw")))
@@ -3077,7 +3169,7 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
 
   if constexpr (!WriteAligned64)
     if ((reinterpret_cast<size_t>(pOutData) & (64 - 1)) == 0)
-      return rANS32x64_16w_decode_avx512fdqbw_varC<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x64_16w_decode_avx512fdqbw_varC<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, YmmShuffle, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -3277,27 +3369,50 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
         const simd_t matchShiftedState2 = _mm512_mask_slli_epi32(state2, cmpMask2, state2, 16);
         const simd_t matchShiftedState3 = _mm512_mask_slli_epi32(state3, cmpMask3, state3, 16);
 
-        // shuffle new words in place.
-        const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
-        const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
-        const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
-        const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
-        const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
-        const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
-        const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
-        const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+        if constexpr (YmmShuffle)
+        {
+          // shuffle new words in place.
+          const __m256i newWordXmm0 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords0b, newWords0a), _mm256_set_m128i(lut0b, lut0a));
+          const __m256i newWordXmm1 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords1b, newWords1a), _mm256_set_m128i(lut1b, lut1a));
+          const __m256i newWordXmm2 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords2b, newWords2a), _mm256_set_m128i(lut2b, lut2a));
+          const __m256i newWordXmm3 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords3b, newWords3a), _mm256_set_m128i(lut3b, lut3a));
 
-        // expand new word.
-        const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
-        const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
-        const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
-        const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(newWordXmm0);
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(newWordXmm1);
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(newWordXmm2);
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(newWordXmm3);
 
-        // state = state << 16 | newWord;
-        statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
-        statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
-        statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
-        statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
+        else
+        {
+          // shuffle new words in place.
+          const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
+          const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
+          const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
+          const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
+          const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
+          const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
+          const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
+          const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
       }
       else
       {
@@ -3377,27 +3492,50 @@ size_t rANS32x64_16w_decode_avx512fdqbw_varC(const uint8_t *pInData, const size_
         const simd_t matchShiftedState2 = _mm512_mask_slli_epi32(state2, cmpMask2, state2, 16);
         const simd_t matchShiftedState3 = _mm512_mask_slli_epi32(state3, cmpMask3, state3, 16);
 
-        // shuffle new words in place.
-        const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
-        const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
-        const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
-        const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
-        const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
-        const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
-        const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
-        const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+        if constexpr (YmmShuffle)
+        {
+          // shuffle new words in place.
+          const __m256i newWordXmm0 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords0b, newWords0a), _mm256_set_m128i(lut0b, lut0a));
+          const __m256i newWordXmm1 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords1b, newWords1a), _mm256_set_m128i(lut1b, lut1a));
+          const __m256i newWordXmm2 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords2b, newWords2a), _mm256_set_m128i(lut2b, lut2a));
+          const __m256i newWordXmm3 = _mm256_shuffle_epi8(_mm256_set_m128i(newWords3b, newWords3a), _mm256_set_m128i(lut3b, lut3a));
 
-        // expand new word.
-        const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
-        const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
-        const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
-        const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(newWordXmm0);
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(newWordXmm1);
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(newWordXmm2);
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(newWordXmm3);
 
-        // state = state << 16 | newWord;
-        statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
-        statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
-        statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
-        statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
+        else
+        {
+          // shuffle new words in place.
+          const __m128i newWordXmm0a = _mm_shuffle_epi8(newWords0a, lut0a);
+          const __m128i newWordXmm0b = _mm_shuffle_epi8(newWords0b, lut0b);
+          const __m128i newWordXmm1a = _mm_shuffle_epi8(newWords1a, lut1a);
+          const __m128i newWordXmm1b = _mm_shuffle_epi8(newWords1b, lut1b);
+          const __m128i newWordXmm2a = _mm_shuffle_epi8(newWords2a, lut2a);
+          const __m128i newWordXmm2b = _mm_shuffle_epi8(newWords2b, lut2b);
+          const __m128i newWordXmm3a = _mm_shuffle_epi8(newWords3a, lut3a);
+          const __m128i newWordXmm3b = _mm_shuffle_epi8(newWords3b, lut3b);
+
+          // expand new word.
+          const simd_t newWord0 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm0b, newWordXmm0a));
+          const simd_t newWord1 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm1b, newWordXmm1a));
+          const simd_t newWord2 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm2b, newWordXmm2a));
+          const simd_t newWord3 = _mm512_cvtepu16_epi32(_mm256_set_m128i(newWordXmm3b, newWordXmm3a));
+
+          // state = state << 16 | newWord;
+          statesX8[0] = _mm512_or_si512(matchShiftedState0, newWord0);
+          statesX8[1] = _mm512_or_si512(matchShiftedState1, newWord1);
+          statesX8[2] = _mm512_or_si512(matchShiftedState2, newWord2);
+          statesX8[3] = _mm512_or_si512(matchShiftedState3, newWord3);
+        }
       }
     }
     else
@@ -3669,3 +3807,45 @@ size_t rANS32x64_xmmShfl2_16w_decode_avx512_varC_10(const uint8_t *pInData, cons
 size_t rANS32x64_zmmPerm_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<12, false>(pInData, inLength, pOutData, outCapacity); }
 size_t rANS32x64_zmmPerm_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<11, false>(pInData, inLength, pOutData, outCapacity); }
 size_t rANS32x64_zmmPerm_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<10, false>(pInData, inLength, pOutData, outCapacity); }
+
+//////////////////////////////////////////////////////////////////////////
+
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varA_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<15, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varA_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<14, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varA_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<13, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varA_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<12, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varA_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<11, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varA_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<10, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varA_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<15, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varA_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<14, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varA_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<13, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varA_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<12, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varA_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<11, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varA_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varA<10, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+
+//////////////////////////////////////////////////////////////////////////
+
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varB_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<15, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varB_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<14, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varB_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<13, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varB_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<12, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varB_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<11, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varB_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<10, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varB_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<15, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varB_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<14, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varB_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<13, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varB_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<12, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varB_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<11, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varB_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varB<10, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+
+//////////////////////////////////////////////////////////////////////////
+
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<12, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<11, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<10, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<12, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<11, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x64_16w_decode_avx512fdqbw_varC<10, true, true, true>(pInData, inLength, pOutData, outCapacity); }
