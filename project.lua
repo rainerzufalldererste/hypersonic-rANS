@@ -16,6 +16,7 @@ project(ProjectName)
   filter { "system:linux" }
     buildoptions { "-mxsave" }
     exceptionhandling "Off"
+    linkoptions { "-pthread" }
   filter { }
   
   filter { "configurations:Release" }
