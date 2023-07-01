@@ -38,7 +38,10 @@ inline size_t rans_min(const T a, const T b) { return a < b ? a : b; }
 //////////////////////////////////////////////////////////////////////////
 
 constexpr bool DisableSleep = false;
-constexpr bool OnlyRelevantCodecs = true;
+bool OnlyRelevantCodecs = true;
+size_t HistMax = 12;
+size_t HistMin = 10;
+bool Include32Block = false;
 constexpr size_t RunCount = 8;
 static uint64_t _ClocksPerRun[RunCount];
 static uint64_t _NsPerRun[RunCount];
@@ -249,6 +252,16 @@ int32_t main(const int32_t argc, char **pArgv)
   {
     static hist_t hist;
     make_hist(&hist, pUncompressedData, fileSize, _Codecs[codecId].totalSymbolCountBits);
+    bool skipCodec = false;
+
+    skipCodec |= (!Include32Block && strstr(_Codecs[codecId].name, " 32blk ") != nullptr);
+    skipCodec |= _Codecs[codecId].totalSymbolCountBits > HistMax;
+    skipCodec |= _Codecs[codecId].totalSymbolCountBits < HistMin;
+
+    if (skipCodec)
+      continue;
+
+    printf("%-32s %2" PRIu32 " | -------- | ---------------- | ------------------------------------ | -------------- | ------------------------------------\n", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits);
 
     size_t encodedSize = 0;
 
@@ -257,8 +270,7 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_Codecs[codecId].encoders[i].name == nullptr)
         break;
 
-      if constexpr (OnlyRelevantCodecs)
-        if (!_Codecs[codecId].encoders[i].candidateForFastest)
+      if (OnlyRelevantCodecs && !_Codecs[codecId].encoders[i].candidateForFastest)
           continue;
 
       if (strstr(_Codecs[codecId].encoders[i].name, " avx2 ") != nullptr && !avx2Supported)
@@ -271,8 +283,6 @@ int32_t main(const int32_t argc, char **pArgv)
         printf("  %-33s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].encoders[i].name);
         continue;
       }
-
-      printf("%-32s %2" PRIu32 " | -------- | ---------------- | ------------------------------------ | -------------- | ------------------------------------\n", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits);
 
       memset(pCompressedData, 0xCC, compressedDataCapacity);
 
@@ -318,8 +328,7 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_Codecs[codecId].decoders[i].name == nullptr)
         break;
 
-      if constexpr (OnlyRelevantCodecs)
-        if (!_Codecs[codecId].decoders[i].candidateForFastest)
+      if (OnlyRelevantCodecs && !_Codecs[codecId].decoders[i].candidateForFastest)
           continue;
 
       if (strstr(_Codecs[codecId].decoders[i].name, " avx2 ") != nullptr && !avx2Supported)
