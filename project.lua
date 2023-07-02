@@ -12,7 +12,7 @@ project(ProjectName)
     buildoptions { '/MP' }
 
     ignoredefaultlibraries { "msvcrt" }
-    exceptionhandling "On" -- nobody wants this, but msvc is to incompetent otherwise because codegen workaround require workarounds for which this is the workaround.
+    exceptionhandling "On" -- nobody wants this, but msvc is to incompetent to compile without this...
   filter { "system:linux" }
     buildoptions { "-mxsave" }
     exceptionhandling "Off"
