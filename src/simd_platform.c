@@ -1,5 +1,7 @@
 #include "simd_platform.h"
 
+#include <string.h>
+
 //////////////////////////////////////////////////////////////////////////
 
 #ifdef _MSC_VER
@@ -7,7 +9,7 @@
 #else
 #include <cpuid.h>
 
-void cpuid(int info[4], int infoType)
+static void cpuid(int info[4], int infoType)
 {
   __cpuid_count(infoType, 0, info[0], info[1], info[2], info[3]);
 }
@@ -52,6 +54,14 @@ bool avx5124VNNIWSupported = false;
 bool avx5124FMAPSSupported = false;
 bool aesNiSupported = false;
 
+vendor_t _CpuVendor = cpu_vendor_Unknown;
+char _CpuName[0x80] = { 0 };
+uint8_t _CpuFamily = 0;
+uint8_t _CpuModel = 0;
+uint8_t _CpuStepping = 0;
+uint8_t _CpuExtFamily = 0;
+uint8_t _CpuExtModel = 0;
+
 void _DetectCPUFeatures()
 {
   if (_CpuFeaturesDetected)
@@ -59,12 +69,32 @@ void _DetectCPUFeatures()
 
   int32_t info[4];
   cpuid(info, 0);
-  int32_t idCount = info[0];
+  const uint32_t idCount = info[0];
+
+  const uint8_t amdVendorString[] = { 0x41, 0x75, 0x74, 0x68, 0x63, 0x41, 0x4D, 0x44, 0x65, 0x6E, 0x74, 0x69 }; // AuthenticAMD
+  const uint8_t intelVendorString[] = { 0x47, 0x65, 0x6E, 0x75, 0x6E, 0x74, 0x65, 0x6C, 0x69, 0x6E, 0x65, 0x49 }; // GenuineIntel
+
+  if (memcmp(info + 1, amdVendorString, sizeof(amdVendorString)) == 0)
+    _CpuVendor = cpu_vendor_AMD;
+  else if (memcmp(info + 1, intelVendorString, sizeof(intelVendorString)) == 0)
+    _CpuVendor = cpu_vendor_Intel;
 
   if (idCount >= 0x1)
   {
     int32_t cpuInfo[4];
     cpuid(cpuInfo, 1);
+
+    _CpuStepping = cpuInfo[0] & 0b1111;
+    _CpuModel = (cpuInfo[0] >> 4) & 0b1111;
+    _CpuFamily = (cpuInfo[0] >> 8) & 0b1111;
+    _CpuExtModel = (cpuInfo[0] >> 16) & 0b1111;
+    _CpuExtFamily = (cpuInfo[0] >> 20) & 0b1111111;
+
+    if (_CpuFamily == 0x6 || _CpuFamily == 0xF)
+      _CpuModel |= _CpuExtModel << 4;
+
+    if (_CpuFamily == 0xF)
+      _CpuFamily += _CpuExtFamily;
 
     const bool osUsesXSAVE_XRSTORE = (cpuInfo[2] & (1 << 27)) != 0;
     const bool cpuAVXSuport = (cpuInfo[2] & (1 << 28)) != 0;
@@ -106,6 +136,39 @@ void _DetectCPUFeatures()
     avx512BITALGSupported = (cpuInfo[2] & 1 << 12) != 0;
     avx5124VNNIWSupported = (cpuInfo[3] & 1 << 2) != 0;
     avx5124FMAPSSupported = (cpuInfo[3] & 1 << 3) != 0;
+  }
+
+  cpuid(info, 0x80000000);
+  const uint32_t extLength = info[0];
+
+  // Parse CPU Name.
+  for (uint32_t i = 0x80000002; i <= extLength && i <= 0x80000005; i++)
+  {
+    cpuid(info, i);
+
+    const int32_t index = (i & 0x7) - 2;
+
+    if (index >= 0 && index <= 4)
+      memcpy(_CpuName + sizeof(info) * index, info, sizeof(info));
+  }
+
+  // Trim Spaces at the end.
+  {
+    size_t end = 1;
+
+    for (; end < sizeof(_CpuName); end++)
+      if (_CpuName[end] == '\0')
+        break;
+
+    end--;
+
+    for (; end > 1; end--)
+    {
+      if (_CpuName[end] == ' ')
+        _CpuName[end] = '\0';
+      else
+        break;
+    }
   }
 
   _CpuFeaturesDetected = true;

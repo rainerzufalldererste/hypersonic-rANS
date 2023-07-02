@@ -16,7 +16,6 @@
 #else
 #include <time.h>
 #include <unistd.h>
-
 #include <sched.h>
 #include <pthread.h>
 #endif
@@ -186,6 +185,8 @@ int32_t main(const int32_t argc, char **pArgv)
     return 1;
   }
 
+  const char *filename = pArgv[1];
+
   if (argc == 3)
   {
     // For more consistent benchmarking results.
@@ -207,7 +208,7 @@ int32_t main(const int32_t argc, char **pArgv)
 
   // Read File.
   {
-    FILE *pFile = fopen(pArgv[1], "rb");
+    FILE *pFile = fopen(filename, "rb");
 
     if (!pFile)
     {
@@ -251,6 +252,63 @@ int32_t main(const int32_t argc, char **pArgv)
   }
 
   _DetectCPUFeatures();
+
+  // Print info. 
+  {
+    printf("File: '%s' (%" PRIu64 " Bytes)\n", filename, fileSize);
+
+    const char *vendors[] = { "Unknown Vendor", "AMD", "Intel" };
+    printf("CPU: '%s' (Vendor: %s / Family: 0x%" PRIX8 " / Model: 0x%" PRIX8 " (0x%" PRIX8 ") / Stepping: 0x%" PRIX8 ")\nFeatures:", _CpuName, vendors[_CpuVendor > (uint8_t)cpu_vendor_Intel ? cpu_vendor_Unknown : _CpuVendor], _CpuFamily, _CpuModel, _CpuExtModel, _CpuStepping);
+
+    bool anysse = false;
+    bool anyavx512 = false;
+
+#define PRINT_WITH_CPUFLAG(flag, name, b, desc) if (flag) { if (!b) { fputs(desc, stdout); b = true; } else { fputs("/", stdout); } fputs(name, stdout); }
+#define PRINT_SSE(flag, name) PRINT_WITH_CPUFLAG(flag, name, anysse, " SSE");
+#define PRINT_AVX512(flag, name) PRINT_WITH_CPUFLAG(flag, name, anyavx512, " AVX-512");
+
+    PRINT_SSE(sse2Supported, "2");
+    PRINT_SSE(sse3Supported, "3");
+    PRINT_SSE(sse41Supported, "4.1");
+    PRINT_SSE(sse42Supported, "4.2");
+
+    if (ssse3Supported)
+      fputs(" SSSE3", stdout);
+
+    if (avx2Supported)
+      fputs(" AVX", stdout);
+
+    if (avx2Supported)
+      fputs(" AVX2", stdout);
+
+    PRINT_AVX512(avx512FSupported, "F");
+    PRINT_AVX512(avx512PFSupported, "PF");
+    PRINT_AVX512(avx512ERSupported, "ER");
+    PRINT_AVX512(avx512CDSupported, "CD");
+    PRINT_AVX512(avx512BWSupported, "BW");
+    PRINT_AVX512(avx512DQSupported, "DQ");
+    PRINT_AVX512(avx512VLSupported, "VL");
+    PRINT_AVX512(avx512IFMASupported, "IFMA");
+    PRINT_AVX512(avx512VBMISupported, "VBMI");
+    PRINT_AVX512(avx512VNNISupported, "VNNI");
+    PRINT_AVX512(avx512VBMI2Supported, "VBMI2");
+    PRINT_AVX512(avx512POPCNTDQSupported, "POPCNTDQ");
+    PRINT_AVX512(avx512BITALGSupported, "BITALG");
+    PRINT_AVX512(avx5124VNNIWSupported, "4VNNIW");
+    PRINT_AVX512(avx5124FMAPSSupported, "4FMAPS");
+
+    if (fma3Supported)
+      fputs(" FMA3", stdout);
+
+    if (aesNiSupported)
+      fputs(" AES-NI", stdout);
+
+#undef PRINT_WITH_CPUFLAG
+#undef PRINT_SSE
+#undef PRINT_AVX512
+
+    puts("\n");
+  }
 
   puts("Codec Type (Enc/Dec Impl)            Hist  Ratio      Minimum            Average          ( StdDev.         )   Maximum          Average        ( StdDev.           )");
   puts("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -385,9 +443,9 @@ int32_t main(const int32_t argc, char **pArgv)
     }
   }
 
-  free(pUncompressedData);
-  free(pCompressedData);
-  free(pDecompressedData);
+  ALIGNED_FREE(pUncompressedData);
+  ALIGNED_FREE(pCompressedData);
+  ALIGNED_FREE(pDecompressedData);
 
   return 0;
 }
