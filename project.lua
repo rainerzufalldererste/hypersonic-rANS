@@ -5,18 +5,16 @@ project(ProjectName)
   kind "ConsoleApp"
   language "C++"
   staticruntime "On"
-  cppdialect "C++20"
 
   filter { "system:windows" }
     buildoptions { '/Gm-' }
     buildoptions { '/MP' }
-
     ignoredefaultlibraries { "msvcrt" }
-    exceptionhandling "On" -- nobody wants this, but msvc is to incompetent to compile without this...
+    buildoptions { '/std:c++20' }
   filter { "system:linux" }
     buildoptions { "-mxsave" }
-    exceptionhandling "Off"
     linkoptions { "-pthread" }
+    cppdialect "C++20"
   filter { }
   
   filter { "configurations:Release" }
@@ -55,6 +53,7 @@ filter {}
 flags { "NoMinimalRebuild", "NoPCH" }
 rtti "Off"
 floatingpoint "Fast"
+exceptionhandling "Off"
 
 filter { "configurations:Debug*" }
 	defines { "_DEBUG" }
@@ -70,12 +69,6 @@ filter { "configurations:Release" }
 
 filter { "system:linux", "configurations:ReleaseClang" }
   buildoptions { "-O3" }
-
-filter { "system:windows", "configurations:Release", "action:vs2012" }
-	buildoptions { "/d2Zi+" }
-
-filter { "system:windows", "configurations:Release", "action:vs2013" }
-	buildoptions { "/Zo" }
 
 filter { "system:windows", "configurations:Release" }
 	flags { "NoIncrementalLink" }
