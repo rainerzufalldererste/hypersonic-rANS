@@ -43,27 +43,29 @@ inline size_t rans_min(const T a, const T b) { return a < b ? a : b; }
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr bool DisableSleep = false;
-bool OnlyRelevantCodecs = true;
-size_t HistMax = 12;
-size_t HistMin = 10;
-bool Include32Block = false;
-constexpr size_t RunCount = 8;
-static uint64_t _ClocksPerRun[RunCount];
-static uint64_t _NsPerRun[RunCount];
+static bool _DisableSleep = false;
+static bool _OnlyRelevantCodecs = true;
+static size_t _HistMax = 15;
+static size_t _HistMin = 10;
+static bool _Include32Block = false;
+static size_t _RunCount = 8;
+
+constexpr size_t MaxRunCount = 256;
+static uint64_t _ClocksPerRun[MaxRunCount];
+static uint64_t _NsPerRun[MaxRunCount];
 
 //////////////////////////////////////////////////////////////////////////
 
 void print_perf_info(const size_t fileSize)
 {
-  if constexpr (RunCount > 1)
+  if (_RunCount > 1)
   {
     uint64_t completeNs = 0;
     uint64_t completeClocks = 0;
     uint64_t minNs = (uint64_t)-1;
     uint64_t minClocks = (uint64_t)-1;
 
-    for (size_t i = 0; i < RunCount; i++)
+    for (size_t i = 0; i < _RunCount; i++)
     {
       completeNs += _NsPerRun[i];
       completeClocks += _ClocksPerRun[i];
@@ -75,12 +77,12 @@ void print_perf_info(const size_t fileSize)
         minClocks = _ClocksPerRun[i];
     }
 
-    const double meanNs = completeNs / (double)RunCount;
-    const double meanClocks = completeClocks / (double)RunCount;
+    const double meanNs = completeNs / (double)_RunCount;
+    const double meanClocks = completeClocks / (double)_RunCount;
     double stdDevNs = 0;
     double stdDevClocks = 0;
 
-    for (size_t i = 0; i < RunCount; i++)
+    for (size_t i = 0; i < _RunCount; i++)
     {
       const double diffNs = _NsPerRun[i] - meanNs;
       const double diffClocks = _ClocksPerRun[i] - meanClocks;
@@ -89,8 +91,8 @@ void print_perf_info(const size_t fileSize)
       stdDevClocks += diffClocks * diffClocks;
     }
 
-    stdDevNs = sqrt(stdDevNs / (double)(RunCount - 1));
-    stdDevClocks = sqrt(stdDevClocks / (double)(RunCount - 1));
+    stdDevNs = sqrt(stdDevNs / (double)(_RunCount - 1));
+    stdDevClocks = sqrt(stdDevClocks / (double)(_RunCount - 1));
 
     printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", minClocks / (double_t)fileSize, meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
     printf("| %8.2f MiB/s | %8.2f MiB/s (%8.2f ~ %8.2f)\n", (fileSize / (1024.0 * 1024.0)) / (minNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / (meanNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs + stdDevNs) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs - stdDevNs) * 1e-9));
@@ -177,33 +179,118 @@ static codec_info_t _Codecs[] =
 
 //////////////////////////////////////////////////////////////////////////
 
+const char ArgumentAllVariants[] = "--all";
+const char ArgumentHistMin[] = "--hist-min";
+const char ArgumentHistMax[] = "--hist-max";
+const char ArgumentInclude32Blk[] = "--include-32blk";
+const char ArgumentNoSleep[] = "--no-sleep";
+const char ArgumentCpuCore[] = "--cpu-core";
+const char ArgumentRuns[] = "--runs";
+
+//////////////////////////////////////////////////////////////////////////
+
 int32_t main(const int32_t argc, char **pArgv)
 {
   if (argc == 1)
   {
-    puts("Invalid Parameter.");
+    puts("Invalid Parameter.\n\nUsage: hsrans <filename>");
+    printf("\t%s \tRun all variants of the specified codecs, not just the ones that we'd expect to be fast\n", ArgumentRuns);
+    printf("\t%s <10-15> \tRestrict codecs to a number of histogram bits\n", ArgumentHistMin);
+    printf("\t%s <10-15> \tRestrict codecs to a number of histogram bits\n", ArgumentHistMax);
+    printf("\t%s \tRun all implementations of the specified codecs, not just the ones that we'd expect to be fast\n", ArgumentAllVariants);
+    printf("\t%s \tRun the benchmark on a specific core\n", ArgumentCpuCore);
+    printf("\t%s \tInclude 32 block variants (which are generally quite slow)\n", ArgumentInclude32Blk);
+    printf("\t%s <uint>\tRun the benchmark for a specified amount of times (default: 8)\n", ArgumentNoSleep);
     return 1;
   }
 
   const char *filename = pArgv[1];
 
-  if (argc == 3)
+  // Parse additional arguments.
+  if (argc > 2)
   {
-    // For more consistent benchmarking results.
-    const size_t cpuCoreIndex = strtoull(pArgv[2], nullptr, 10);
+    size_t argIndex = 2;
+    size_t argsRemaining = (size_t)argc - 2;
+
+    while (argsRemaining)
+    {
+      if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentAllVariants, sizeof(ArgumentAllVariants)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _OnlyRelevantCodecs = false;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentInclude32Blk, sizeof(ArgumentInclude32Blk)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _Include32Block = true;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentNoSleep, sizeof(ArgumentNoSleep)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _DisableSleep = true;
+      }
+      else if (argsRemaining >= 2 && strncmp(pArgv[argIndex], ArgumentRuns, sizeof(ArgumentRuns)) == 0)
+      {
+        _RunCount = strtoull(pArgv[argIndex + 1], nullptr, 10);
+
+        if (_RunCount > MaxRunCount)
+        {
+          puts("Invalid Parameter.");
+          return 1;
+        }
+        else if (_RunCount == 0)
+        {
+          _RunCount = 1;
+          _DisableSleep = true;
+        }
+
+        argIndex += 2;
+        argsRemaining -= 2;
+      }
+      else if (argsRemaining >= 2 && strncmp(pArgv[argIndex], ArgumentHistMax, sizeof(ArgumentHistMax)) == 0)
+      {
+        _HistMax = strtoull(pArgv[argIndex + 1], nullptr, 10);
+
+        argIndex += 2;
+        argsRemaining -= 2;
+      }
+      else if (argsRemaining >= 2 && strncmp(pArgv[argIndex], ArgumentHistMin, sizeof(ArgumentHistMin)) == 0)
+      {
+        _HistMin = strtoull(pArgv[argIndex + 1], nullptr, 10);
+
+        argIndex += 2;
+        argsRemaining -= 2;
+      }
+      else if (argsRemaining >= 2 && strncmp(pArgv[argIndex], ArgumentCpuCore, sizeof(ArgumentCpuCore)) == 0)
+      {
+        // For more consistent benchmarking results.
+        const size_t cpuCoreIndex = strtoull(pArgv[argIndex + 1], nullptr, 10);
+
+        argIndex += 2;
+        argsRemaining -= 2;
 
 #ifdef _WIN32
-    HANDLE thread = GetCurrentThread();
-    SetThreadPriority(thread, THREAD_PRIORITY_HIGHEST);
-    SetThreadAffinityMask(thread, (uint64_t)1 << cpuCoreIndex);
+        HANDLE thread = GetCurrentThread();
+        SetThreadPriority(thread, THREAD_PRIORITY_HIGHEST);
+        SetThreadAffinityMask(thread, (uint64_t)1 << cpuCoreIndex);
 #else
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET((int32_t)cpuCoreIndex, &cpuset);
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET((int32_t)cpuCoreIndex, &cpuset);
 
-    pthread_t current_thread = pthread_self();
-    pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+        pthread_t current_thread = pthread_self();
+        pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
 #endif
+      }
+      else
+      {
+        printf("Invalid Parameter '%s'. Aborting.", pArgv[argIndex]);
+        return 1;
+      }
+    }
   }
 
   // Read File.
@@ -319,9 +406,9 @@ int32_t main(const int32_t argc, char **pArgv)
     make_hist(&hist, pUncompressedData, fileSize, _Codecs[codecId].totalSymbolCountBits);
     bool skipCodec = false;
 
-    skipCodec |= (!Include32Block && strstr(_Codecs[codecId].name, " 32blk ") != nullptr);
-    skipCodec |= _Codecs[codecId].totalSymbolCountBits > HistMax;
-    skipCodec |= _Codecs[codecId].totalSymbolCountBits < HistMin;
+    skipCodec |= (!_Include32Block && strstr(_Codecs[codecId].name, " 32blk ") != nullptr);
+    skipCodec |= _Codecs[codecId].totalSymbolCountBits > _HistMax;
+    skipCodec |= _Codecs[codecId].totalSymbolCountBits < _HistMin;
 
     if (skipCodec)
       continue;
@@ -335,7 +422,7 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_Codecs[codecId].encoders[i].name == nullptr)
         break;
 
-      if (OnlyRelevantCodecs && !_Codecs[codecId].encoders[i].candidateForFastest)
+      if (_OnlyRelevantCodecs && !_Codecs[codecId].encoders[i].candidateForFastest)
           continue;
 
       if (strstr(_Codecs[codecId].encoders[i].name, " avx2 ") != nullptr && !avx2Supported)
@@ -351,7 +438,7 @@ int32_t main(const int32_t argc, char **pArgv)
 
       memset(pCompressedData, 0xCC, compressedDataCapacity);
 
-      if constexpr (RunCount > 1)
+      if (_RunCount > 1)
       {
         printf("\r  (dry run)");
         encodedSize = _Codecs[codecId].encoders[i].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
@@ -359,7 +446,7 @@ int32_t main(const int32_t argc, char **pArgv)
 
       SleepNs(2500ULL * 1000 * 1000);
 
-      for (size_t run = 0; run < RunCount; run++)
+      for (size_t run = 0; run < _RunCount; run++)
       {
         const uint64_t startTick = GetCurrentTimeTicks();
         const uint64_t startClock = __rdtsc();
@@ -393,7 +480,7 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_Codecs[codecId].decoders[i].name == nullptr)
         break;
 
-      if (OnlyRelevantCodecs && !_Codecs[codecId].decoders[i].candidateForFastest)
+      if (_OnlyRelevantCodecs && !_Codecs[codecId].decoders[i].candidateForFastest)
           continue;
 
       if (strstr(_Codecs[codecId].decoders[i].name, " avx2 ") != nullptr && !avx2Supported)
@@ -409,7 +496,7 @@ int32_t main(const int32_t argc, char **pArgv)
 
       memset(pDecompressedData, 0xCC, fileSize);
 
-      if constexpr (RunCount > 1)
+      if (_RunCount > 1)
       {
         printf("\r(dry run)");
         decodedSize = _Codecs[codecId].decoders[i].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
@@ -417,7 +504,7 @@ int32_t main(const int32_t argc, char **pArgv)
 
       SleepNs(2500ULL * 1000 * 1000);
 
-      for (size_t run = 0; run < RunCount; run++)
+      for (size_t run = 0; run < _RunCount; run++)
       {
         const uint64_t startTick = GetCurrentTimeTicks();
         const uint64_t startClock = __rdtsc();
@@ -481,7 +568,7 @@ uint64_t TicksToNs(const uint64_t ticks)
 
 void SleepNs(const uint64_t sleepNs)
 {
-  if constexpr (!DisableSleep && RunCount > 1)
+  if (!_DisableSleep && _RunCount > 1)
   {
 #ifdef _WIN32
     Sleep((DWORD)((sleepNs + 500 * 1000) / (1000 * 1000)));
