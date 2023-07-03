@@ -2334,10 +2334,14 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
   const __m128i shuffleDoubleMask = _mm_set_epi8(7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
   const __m128i shuffleUpper16Bit = _mm_set1_epi16(0x0100);
 
-  simd_t pack0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[0], symCountMask), sizeof(uint32_t));
-  simd_t pack1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[1], symCountMask), sizeof(uint32_t));
-  simd_t pack2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[2], symCountMask), sizeof(uint32_t));
-  simd_t pack3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[3], symCountMask), sizeof(uint32_t));
+  simd_t pack0a = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[0], symCountMask), sizeof(uint32_t));
+  simd_t pack1a = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[1], symCountMask), sizeof(uint32_t));
+  simd_t pack2a = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[2], symCountMask), sizeof(uint32_t));
+  simd_t pack3a = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[3], symCountMask), sizeof(uint32_t));
+  simd_t pack0b = _mm256_setzero_si256();
+  simd_t pack1b = _mm256_setzero_si256();
+  simd_t pack2b = _mm256_setzero_si256();
+  simd_t pack3b = _mm256_setzero_si256();
 
   for (; i < outLengthInStates; i += StateCount)
   {
@@ -2346,6 +2350,11 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
     const simd_t shiftedState1 = _mm256_srli_epi32(statesX8[1], TotalSymbolCountBits);
     const simd_t shiftedState2 = _mm256_srli_epi32(statesX8[2], TotalSymbolCountBits);
     const simd_t shiftedState3 = _mm256_srli_epi32(statesX8[3], TotalSymbolCountBits);
+
+    const simd_t pack0 = _mm256_or_si256(pack0a, pack0b);
+    const simd_t pack1 = _mm256_or_si256(pack1a, pack1b);
+    const simd_t pack2 = _mm256_or_si256(pack2a, pack2b);
+    const simd_t pack3 = _mm256_or_si256(pack3a, pack3b);
 
     // unpack symbol.
     const simd_t symbol0 = _mm256_and_si256(pack0, lower8);
@@ -2416,10 +2425,10 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
       const simd_t inverseCmp3 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp3);
 
       // we can just already gather the relevant ones now!!!
-      pack0 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState0, inverseCmp0, sizeof(uint32_t));
-      pack1 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState1, inverseCmp1, sizeof(uint32_t));
-      pack2 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState2, inverseCmp2, sizeof(uint32_t));
-      pack3 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState3, inverseCmp3, sizeof(uint32_t));
+      pack0a = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState0, inverseCmp0, sizeof(uint32_t));
+      pack1a = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState1, inverseCmp1, sizeof(uint32_t));
+      pack2a = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState2, inverseCmp2, sizeof(uint32_t));
+      pack3a = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState3, inverseCmp3, sizeof(uint32_t));
 
       if constexpr (ShuffleMask16)
       {
@@ -2480,10 +2489,10 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
         const simd_t slotFromWord3 = _mm256_and_si256(newWord3, symCountMask);
 
         // now gather the second part.
-        pack0 = _mm256_mask_i32gather_epi32(pack0, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t));
-        pack1 = _mm256_mask_i32gather_epi32(pack1, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
-        pack2 = _mm256_mask_i32gather_epi32(pack2, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
-        pack3 = _mm256_mask_i32gather_epi32(pack3, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
+        pack0b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t));
+        pack1b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
+        pack2b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
+        pack3b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
 
         // state = state << 16 | newWord;
         statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
@@ -2556,10 +2565,10 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
         const simd_t slotFromWord3 = _mm256_and_si256(newWord3, symCountMask);
 
         // now gather the second part.
-        pack0 = _mm256_mask_i32gather_epi32(pack0, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t));
-        pack1 = _mm256_mask_i32gather_epi32(pack1, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
-        pack2 = _mm256_mask_i32gather_epi32(pack2, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
-        pack3 = _mm256_mask_i32gather_epi32(pack3, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
+        pack0b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t));
+        pack1b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
+        pack2b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
+        pack3b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
 
         // state = state << 16 | newWord;
         statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
@@ -2586,10 +2595,10 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
       const simd_t inverseCmp3 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp3);
 
       // we can just already gather the relevant ones now!!!
-      pack0 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState0, inverseCmp0, sizeof(uint32_t));
-      pack1 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState1, inverseCmp1, sizeof(uint32_t));
-      pack2 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState2, inverseCmp2, sizeof(uint32_t));
-      pack3 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState3, inverseCmp3, sizeof(uint32_t));
+      pack0a = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState0, inverseCmp0, sizeof(uint32_t));
+      pack1a = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState1, inverseCmp1, sizeof(uint32_t));
+      pack2a = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState2, inverseCmp2, sizeof(uint32_t));
+      pack3a = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState3, inverseCmp3, sizeof(uint32_t));
 
       // get masks of those compares & start loading shuffle masks.
       const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
@@ -2659,10 +2668,10 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
       const simd_t slotFromWord3 = _mm256_and_si256(newWord3, symCountMask);
 
       // now gather the second part.
-      pack0 = _mm256_mask_i32gather_epi32(pack0, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t));
-      pack1 = _mm256_mask_i32gather_epi32(pack1, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
-      pack2 = _mm256_mask_i32gather_epi32(pack2, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
-      pack3 = _mm256_mask_i32gather_epi32(pack3, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
+      pack0b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t));
+      pack1b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
+      pack2b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
+      pack3b = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
 
       // state = state << 16 | newWord;
       statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
