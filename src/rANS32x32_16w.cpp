@@ -2353,7 +2353,7 @@ size_t rANS32x32_16w_decode_avx2_varC(const uint8_t *pInData, const size_t inLen
 
 //////////////////////////////////////////////////////////////////////////
 
-template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool WriteAligned32 = false>
+template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool LateFullGather = false, bool ScalarPreGather = false, bool WriteAligned32 = false>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
@@ -2364,7 +2364,7 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
 
   if constexpr (!WriteAligned32)
     if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
-      return rANS32x32_16w_decode_avx2_pregather_varC<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x32_16w_decode_avx2_pregather_varC<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, ScalarPreGather, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -2424,10 +2424,43 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
   const __m128i shuffleDoubleMask = _mm_set_epi8(7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
   const __m128i shuffleUpper16Bit = _mm_set1_epi16(0x0100);
 
-  simd_t pack0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[0], symCountMask), sizeof(uint32_t));
-  simd_t pack1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[1], symCountMask), sizeof(uint32_t));
-  simd_t pack2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[2], symCountMask), sizeof(uint32_t));
-  simd_t pack3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), _mm256_and_si256(statesX8[3], symCountMask), sizeof(uint32_t));
+  // const uint32_t slot = state & (TotalSymbolCount - 1);
+  simd_t slot0 = _mm256_and_si256(statesX8[0], symCountMask);
+  simd_t slot1 = _mm256_and_si256(statesX8[1], symCountMask);
+  simd_t slot2 = _mm256_and_si256(statesX8[2], symCountMask);
+  simd_t slot3 = _mm256_and_si256(statesX8[3], symCountMask);
+
+  simd_t pack0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot0, sizeof(uint32_t));
+  simd_t pack1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot1, sizeof(uint32_t));
+  simd_t pack2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot2, sizeof(uint32_t));
+  simd_t pack3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot3, sizeof(uint32_t));
+
+#ifdef _MSC_VER
+  __declspec(align(32))
+#else
+  __attribute__((aligned(32)))
+#endif
+  uint32_t packA[StateCount];
+  
+#ifdef _MSC_VER
+  __declspec(align(32))
+#else
+  __attribute__((aligned(32)))
+#endif
+  uint32_t packB[StateCount];
+
+  simd_t packMask0 = _mm256_setzero_si256();
+  simd_t packMask1 = _mm256_setzero_si256();
+  simd_t packMask2 = _mm256_setzero_si256();
+  simd_t packMask3 = _mm256_setzero_si256();
+
+  if constexpr (ScalarPreGather)
+  {
+    _mm256_store_si256(reinterpret_cast<__m256i *>(packA) + 0, pack0);
+    _mm256_store_si256(reinterpret_cast<__m256i *>(packA) + 1, pack1);
+    _mm256_store_si256(reinterpret_cast<__m256i *>(packA) + 2, pack2);
+    _mm256_store_si256(reinterpret_cast<__m256i *>(packA) + 3, pack3);
+  }
 
   for (; i < outLengthInStates; i += StateCount)
   {
@@ -2436,6 +2469,15 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
     const simd_t shiftedState1 = _mm256_srli_epi32(statesX8[1], TotalSymbolCountBits);
     const simd_t shiftedState2 = _mm256_srli_epi32(statesX8[2], TotalSymbolCountBits);
     const simd_t shiftedState3 = _mm256_srli_epi32(statesX8[3], TotalSymbolCountBits);
+
+    // create pack from PackA, PackB.
+    if constexpr (ScalarPreGather)
+    {
+      pack0 = _mm256_or_si256(_mm256_andnot_si256(packMask0, _mm256_load_si256(reinterpret_cast<__m256i *>(packA) + 0)), _mm256_and_si256(_mm256_load_si256(reinterpret_cast<__m256i *>(packB) + 0), packMask0));
+      pack1 = _mm256_or_si256(_mm256_andnot_si256(packMask1, _mm256_load_si256(reinterpret_cast<__m256i *>(packA) + 1)), _mm256_and_si256(_mm256_load_si256(reinterpret_cast<__m256i *>(packB) + 1), packMask1));
+      pack2 = _mm256_or_si256(_mm256_andnot_si256(packMask2, _mm256_load_si256(reinterpret_cast<__m256i *>(packA) + 2)), _mm256_and_si256(_mm256_load_si256(reinterpret_cast<__m256i *>(packB) + 2), packMask2));
+      pack3 = _mm256_or_si256(_mm256_andnot_si256(packMask3, _mm256_load_si256(reinterpret_cast<__m256i *>(packA) + 3)), _mm256_and_si256(_mm256_load_si256(reinterpret_cast<__m256i *>(packB) + 3), packMask3));
+    }
 
     // unpack symbol.
     const simd_t symbol0 = _mm256_and_si256(pack0, lower8);
@@ -2471,10 +2513,13 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
     const __m256i freqScaled3 = _mm256_mullo_epi32(shiftedState3, freq3);
 
     // const uint32_t slot = state & (TotalSymbolCount - 1);
-    const simd_t slot0 = _mm256_and_si256(statesX8[0], symCountMask);
-    const simd_t slot1 = _mm256_and_si256(statesX8[1], symCountMask);
-    const simd_t slot2 = _mm256_and_si256(statesX8[2], symCountMask);
-    const simd_t slot3 = _mm256_and_si256(statesX8[3], symCountMask);
+    if constexpr (!LateFullGather)
+    {
+      slot0 = _mm256_and_si256(statesX8[0], symCountMask);
+      slot1 = _mm256_and_si256(statesX8[1], symCountMask);
+      slot2 = _mm256_and_si256(statesX8[2], symCountMask);
+      slot3 = _mm256_and_si256(statesX8[3], symCountMask);
+    }
 
     // state = freqScaled + slot - cumul;
     const simd_t state0 = _mm256_add_epi32(freqScaled0, _mm256_sub_epi32(slot0, cumul0));
@@ -2499,17 +2544,51 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
-      // while were at it, let's flip cmp already.
-      const simd_t inverseCmp0 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp0);
-      const simd_t inverseCmp1 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp1);
-      const simd_t inverseCmp2 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp2);
-      const simd_t inverseCmp3 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp3);
+      if constexpr (!LateFullGather && !ScalarPreGather)
+      {
+        // while were at it, let's flip cmp already.
+        const simd_t inverseCmp0 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp0);
+        const simd_t inverseCmp1 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp1);
+        const simd_t inverseCmp2 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp2);
+        const simd_t inverseCmp3 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp3);
 
-      // we can just already gather the relevant ones now!!!
-      pack0 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState0, inverseCmp0, sizeof(uint32_t));
-      pack1 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState1, inverseCmp1, sizeof(uint32_t));
-      pack2 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState2, inverseCmp2, sizeof(uint32_t));
-      pack3 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState3, inverseCmp3, sizeof(uint32_t));
+        // we can just already gather the relevant ones now. but that's terrible for some reason. probably gather is just plain evil...
+        pack0 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState0, inverseCmp0, sizeof(uint32_t));
+        pack1 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState1, inverseCmp1, sizeof(uint32_t));
+        pack2 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState2, inverseCmp2, sizeof(uint32_t));
+        pack3 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState3, inverseCmp3, sizeof(uint32_t));
+      }
+
+      if constexpr (ScalarPreGather)
+      {
+#ifdef _MSC_VER
+        __declspec(align(32))
+#else
+        __attribute__((aligned(32)))
+#endif
+          uint32_t indexes[StateCount];
+
+        packMask0 = cmp0;
+        packMask1 = cmp1;
+        packMask2 = cmp2;
+        packMask3 = cmp3;
+
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 0, _mm256_andnot_si256(cmp0, slotFromState0));
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 1, _mm256_andnot_si256(cmp1, slotFromState1));
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 2, _mm256_andnot_si256(cmp2, slotFromState2));
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 3, _mm256_andnot_si256(cmp3, slotFromState3));
+
+        for (size_t j = 0; j < StateCount; j++)
+          packA[j] = histDec.symbol[indexes[j + 0]];
+      }
+
+      if constexpr (LateFullGather)
+      {
+        slot0 = _mm256_andnot_si256(cmp0, slotFromState0);
+        slot1 = _mm256_andnot_si256(cmp1, slotFromState1);
+        slot2 = _mm256_andnot_si256(cmp2, slotFromState2);
+        slot3 = _mm256_andnot_si256(cmp3, slotFromState3);
+      }
 
       if constexpr (ShuffleMask16)
       {
@@ -2570,10 +2649,45 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
         const simd_t slotFromWord3 = _mm256_and_si256(newWord3, symCountMask);
 
         // now gather the second part.
-        pack0 = _mm256_mask_i32gather_epi32(pack0, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t));
-        pack1 = _mm256_mask_i32gather_epi32(pack1, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
-        pack2 = _mm256_mask_i32gather_epi32(pack2, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
-        pack3 = _mm256_mask_i32gather_epi32(pack3, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
+        if constexpr (!LateFullGather && !ScalarPreGather)
+        {
+          pack0 = _mm256_mask_i32gather_epi32(pack0, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t)); // for some reason it's faster WITH the dependency here...
+          pack1 = _mm256_mask_i32gather_epi32(pack1, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
+          pack2 = _mm256_mask_i32gather_epi32(pack2, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
+          pack3 = _mm256_mask_i32gather_epi32(pack3, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
+        }
+
+        // let's just try doing the full gather here.
+        if constexpr (LateFullGather)
+        {
+          slot0 = _mm256_or_si256(slot0, _mm256_and_si256(slotFromWord0, cmp0));
+          slot1 = _mm256_or_si256(slot1, _mm256_and_si256(slotFromWord1, cmp1));
+          slot2 = _mm256_or_si256(slot2, _mm256_and_si256(slotFromWord2, cmp2));
+          slot3 = _mm256_or_si256(slot3, _mm256_and_si256(slotFromWord3, cmp3));
+
+          pack0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot0, sizeof(uint32_t));
+          pack1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot1, sizeof(uint32_t));
+          pack2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot2, sizeof(uint32_t));
+          pack3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot3, sizeof(uint32_t));
+        }
+
+        if constexpr (ScalarPreGather)
+        {
+#ifdef _MSC_VER
+          __declspec(align(32))
+#else
+          __attribute__((aligned(32)))
+#endif
+            uint32_t indexes[StateCount];
+
+          _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 0, slotFromWord0);
+          _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 1, slotFromWord1);
+          _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 2, slotFromWord2);
+          _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 3, slotFromWord3);
+
+          for (size_t j = 0; j < StateCount; j++)
+            packB[j] = histDec.symbol[indexes[j + 0]];
+        }
 
         // state = state << 16 | newWord;
         statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
@@ -2646,10 +2760,45 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
         const simd_t slotFromWord3 = _mm256_and_si256(newWord3, symCountMask);
 
         // now gather the second part.
-        pack0 = _mm256_mask_i32gather_epi32(pack0, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t));
-        pack1 = _mm256_mask_i32gather_epi32(pack1, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
-        pack2 = _mm256_mask_i32gather_epi32(pack2, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
-        pack3 = _mm256_mask_i32gather_epi32(pack3, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
+        if constexpr (!LateFullGather && !ScalarPreGather)
+        {
+          pack0 = _mm256_mask_i32gather_epi32(pack0, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t)); // for some reason it's faster WITH the dependency here...
+          pack1 = _mm256_mask_i32gather_epi32(pack1, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
+          pack2 = _mm256_mask_i32gather_epi32(pack2, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
+          pack3 = _mm256_mask_i32gather_epi32(pack3, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
+        }
+
+        // let's just try doing the full gather here.
+        if constexpr (LateFullGather)
+        {
+          slot0 = _mm256_or_si256(slot0, _mm256_and_si256(slotFromWord0, cmp0));
+          slot1 = _mm256_or_si256(slot1, _mm256_and_si256(slotFromWord1, cmp1));
+          slot2 = _mm256_or_si256(slot2, _mm256_and_si256(slotFromWord2, cmp2));
+          slot3 = _mm256_or_si256(slot3, _mm256_and_si256(slotFromWord3, cmp3));
+
+          pack0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot0, sizeof(uint32_t));
+          pack1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot1, sizeof(uint32_t));
+          pack2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot2, sizeof(uint32_t));
+          pack3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot3, sizeof(uint32_t));
+        }
+
+        if constexpr (ScalarPreGather)
+        {
+#ifdef _MSC_VER
+          __declspec(align(32))
+#else
+          __attribute__((aligned(32)))
+#endif
+            uint32_t indexes[StateCount];
+
+          _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 0, slotFromWord0);
+          _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 1, slotFromWord1);
+          _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 2, slotFromWord2);
+          _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 3, slotFromWord3);
+
+          for (size_t j = 0; j < StateCount; j++)
+            packB[j] = histDec.symbol[indexes[j + 0]];
+        }
 
         // state = state << 16 | newWord;
         statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
@@ -2669,17 +2818,51 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
       const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
       const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
-      // while were at it, let's flip cmp already.
-      const simd_t inverseCmp0 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp0);
-      const simd_t inverseCmp1 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp1);
-      const simd_t inverseCmp2 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp2);
-      const simd_t inverseCmp3 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp3);
+      if constexpr (!LateFullGather && !ScalarPreGather)
+      {
+        // while were at it, let's flip cmp already.
+        const simd_t inverseCmp0 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp0);
+        const simd_t inverseCmp1 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp1);
+        const simd_t inverseCmp2 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp2);
+        const simd_t inverseCmp3 = _mm256_cmpeq_epi32(_mm256_setzero_si256(), cmp3);
 
-      // we can just already gather the relevant ones now!!!
-      pack0 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState0, inverseCmp0, sizeof(uint32_t));
-      pack1 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState1, inverseCmp1, sizeof(uint32_t));
-      pack2 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState2, inverseCmp2, sizeof(uint32_t));
-      pack3 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState3, inverseCmp3, sizeof(uint32_t));
+        // we can just already gather the relevant ones now. but that's terrible for some reason. probably gather is just plain evil...
+        pack0 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState0, inverseCmp0, sizeof(uint32_t));
+        pack1 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState1, inverseCmp1, sizeof(uint32_t));
+        pack2 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState2, inverseCmp2, sizeof(uint32_t));
+        pack3 = _mm256_mask_i32gather_epi32(_mm256_setzero_si256(), reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromState3, inverseCmp3, sizeof(uint32_t));
+      }
+
+      if constexpr (ScalarPreGather)
+      {
+#ifdef _MSC_VER
+        __declspec(align(32))
+#else
+        __attribute__((aligned(32)))
+#endif
+          uint32_t indexes[StateCount];
+
+        packMask0 = cmp0;
+        packMask1 = cmp1;
+        packMask2 = cmp2;
+        packMask3 = cmp3;
+
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 0, _mm256_andnot_si256(cmp0, slotFromState0));
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 1, _mm256_andnot_si256(cmp1, slotFromState1));
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 2, _mm256_andnot_si256(cmp2, slotFromState2));
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 3, _mm256_andnot_si256(cmp3, slotFromState3));
+
+        for (size_t j = 0; j < StateCount; j++)
+          packA[j] = histDec.symbol[indexes[j + 0]];
+      }
+
+      if constexpr (LateFullGather)
+      {
+        slot0 = _mm256_andnot_si256(cmp0, slotFromState0);
+        slot1 = _mm256_andnot_si256(cmp1, slotFromState1);
+        slot2 = _mm256_andnot_si256(cmp2, slotFromState2);
+        slot3 = _mm256_andnot_si256(cmp3, slotFromState3);
+      }
 
       // get masks of those compares & start loading shuffle masks.
       const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
@@ -2749,10 +2932,45 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
       const simd_t slotFromWord3 = _mm256_and_si256(newWord3, symCountMask);
 
       // now gather the second part.
-      pack0 = _mm256_mask_i32gather_epi32(pack0, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t));
-      pack1 = _mm256_mask_i32gather_epi32(pack1, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
-      pack2 = _mm256_mask_i32gather_epi32(pack2, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
-      pack3 = _mm256_mask_i32gather_epi32(pack3, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
+      if constexpr (!LateFullGather && !ScalarPreGather)
+      {
+        pack0 = _mm256_mask_i32gather_epi32(pack0, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord0, cmp0, sizeof(uint32_t)); // for some reason it's faster WITH the dependency here...
+        pack1 = _mm256_mask_i32gather_epi32(pack1, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord1, cmp1, sizeof(uint32_t));
+        pack2 = _mm256_mask_i32gather_epi32(pack2, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord2, cmp2, sizeof(uint32_t));
+        pack3 = _mm256_mask_i32gather_epi32(pack3, reinterpret_cast<const int32_t *>(&histDec.symbol), slotFromWord3, cmp3, sizeof(uint32_t));
+      }
+
+      // let's just try doing the full gather here.
+      if constexpr (LateFullGather)
+      {
+        slot0 = _mm256_or_si256(slot0, _mm256_and_si256(slotFromWord0, cmp0));
+        slot1 = _mm256_or_si256(slot1, _mm256_and_si256(slotFromWord1, cmp1));
+        slot2 = _mm256_or_si256(slot2, _mm256_and_si256(slotFromWord2, cmp2));
+        slot3 = _mm256_or_si256(slot3, _mm256_and_si256(slotFromWord3, cmp3));
+
+        pack0 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot0, sizeof(uint32_t));
+        pack1 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot1, sizeof(uint32_t));
+        pack2 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot2, sizeof(uint32_t));
+        pack3 = _mm256_i32gather_epi32(reinterpret_cast<const int32_t *>(&histDec.symbol), slot3, sizeof(uint32_t));
+      }
+
+      if constexpr (ScalarPreGather)
+      {
+#ifdef _MSC_VER
+        __declspec(align(32))
+#else
+        __attribute__((aligned(32)))
+#endif
+          uint32_t indexes[StateCount];
+
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 0, slotFromWord0);
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 1, slotFromWord1);
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 2, slotFromWord2);
+        _mm256_store_si256(reinterpret_cast<simd_t *>(indexes) + 3, slotFromWord3);
+
+        for (size_t j = 0; j < StateCount; j++)
+          packB[j] = histDec.symbol[indexes[j + 0]];
+      }
 
       // state = state << 16 | newWord;
       statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
@@ -3659,3 +3877,28 @@ size_t rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_12(const uint8_t *pInData
 size_t rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<11, false, false, true>(pInData, inLength, pOutData, outCapacity); }
 size_t rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC<10, false, false, true>(pInData, inLength, pOutData, outCapacity); }
 
+//////////////////////////////////////////////////////////////////////////
+
+size_t rANS32x32_xmmShfl_16w_decode_avx2_scalarpregather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<12, true, false, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_scalarpregather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<11, true, false, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_scalarpregather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<10, true, false, false, true>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_scalarpregather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<12, true, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_scalarpregather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<11, true, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_scalarpregather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<10, true, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x32_ymmPerm_16w_decode_avx2_scalarpregather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<12, false, false, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmPerm_16w_decode_avx2_scalarpregather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<11, false, false, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmPerm_16w_decode_avx2_scalarpregather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<10, false, false, false, true>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x32_xmmShfl_16w_decode_avx2_earlygather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<12, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_earlygather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<11, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_earlygather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<10, true, false, true>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_earlygather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<12, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_earlygather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<11, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_earlygather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<10, true, true, true>(pInData, inLength, pOutData, outCapacity); }
+
+size_t rANS32x32_ymmPerm_16w_decode_avx2_earlygather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<12, false, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmPerm_16w_decode_avx2_earlygather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<11, false, false, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmPerm_16w_decode_avx2_earlygather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_pregather_varC<10, false, false, true>(pInData, inLength, pOutData, outCapacity); }
