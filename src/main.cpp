@@ -344,8 +344,7 @@ int32_t main(const int32_t argc, char **pArgv)
   {
     printf("File: '%s' (%" PRIu64 " Bytes)\n", filename, fileSize);
 
-    const char *vendors[] = { "Unknown Vendor", "AMD", "Intel" };
-    printf("CPU: '%s' (Vendor: %s / Family: 0x%" PRIX8 " / Model: 0x%" PRIX8 " (0x%" PRIX8 ") / Stepping: 0x%" PRIX8 ")\nFeatures:", _CpuName, vendors[_CpuVendor > (uint8_t)cpu_vendor_Intel ? cpu_vendor_Unknown : _CpuVendor], _CpuFamily, _CpuModel, _CpuExtModel, _CpuStepping);
+    printf("CPU: '%s' [%s] (Family: 0x%" PRIX8 " / Model: 0x%" PRIX8 " (0x%" PRIX8 ") / Stepping: 0x%" PRIX8 ")\nFeatures:", _CpuName, _GetCPUArchitectureName(), _CpuFamily, _CpuModel, _CpuExtModel, _CpuStepping);
 
     bool anysse = false;
     bool anyavx512 = false;

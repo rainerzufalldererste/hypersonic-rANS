@@ -70,26 +70,21 @@ extern "C"
     cpu_model_intel_rocketlake_s = 0xA7,
     cpu_model_intel_tigerlake_h = 0x8D,
     cpu_model_intel_tigerlake_u = 0x8C,
-    cpu_model_intel_icelake_client_u = 0x7E,
-    cpu_model_intel_icelake_client_y = 0x7E,
+    cpu_model_intel_icelake_client_u_y = 0x7E,
     cpu_model_intel_cometlake_s_h = 0xA5,
-    cpu_model_intel_cometlake_u_amberlake_y_whiskeylake_u = 0x8E,
+    cpu_model_intel_cometlake_u_amberlake_y_whiskeylake_u_coffeelake_u_kabylake_y_u = 0x8E,
     cpu_model_intel_cannonlake_u = 0x66,
-    cpu_model_intel_coffeelake_s_h_e = 0x9E,
-    cpu_model_intel_coffeelake_u = 0x8E,
-    cpu_model_intel_kabylake_dt_h_s_x = 0x9E,
-    cpu_model_intel_kabylake_y_u = 0x8E,
+    cpu_model_intel_coffeelake_s_h_e_kabylake_dt_h_s_x = 0x9E,
     cpu_model_intel_skylake_client_dt_h_s = 0x5E,
     cpu_model_intel_skylake_client_y_u = 0x4E,
-    cpu_model_intel_broadwell_client_c_w = 0x47,
+    cpu_model_intel_broadwell_client_c_w_h = 0x47,
     cpu_model_intel_broadwell_client_u_y_s = 0x3D,
-    cpu_model_intel_broadwell_client_h = 0x47,
     cpu_model_intel_haswell_client_gt3e = 0x46,
     cpu_model_intel_haswell_client_ult = 0x45,
     cpu_model_intel_haswell_client_s = 0x3C,
     cpu_model_intel_ivybridge_client_m_h_gladden = 0x3A,
     cpu_model_intel_sandybridge_client_m_h_celeron = 0x2A,
-    cpu_model_intel_sapphire_rapids = 0x8F,
+    cpu_model_intel_sapphirerapids = 0x8F,
     cpu_model_intel_icelake_server_de = 0x6C,
     cpu_model_intel_icelake_server_sp = 0x6A,
     cpu_model_intel_cooperlake_cascadelake_sp_x_w_skylake_server_sp_x_de_w = 0x55,
@@ -134,6 +129,7 @@ extern "C"
   };
 
   void _DetectCPUFeatures();
+  const char *_GetCPUArchitectureName();
 
 #ifdef __cplusplus
 }
