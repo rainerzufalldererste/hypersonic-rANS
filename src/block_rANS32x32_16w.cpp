@@ -21,12 +21,12 @@ struct HistReplaceMul
   constexpr static size_t GetValue();
 };
 
-template <> struct HistReplaceMul<15> { constexpr static size_t GetValue() { return 200; } };
-template <> struct HistReplaceMul<14> { constexpr static size_t GetValue() { return 200; } };
-template <> struct HistReplaceMul<13> { constexpr static size_t GetValue() { return 200; } };
-template <> struct HistReplaceMul<12> { constexpr static size_t GetValue() { return 200; } };
-template <> struct HistReplaceMul<11> { constexpr static size_t GetValue() { return 200; } };
-template <> struct HistReplaceMul<10> { constexpr static size_t GetValue() { return 200; } };
+template <> struct HistReplaceMul<15> { constexpr static size_t GetValue() { return 52450; } };
+template <> struct HistReplaceMul<14> { constexpr static size_t GetValue() { return 33915; } };
+template <> struct HistReplaceMul<13> { constexpr static size_t GetValue() { return 16800; } };
+template <> struct HistReplaceMul<12> { constexpr static size_t GetValue() { return 8140; } };
+template <> struct HistReplaceMul<11> { constexpr static size_t GetValue() { return 3865; } };
+template <> struct HistReplaceMul<10> { constexpr static size_t GetValue() { return 2898; } };
 
 size_t block_rANS32x32_16w_capacity(const size_t inputSize)
 {
@@ -210,7 +210,10 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
         size_t accumAbsDiff = 0;
 
         for (size_t j = 0; j < 256; j++)
-          accumAbsDiff += (size_t)llabs(hist.symbolCount[j] - newHist.symbolCount[j]);
+        {
+          const size_t diff = (size_t)llabs(hist.symbolCount[j] - newHist.symbolCount[j]);
+          accumAbsDiff += diff * diff;
+        }
 
         histPotentialCount++;
         histPotentialDiff += accumAbsDiff;
@@ -279,8 +282,6 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
 
   return outIndex;
 }
-
-
 
 //////////////////////////////////////////////////////////////////////////
 
