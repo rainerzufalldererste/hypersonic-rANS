@@ -4,21 +4,19 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const size_t totalSymbolCountBits)
+void observe_hist(uint32_t hist[256], const uint8_t *pData, const size_t size)
 {
-  uint32_t hist[256];
-  memset(hist, 0, sizeof(hist));
-
-  const uint32_t totalSymbolCount = ((uint32_t)1 << totalSymbolCountBits);
+  memset(hist, 0, sizeof(uint32_t) * 256);
 
   for (size_t i = 0; i < size; i++)
     hist[pData[i]]++;
+}
 
-  uint32_t counter = 0;
+void normalize_hist(hist_t *pHist, const uint32_t hist[256], const size_t dataBytes, const size_t totalSymbolCountBits)
+{
+  const uint32_t totalSymbolCount = ((uint32_t)1 << totalSymbolCountBits);
 
-  for (size_t i = 0; i < 256; i++)
-    counter += hist[i];
-
+  size_t counter = dataBytes;
   uint16_t capped[256];
   size_t cappedSum = 0;
 
@@ -73,7 +71,7 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const siz
   }
   else
   {
-    const uint32_t div = counter / totalSymbolCount;
+    const uint32_t div = (uint32_t)(counter / (size_t)totalSymbolCount);
 
     if (div)
     {
@@ -91,7 +89,7 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const siz
     }
     else
     {
-      const uint32_t mul = totalSymbolCount / counter;
+      const uint32_t mul = (uint32_t)((size_t)totalSymbolCount / counter);
 
       for (size_t i = 0; i < 256; i++)
       {
@@ -109,13 +107,13 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const siz
 
       while (true)
       {
-        size_t found = totalSymbolCount;
+        size_t found = totalSymbolCount + 1;
 
         for (size_t i = 0; i < 256; i++)
           if (capped[i] > target && capped[i] < found)
             found = capped[i];
 
-        if (found == totalSymbolCount)
+        if (found == totalSymbolCount + 1)
           break;
 
         for (size_t i = 0; i < 256; i++)
@@ -136,7 +134,7 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const siz
 
     while (cappedSum < totalSymbolCount) // Start a charity.
     {
-      size_t target = totalSymbolCount;
+      size_t target = totalSymbolCount + 1;
 
       while (true)
       {
@@ -156,7 +154,7 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const siz
             capped[i]++;
             cappedSum++;
 
-            if (cappedSum == totalSymbolCount)
+            if (cappedSum == totalSymbolCount + 1)
               goto hist_ready;
           }
         }
@@ -175,6 +173,13 @@ hist_ready:
     pHist->symbolCount[i] = capped[i];
     counter += capped[i];
   }
+}
+
+void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const size_t totalSymbolCountBits)
+{
+  uint32_t hist[256];
+  observe_hist(hist, pData, size);
+  normalize_hist(pHist, hist, size, totalSymbolCountBits);
 }
 
 void make_enc_hist(hist_enc_t *pHistEnc, const hist_t *pHist)
