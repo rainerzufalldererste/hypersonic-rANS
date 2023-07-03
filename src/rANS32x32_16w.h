@@ -43,6 +43,12 @@ size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_12(const uint8_t *pInData, const 
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varA_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varB_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl_16w_decode_avx2_prefetch_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_prefetch_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_xmmShfl_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_xmmShfl2_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_ymmShfl_16w_decode_avx512_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
@@ -64,6 +70,12 @@ size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_11(const uint8_t *pInData, const 
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varA_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varB_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl_16w_decode_avx2_prefetch_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_prefetch_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_xmmShfl_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_xmmShfl2_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_ymmShfl_16w_decode_avx512_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
@@ -85,6 +97,12 @@ size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_10(const uint8_t *pInData, const 
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varA_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varB_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_ymmPerm_16w_decode_avx2_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl_16w_decode_avx2_prefetch_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_prefetch_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_xmmShfl_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_xmmShfl2_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_ymmShfl_16w_decode_avx512_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
@@ -95,15 +113,4 @@ size_t rANS32x32_xmmShfl2_16w_decode_avx512_ymmGthr_varC_10(const uint8_t *pInDa
 size_t rANS32x32_ymmShfl_16w_decode_avx512_ymmGthr_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x32_ymmShfl2_16w_decode_avx512_ymmGthr_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 
-size_t rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
-size_t rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
-size_t rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
-
-size_t rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
-size_t rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
-size_t rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
-
-size_t rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
-size_t rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
-size_t rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 #endif // rANS32x32_16w_h__
