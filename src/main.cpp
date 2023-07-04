@@ -488,12 +488,12 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r  %-38s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r  %-38s | %7.3f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
 
         SleepNs(rans_min(_NsPerRun[run] * 2ULL, 500ULL * 1000 * 1000));
       }
 
-      printf("\r  %-38s | %6.2f %% ", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0);
+      printf("\r  %-38s | %7.3f %% ", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0);
       print_perf_info(fileSize);
 
       if (_Codecs[codecId].decoders[0].func != nullptr)
@@ -505,7 +505,7 @@ int32_t main(const int32_t argc, char **pArgv)
       }
       else
       {
-        puts("Unable to validate, no decoder available.");
+        //puts("Unable to validate, no decoder available.");
       }
     }
 

@@ -21,12 +21,12 @@ struct HistReplaceMul
   constexpr static size_t GetValue();
 };
 
-template <> struct HistReplaceMul<15> { constexpr static size_t GetValue() { return 52450; } };
-template <> struct HistReplaceMul<14> { constexpr static size_t GetValue() { return 33915; } };
-template <> struct HistReplaceMul<13> { constexpr static size_t GetValue() { return 16800; } };
-template <> struct HistReplaceMul<12> { constexpr static size_t GetValue() { return 8140; } };
-template <> struct HistReplaceMul<11> { constexpr static size_t GetValue() { return 3865; } };
-template <> struct HistReplaceMul<10> { constexpr static size_t GetValue() { return 2898; } };
+template <> struct HistReplaceMul<15> { constexpr static size_t GetValue() { return 110; } };
+template <> struct HistReplaceMul<14> { constexpr static size_t GetValue() { return 110; } };
+template <> struct HistReplaceMul<13> { constexpr static size_t GetValue() { return 110; } };
+template <> struct HistReplaceMul<12> { constexpr static size_t GetValue() { return 110; } };
+template <> struct HistReplaceMul<11> { constexpr static size_t GetValue() { return 110; } };
+template <> struct HistReplaceMul<10> { constexpr static size_t GetValue() { return 90; } };
 
 size_t block_rANS32x32_16w_capacity(const size_t inputSize)
 {
@@ -57,11 +57,14 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
   size_t blockLowI = (((length - 1) & ~(size_t)(StateCount - 1)) & ~(size_t)(MinBlockSize - 1));
   size_t blockLowCmp = blockLowI + StateCount;
 
+  constexpr size_t totalSymbolCount = (1 << TotalSymbolCountBits);
+  constexpr int64_t histReplacePoint = (totalSymbolCount * HistReplaceMul<TotalSymbolCountBits>::GetValue()) >> 10;
+
   size_t histCount = 1;
   size_t histPotentialCount = 1;
-  size_t histDiff = 0;
-  size_t histPotentialDiff = 0;
-  size_t histRejectedDiff = 0;
+  int64_t histDiff = 0;
+  int64_t histPotentialDiff = 0;
+  int64_t histRejectedDiff = 0;
 
   if (blockLowI > MinBlockSize)
     blockLowI -= MinBlockSize;
@@ -167,6 +170,8 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
 
     // Potentially replace histogram.
     {
+      histPotentialCount++;
+
       blockLowI = i - MinBlockSize;
       blockLowCmp = blockLowI + StateCount;
 
@@ -192,8 +197,7 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
       {
         if constexpr (IsSafeHist)
           for (size_t j = 0; j < 256; j++)
-            if (symCount[j] == 0)
-              symCount[j] = 1;
+            symCount[j]++;
 
         hist_t newHist;
 
@@ -201,34 +205,67 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
         {
           for (size_t j = 0; j < 256; j++)
             newHist.symbolCount[j] = (uint16_t)symCount[j];
+
+          size_t counter = 0;
+
+          for (size_t j = 0; j < 256; j++)
+          {
+            newHist.cumul[j] = (uint16_t)counter;
+            counter += newHist.symbolCount[j];
+          }
         }
         else
         {
           normalize_hist(&newHist, symCount, MinBlockSize, TotalSymbolCountBits);
         }
 
-        size_t accumAbsDiff = 0;
+        double costBefore = 0;
+        double costAfter = 0;
 
-        for (size_t j = 0; j < 256; j++)
+        if constexpr (IsSafeHist)
         {
-          const size_t diff = (size_t)llabs(hist.symbolCount[j] - newHist.symbolCount[j]);
-          accumAbsDiff += diff * diff;
+          for (size_t j = 0; j < 256; j++)
+          {
+            if (symCount[j] == 0)
+              continue;
+
+            const double before = (symCount[j] - 1) * log2(hist.symbolCount[j] / (double)totalSymbolCount);
+            const double after = (symCount[j] - 1) * log2(newHist.symbolCount[j] / (double)totalSymbolCount);
+
+            costBefore -= before;
+            costAfter -= after;
+          }
+        }
+        else
+        {
+          for (size_t j = 0; j < 256; j++)
+          {
+            if (symCount[j] == 0)
+              continue;
+
+            const double before = symCount[j] * log2(hist.symbolCount[j] / (double)totalSymbolCount);
+            const double after = symCount[j] * log2(newHist.symbolCount[j] / (double)totalSymbolCount);
+
+            costBefore -= before;
+            costAfter -= after;
+          }
         }
 
-        histPotentialCount++;
-        histPotentialDiff += accumAbsDiff;
+        const double accumDiff = costBefore - costAfter;
+        
+        //printf("Block %" PRIu64": %7.5f before, %7.5f after => %7.5f diff: (%5.3f %% => %s)\n", histPotentialCount, costBefore / (double)(MinBlockSize * TotalSymbolCountBits), costAfter / (double)(MinBlockSize * TotalSymbolCountBits), (costAfter - costBefore) / (double)(MinBlockSize * TotalSymbolCountBits), accumDiff * 100.0 / histReplacePoint, accumDiff >= histReplacePoint ? "Accepted" : "Rejected");
 
-        constexpr size_t histReplacePoint = ((1 << TotalSymbolCountBits) * HistReplaceMul<TotalSymbolCountBits>::GetValue()) >> 10;
+        histPotentialDiff += (int64_t)accumDiff;
 
-        if (accumAbsDiff >= histReplacePoint)
+        if (accumDiff >= histReplacePoint)
         {
-          histDiff += accumAbsDiff;
+          histDiff += (int64_t)accumDiff;
           mustReplaceHist = true;
           hist = newHist;
         }
         else
         {
-          histRejectedDiff += accumAbsDiff;
+          histRejectedDiff += (int64_t)accumDiff;
         }
       }
 
@@ -278,7 +315,7 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
 
   *reinterpret_cast<uint64_t *>(pOutData + sizeof(uint64_t)) = outIndex; // write total output length.
 
-  printf("\t>>>>> %" PRIu64 " / %" PRIu64 " histograms used. approx block size: %6.3f KiB. avg diff selected: %5.3fk, total: %5.3fk, rejected: %5.3fk\n", histCount, histPotentialCount, (length / 1024.0) / histCount, (histDiff / 1024.0) / histCount, (histPotentialDiff / 1024.0) / histPotentialCount, (histRejectedDiff / 1024.0) / (histPotentialCount - histCount));
+  printf("\t>>>>> %" PRIu64 " / %" PRIu64 " (%5.3f %%) histograms used. approx block size: %6.3f KiB. avg diff selected: %5.3f, total: %5.3f, rejected: %5.3f\n", histCount, histPotentialCount, histCount * 100.0 / histPotentialCount, (length / 1024.0) / histCount, (histDiff * 100.0 / histReplacePoint) / histCount, (histPotentialDiff * 100.0 / histReplacePoint) / histPotentialCount, (histRejectedDiff * 100.0 / histReplacePoint) / (histPotentialCount - histCount));
 
   return outIndex;
 }
