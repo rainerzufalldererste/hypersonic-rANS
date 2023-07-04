@@ -21,12 +21,12 @@ struct HistReplaceMul
   constexpr static size_t GetValue();
 };
 
-template <> struct HistReplaceMul<15> { constexpr static size_t GetValue() { return 110; } };
-template <> struct HistReplaceMul<14> { constexpr static size_t GetValue() { return 110; } };
-template <> struct HistReplaceMul<13> { constexpr static size_t GetValue() { return 110; } };
-template <> struct HistReplaceMul<12> { constexpr static size_t GetValue() { return 110; } };
-template <> struct HistReplaceMul<11> { constexpr static size_t GetValue() { return 110; } };
-template <> struct HistReplaceMul<10> { constexpr static size_t GetValue() { return 90; } };
+template <> struct HistReplaceMul<15> { constexpr static size_t GetValue() { return 822; } };
+template <> struct HistReplaceMul<14> { constexpr static size_t GetValue() { return 2087; } };
+template <> struct HistReplaceMul<13> { constexpr static size_t GetValue() { return 3120; } };
+template <> struct HistReplaceMul<12> { constexpr static size_t GetValue() { return 5600; } };
+template <> struct HistReplaceMul<11> { constexpr static size_t GetValue() { return 7730; } };
+template <> struct HistReplaceMul<10> { constexpr static size_t GetValue() { return 4000; } };
 
 size_t block_rANS32x32_16w_capacity(const size_t inputSize)
 {
@@ -35,6 +35,97 @@ size_t block_rANS32x32_16w_capacity(const size_t inputSize)
   const size_t perBlockExtraSize = sizeof(uint64_t) + 256 * sizeof(uint16_t);
 
   return baseSize + blockCount * perBlockExtraSize; // i hope this covers all of our bases.
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+template <uint32_t TotalSymbolCountBits>
+static bool _CanExtendHist(const uint8_t *pData, const size_t nextBlockStartOffset, const size_t nextBlockSize, hist_t *pOldHist, uint32_t symCount[256])
+{
+  constexpr bool IsSafeHist = TotalSymbolCountBits >= SafeHistBitMax;
+
+  memset(symCount, 0, sizeof(uint32_t) * 256);
+  observe_hist(symCount, pData + nextBlockStartOffset, nextBlockSize);
+
+  // Do we include a symbol that hasn't been included before?
+  if constexpr (!IsSafeHist)
+  {
+    for (size_t j = 0; j < 256; j++)
+      if (symCount[j] > 0 && pOldHist->symbolCount[j] == 0)
+        return false;
+  }
+
+  hist_t newHist;
+
+  if constexpr (!IsSafeHist && (1 << TotalSymbolCountBits) == MinBlockSize)
+  {
+    for (size_t j = 0; j < 256; j++)
+      newHist.symbolCount[j] = (uint16_t)symCount[j];
+
+    size_t counter = 0;
+
+    for (size_t j = 0; j < 256; j++)
+    {
+      newHist.cumul[j] = (uint16_t)counter;
+      counter += newHist.symbolCount[j];
+    }
+  }
+  else
+  {
+    if constexpr (IsSafeHist)
+    {
+      for (size_t j = 0; j < 256; j++)
+        symCount[j]++;
+
+      normalize_hist(&newHist, symCount, MinBlockSize + 256, TotalSymbolCountBits);
+    }
+    else
+    {
+      normalize_hist(&newHist, symCount, MinBlockSize, TotalSymbolCountBits);
+    }
+  }
+
+  constexpr size_t totalSymbolCount = (1 << TotalSymbolCountBits);
+  constexpr int64_t histReplacePoint = (totalSymbolCount * HistReplaceMul<TotalSymbolCountBits>::GetValue()) >> 12;
+
+  // this comparison isn't fair or fast, but should be a good starting point hopefully.
+  double costBefore = 0;
+  double costAfter = 0;
+
+  if constexpr (IsSafeHist)
+  {
+    for (size_t j = 0; j < 256; j++)
+    {
+      if (symCount[j] == 0)
+        continue;
+
+      const double before = (symCount[j] - 1) * log2(pOldHist->symbolCount[j] / (double)totalSymbolCount);
+      const double after = (symCount[j] - 1) * log2(newHist.symbolCount[j] / (double)totalSymbolCount);
+
+      costBefore -= before;
+      costAfter -= after;
+    }
+  }
+  else
+  {
+    for (size_t j = 0; j < 256; j++)
+    {
+      if (symCount[j] == 0)
+        continue;
+
+      const double before = symCount[j] * log2(pOldHist->symbolCount[j] / (double)totalSymbolCount);
+      const double after = symCount[j] * log2(newHist.symbolCount[j] / (double)totalSymbolCount);
+
+      costBefore -= before;
+      costAfter -= after;
+    }
+  }
+
+  const double diff = costBefore - costAfter;
+
+  //printf("[%8" PRIX64 " ~ %8" PRIX64 "]  %7.5f before, %7.5f after => %7.5f diff: (%5.3f %% => %s)\n", nextBlockStartOffset, nextBlockStartOffset + nextBlockSize, costBefore / (double)(MinBlockSize * TotalSymbolCountBits), costAfter / (double)(MinBlockSize * TotalSymbolCountBits), (costAfter - costBefore) / (double)(MinBlockSize * TotalSymbolCountBits), diff * 100.0 / histReplacePoint, diff >= histReplacePoint ? "Accepted" : "Rejected");
+
+  return (diff < histReplacePoint);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -53,24 +144,20 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
   uint32_t states[StateCount];
   uint16_t *pEnd = reinterpret_cast<uint16_t *>(pOutData + outCapacity - sizeof(uint16_t));
   uint16_t *pStart = pEnd;
-  uint16_t *pBlockBack = pStart;
+  
   size_t blockLowI = (((length - 1) & ~(size_t)(StateCount - 1)) & ~(size_t)(MinBlockSize - 1));
-  size_t blockLowCmp = blockLowI + StateCount;
-
-  constexpr size_t totalSymbolCount = (1 << TotalSymbolCountBits);
-  constexpr int64_t histReplacePoint = (totalSymbolCount * HistReplaceMul<TotalSymbolCountBits>::GetValue()) >> 10;
-
-  size_t histCount = 1;
-  size_t histPotentialCount = 1;
-  int64_t histDiff = 0;
-  int64_t histPotentialDiff = 0;
-  int64_t histRejectedDiff = 0;
 
   if (blockLowI > MinBlockSize)
     blockLowI -= MinBlockSize;
 
+  size_t blockLowCmp = blockLowI + StateCount;
+  size_t blockBackPoint = length;
+
+  size_t histCount = 1;
+  size_t histPotentialCount = 1;
+
   uint32_t symCount[256];
-  observe_hist(symCount, pInData + blockLowI, length - blockLowI);
+  observe_hist(symCount, pInData + blockLowI, blockBackPoint - blockLowI);
 
   if constexpr (IsSafeHist)
     for (size_t j = 0; j < 256; j++)
@@ -78,7 +165,28 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
         symCount[j] = 1;
 
   hist_t hist;
-  normalize_hist(&hist, symCount, length - blockLowI, TotalSymbolCountBits);
+  normalize_hist(&hist, symCount, blockBackPoint - blockLowI, TotalSymbolCountBits);
+
+  while (blockLowI > 0)
+  {
+    histPotentialCount++;
+
+    if (_CanExtendHist<TotalSymbolCountBits>(pInData, blockLowI - MinBlockSize, MinBlockSize, &hist, symCount))
+    {
+      blockLowI -= MinBlockSize;
+      blockLowCmp -= MinBlockSize;
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  // Performance of this could be improved by keeping the current counts around. (or simply using the original hist, if that was only good for one block)
+  observe_hist(symCount, pInData + blockLowI, blockBackPoint - blockLowI);
+  normalize_hist(&hist, symCount, blockBackPoint - blockLowI, TotalSymbolCountBits);
+  //printf(">> USING HIST FOR [%8" PRIX64 " ~ %" PRIX64 "]\n", blockLowI, blockBackPoint);
+  blockBackPoint = blockLowI;
 
   // Init States.
   for (size_t i = 0; i < StateCount; i++)
@@ -164,126 +272,60 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
         states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)hist.cumul[in] + (state % symbolCount);
       }
     }
+    
+    // Write hist.
+    {
+      const uint64_t blockSize = blockBackPoint - blockLowI;
+
+      pStart++;
+      pStart -= 256;
+      memcpy(pStart, hist.symbolCount, sizeof(hist.symbolCount));
+
+      pStart -= sizeof(uint64_t) / sizeof(uint16_t);
+      memcpy(pStart, &blockSize, sizeof(blockSize));
+
+      pStart--;
+
+      histCount++;
+    }
 
     if (i == 0)
       break;
 
     // Potentially replace histogram.
     {
-      histPotentialCount++;
+      blockLowI -= MinBlockSize;
+      blockLowCmp -= MinBlockSize;
 
-      blockLowI = i - MinBlockSize;
-      blockLowCmp = blockLowI + StateCount;
-
-      memset(symCount, 0, sizeof(symCount));
       observe_hist(symCount, pInData + blockLowI, MinBlockSize);
 
-      bool mustReplaceHist = false;
-
-      if constexpr (!IsSafeHist)
-      {
+      if constexpr (IsSafeHist)
         for (size_t j = 0; j < 256; j++)
-        {
-          if (symCount[j] > 0 && hist.symbolCount[j] == 0)
-          {
-            mustReplaceHist = true;
-            normalize_hist(&hist, symCount, MinBlockSize, TotalSymbolCountBits);
-            break;
-          }
-        }
-      }
+          if (symCount[j] == 0)
+            symCount[j] = 1;
 
-      if (!mustReplaceHist)
+      normalize_hist(&hist, symCount, MinBlockSize, TotalSymbolCountBits);
+
+      while (blockLowI > 0)
       {
-        if constexpr (IsSafeHist)
-          for (size_t j = 0; j < 256; j++)
-            symCount[j]++;
+        histPotentialCount++;
 
-        hist_t newHist;
-
-        if constexpr (!IsSafeHist && (1 << TotalSymbolCountBits) == MinBlockSize)
+        if (_CanExtendHist<TotalSymbolCountBits>(pInData, blockLowI - MinBlockSize, MinBlockSize, &hist, symCount))
         {
-          for (size_t j = 0; j < 256; j++)
-            newHist.symbolCount[j] = (uint16_t)symCount[j];
-
-          size_t counter = 0;
-
-          for (size_t j = 0; j < 256; j++)
-          {
-            newHist.cumul[j] = (uint16_t)counter;
-            counter += newHist.symbolCount[j];
-          }
+          blockLowI -= MinBlockSize;
+          blockLowCmp -= MinBlockSize;
         }
         else
         {
-          normalize_hist(&newHist, symCount, MinBlockSize, TotalSymbolCountBits);
-        }
-
-        double costBefore = 0;
-        double costAfter = 0;
-
-        if constexpr (IsSafeHist)
-        {
-          for (size_t j = 0; j < 256; j++)
-          {
-            if (symCount[j] == 0)
-              continue;
-
-            const double before = (symCount[j] - 1) * log2(hist.symbolCount[j] / (double)totalSymbolCount);
-            const double after = (symCount[j] - 1) * log2(newHist.symbolCount[j] / (double)totalSymbolCount);
-
-            costBefore -= before;
-            costAfter -= after;
-          }
-        }
-        else
-        {
-          for (size_t j = 0; j < 256; j++)
-          {
-            if (symCount[j] == 0)
-              continue;
-
-            const double before = symCount[j] * log2(hist.symbolCount[j] / (double)totalSymbolCount);
-            const double after = symCount[j] * log2(newHist.symbolCount[j] / (double)totalSymbolCount);
-
-            costBefore -= before;
-            costAfter -= after;
-          }
-        }
-
-        const double accumDiff = costBefore - costAfter;
-        
-        //printf("Block %" PRIu64": %7.5f before, %7.5f after => %7.5f diff: (%5.3f %% => %s)\n", histPotentialCount, costBefore / (double)(MinBlockSize * TotalSymbolCountBits), costAfter / (double)(MinBlockSize * TotalSymbolCountBits), (costAfter - costBefore) / (double)(MinBlockSize * TotalSymbolCountBits), accumDiff * 100.0 / histReplacePoint, accumDiff >= histReplacePoint ? "Accepted" : "Rejected");
-
-        histPotentialDiff += (int64_t)accumDiff;
-
-        if (accumDiff >= histReplacePoint)
-        {
-          histDiff += (int64_t)accumDiff;
-          mustReplaceHist = true;
-          hist = newHist;
-        }
-        else
-        {
-          histRejectedDiff += (int64_t)accumDiff;
+          break;
         }
       }
 
-      if (mustReplaceHist)
-      {
-        const uint64_t blockSize = pBlockBack - pStart;
-
-        pStart++;
-        pStart -= 256;
-        memcpy(pStart, hist.symbolCount, sizeof(hist.symbolCount));
-        pStart -= sizeof(uint64_t);
-        memcpy(pStart, &blockSize, sizeof(blockSize));
-
-        pStart--;
-        pBlockBack = pStart;
-
-        histCount++;
-      }
+      // Performance of this could be improved by keeping the current counts around. (or simply using the original hist, if that was only good for one block)
+      observe_hist(symCount, pInData + blockLowI, blockBackPoint - blockLowI);
+      normalize_hist(&hist, symCount, blockBackPoint - blockLowI, TotalSymbolCountBits);
+      //printf(">> USING HIST FOR [%8" PRIX64 " ~ %" PRIX64 "]: i: %" PRIX64 "\n", blockLowI, blockBackPoint, i);
+      blockBackPoint = blockLowI;
     }
   }
 
@@ -315,7 +357,7 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
 
   *reinterpret_cast<uint64_t *>(pOutData + sizeof(uint64_t)) = outIndex; // write total output length.
 
-  printf("\t>>>>> %" PRIu64 " / %" PRIu64 " (%5.3f %%) histograms used. approx block size: %6.3f KiB. avg diff selected: %5.3f, total: %5.3f, rejected: %5.3f\n", histCount, histPotentialCount, histCount * 100.0 / histPotentialCount, (length / 1024.0) / histCount, (histDiff * 100.0 / histReplacePoint) / histCount, (histPotentialDiff * 100.0 / histReplacePoint) / histPotentialCount, (histRejectedDiff * 100.0 / histReplacePoint) / (histPotentialCount - histCount));
+  printf("\t>>>>> %" PRIu64 " / %" PRIu64 " (%5.3f %%) histograms used. approx block size: %6.3f KiB.\n", histCount, histPotentialCount, histCount * 100.0 / histPotentialCount, (length / 1024.0) / histCount);
 
   return outIndex;
 }
