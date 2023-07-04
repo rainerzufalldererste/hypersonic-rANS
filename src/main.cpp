@@ -149,12 +149,12 @@ size_t encode_no_hist_wrapper(const uint8_t *pInData, const size_t length, uint8
 
 static codec_info_t _Codecs[] =
 {
-  { "rANS32x32 16w (adaptive blocks)", 15, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_15>, true }, {}}, {{}, { "decode", block_rANS32x32_16w_decode_15, true }, {}}},
-  { "rANS32x32 16w (adaptive blocks)", 14, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_14>, true }, {}}, {{}, { "decode", block_rANS32x32_16w_decode_14, true }, {}}},
-  { "rANS32x32 16w (adaptive blocks)", 13, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_13>, true }, {}}, {{}, { "decode", block_rANS32x32_16w_decode_13, true }, {}}},
-  { "rANS32x32 16w (adaptive blocks)", 12, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_12>, true }, {}}, {{}, { "decode", block_rANS32x32_16w_decode_12, true }, {}}},
-  { "rANS32x32 16w (adaptive blocks)", 11, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_11>, true }, {}}, {{}, { "decode", block_rANS32x32_16w_decode_11, true }, {}}},
-  { "rANS32x32 16w (adaptive blocks)", 10, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_10>, true }, {}}, {{}, { "decode", block_rANS32x32_16w_decode_10, true }, {}}},
+  { "rANS32x32 16w (adaptive blocks)", 15, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_15>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_15, true }, {}}},
+  { "rANS32x32 16w (adaptive blocks)", 14, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_14>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_14, true }, {}}},
+  { "rANS32x32 16w (adaptive blocks)", 13, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_13>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_13, true }, {}}},
+  { "rANS32x32 16w (adaptive blocks)", 12, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_12>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_12, true }, {}}},
+  { "rANS32x32 16w (adaptive blocks)", 11, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_11>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_11, true }, {}}},
+  { "rANS32x32 16w (adaptive blocks)", 10, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_10>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_10, true }, {}}},
   
   { "rANS32x32 16w (raw)", 15, {{ "enc scalar", rANS32x32_16w_encode_scalar_15, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_15 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_15 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_15 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_15, true }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_15, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_15 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_15 }, {}}},
   { "rANS32x32 16w (raw)", 14, {{ "enc scalar", rANS32x32_16w_encode_scalar_14, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_14 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_14 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_14 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_14, true }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_14, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_14 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_14 }, {}}},
@@ -488,12 +488,12 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r  %-38s | %7.3f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r  %-38s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
 
         SleepNs(rans_min(_NsPerRun[run] * 2ULL, 500ULL * 1000 * 1000));
       }
 
-      printf("\r  %-38s | %7.3f %% ", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0);
+      printf("\r  %-38s | %6.2f %% ", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0);
       print_perf_info(fileSize);
 
       if (_Codecs[codecId].decoders[0].func != nullptr)
@@ -505,7 +505,7 @@ int32_t main(const int32_t argc, char **pArgv)
       }
       else
       {
-        //puts("Unable to validate, no decoder available.");
+        puts("Unable to validate, no decoder available.");
       }
     }
 

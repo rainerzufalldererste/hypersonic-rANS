@@ -6,9 +6,6 @@
 #include <string.h>
 #include <math.h>
 
-#include <stdio.h>
-#include <inttypes.h>
-
 constexpr size_t StateCount = 32; // Needs to be a power of two.
 constexpr bool EncodeNoBranch = false;
 //constexpr bool DecodeNoBranch = false;
@@ -86,11 +83,11 @@ static bool _CanExtendHist(const uint8_t *pData, const size_t nextBlockStartOffs
   }
 
   constexpr size_t totalSymbolCount = (1 << TotalSymbolCountBits);
-  constexpr int64_t histReplacePoint = (totalSymbolCount * HistReplaceMul<TotalSymbolCountBits>::GetValue()) >> 12;
+  constexpr size_t histReplacePoint = (totalSymbolCount * HistReplaceMul<TotalSymbolCountBits>::GetValue()) >> 12;
 
   // this comparison isn't fair or fast, but should be a good starting point hopefully.
-  double costBefore = 0;
-  double costAfter = 0;
+  float costBefore = 0;
+  float costAfter = 0;
 
   if constexpr (IsSafeHist)
   {
@@ -99,8 +96,8 @@ static bool _CanExtendHist(const uint8_t *pData, const size_t nextBlockStartOffs
       if (symCount[j] == 0)
         continue;
 
-      const double before = (symCount[j] - 1) * log2(pOldHist->symbolCount[j] / (double)totalSymbolCount);
-      const double after = (symCount[j] - 1) * log2(newHist.symbolCount[j] / (double)totalSymbolCount);
+      const float before = (symCount[j] - 1) * log2f(pOldHist->symbolCount[j] / (float)totalSymbolCount);
+      const float after = (symCount[j] - 1) * log2f(newHist.symbolCount[j] / (float)totalSymbolCount);
 
       costBefore -= before;
       costAfter -= after;
@@ -113,17 +110,15 @@ static bool _CanExtendHist(const uint8_t *pData, const size_t nextBlockStartOffs
       if (symCount[j] == 0)
         continue;
 
-      const double before = symCount[j] * log2(pOldHist->symbolCount[j] / (double)totalSymbolCount);
-      const double after = symCount[j] * log2(newHist.symbolCount[j] / (double)totalSymbolCount);
+      const float before = symCount[j] * log2f(pOldHist->symbolCount[j] / (float)totalSymbolCount);
+      const float after = symCount[j] * log2f(newHist.symbolCount[j] / (float)totalSymbolCount);
 
       costBefore -= before;
       costAfter -= after;
     }
   }
 
-  const double diff = costBefore - costAfter;
-
-  //printf("[%8" PRIX64 " ~ %8" PRIX64 "]  %7.5f before, %7.5f after => %7.5f diff: (%5.3f %% => %s)\n", nextBlockStartOffset, nextBlockStartOffset + nextBlockSize, costBefore / (double)(MinBlockSize * TotalSymbolCountBits), costAfter / (double)(MinBlockSize * TotalSymbolCountBits), (costAfter - costBefore) / (double)(MinBlockSize * TotalSymbolCountBits), diff * 100.0 / histReplacePoint, diff >= histReplacePoint ? "Accepted" : "Rejected");
+  const float diff = costBefore - costAfter;
 
   return (diff < histReplacePoint);
 }
@@ -185,7 +180,6 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
   // Performance of this could be improved by keeping the current counts around. (or simply using the original hist, if that was only good for one block)
   observe_hist(symCount, pInData + blockLowI, blockBackPoint - blockLowI);
   normalize_hist(&hist, symCount, blockBackPoint - blockLowI, TotalSymbolCountBits);
-  //printf(">> USING HIST FOR [%8" PRIX64 " ~ %" PRIX64 "]\n", blockLowI, blockBackPoint);
   blockBackPoint = blockLowI;
 
   // Init States.
@@ -324,7 +318,6 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
       // Performance of this could be improved by keeping the current counts around. (or simply using the original hist, if that was only good for one block)
       observe_hist(symCount, pInData + blockLowI, blockBackPoint - blockLowI);
       normalize_hist(&hist, symCount, blockBackPoint - blockLowI, TotalSymbolCountBits);
-      //printf(">> USING HIST FOR [%8" PRIX64 " ~ %" PRIX64 "]: i: %" PRIX64 "\n", blockLowI, blockBackPoint, i);
       blockBackPoint = blockLowI;
     }
   }
@@ -356,8 +349,6 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
   outIndex += size;
 
   *reinterpret_cast<uint64_t *>(pOutData + sizeof(uint64_t)) = outIndex; // write total output length.
-
-  printf("\t>>>>> %" PRIu64 " / %" PRIu64 " (%5.3f %%) histograms used. approx block size: %6.3f KiB.\n", histCount, histPotentialCount, histCount * 100.0 / histPotentialCount, (length / 1024.0) / histCount);
 
   return outIndex;
 }
