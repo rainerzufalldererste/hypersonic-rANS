@@ -21,6 +21,7 @@ struct _rans_decode_state_t
 {
   uint32_t states[StateCount];
   hist_type hist;
+  const uint16_t *pReadHead;
 };
 
 enum rans32x32_decoder_type_t
@@ -31,13 +32,13 @@ enum rans32x32_decoder_type_t
 template <rans32x32_decoder_type_t type, uint32_t TotalSymbolCountBits, typename hist_type>
 struct rans32x32_16w_decoder
 {
-  static const uint16_t *decode_section(_rans_decode_state_t<hist_type> *pState, const uint16_t *pReadHead, uint8_t *pOutData, const size_t startIndex, const size_t endIndex);
+  static size_t decode_section(_rans_decode_state_t<hist_type> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex);
 };
 
 template <uint32_t TotalSymbolCountBits>
 struct rans32x32_16w_decoder<r32x32_dt_scalar, TotalSymbolCountBits, hist_dec_t<TotalSymbolCountBits>>
 {
-  static const uint16_t *decode_section(_rans_decode_state_t<hist_dec_t<TotalSymbolCountBits>> *pState, const uint16_t *pReadHead, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
+  static size_t decode_section(_rans_decode_state_t<hist_dec_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
   {
     constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
 
@@ -59,16 +60,16 @@ struct rans32x32_16w_decoder<r32x32_dt_scalar, TotalSymbolCountBits, hist_dec_t<
         if constexpr (DecodeNoBranch)
         {
           const bool read = state < DecodeConsumePoint16;
-          const uint32_t newState = state << 16 | *pReadHead;
+          const uint32_t newState = state << 16 | *pState->pReadHead;
           state = read ? newState : state;
-          pReadHead += (size_t)read;
+          pState->pReadHead += (size_t)read;
         }
         else
         {
           if (state < DecodeConsumePoint16)
           {
-            state = state << 16 | *pReadHead;
-            pReadHead++;
+            state = state << 16 | *pState->pReadHead;
+            pState->pReadHead++;
           }
         }
 
@@ -76,7 +77,7 @@ struct rans32x32_16w_decoder<r32x32_dt_scalar, TotalSymbolCountBits, hist_dec_t<
       }
     }
 
-    return pReadHead;
+    return i;
   }
 };
 
@@ -87,7 +88,7 @@ static bool _init_from_hist(hist_dec_t<TotalSymbolCountBits> *pDecHist, hist_t *
 {
   (void)totalSymbolCountBits;
 
-  memcpy(pDecHist, pIncompleteHist, sizeof(hist_t));
+  memcpy(&pDecHist->symbolCount, &pIncompleteHist->symbolCount, sizeof(pIncompleteHist->symbolCount));
 
   return inplace_make_hist_dec(pDecHist);
 }
@@ -124,20 +125,20 @@ size_t block_rANS32x32_16w_decode(const uint8_t *pInData, const size_t inLength,
     inputIndex += sizeof(uint32_t);
   }
 
-  const uint16_t *pReadHead = reinterpret_cast<const uint16_t *>(pInData + inputIndex);
+  decodeState.pReadHead = reinterpret_cast<const uint16_t *>(pInData + inputIndex);
   const size_t outLengthInStates = expectedOutputLength - StateCount + 1;
   size_t i = 0;
   hist_t hist;
 
   do
   {
-    const uint64_t blockSize = *reinterpret_cast<const uint64_t *>(pReadHead);
-    pReadHead += sizeof(uint64_t) / sizeof(uint16_t);
+    const uint64_t blockSize = *reinterpret_cast<const uint64_t *>(decodeState.pReadHead);
+    decodeState.pReadHead += sizeof(uint64_t) / sizeof(uint16_t);
 
     for (size_t j = 0; j < 256; j++)
     {
-      hist.symbolCount[j] = *pReadHead;
-      pReadHead++;
+      hist.symbolCount[j] = *decodeState.pReadHead;
+      decodeState.pReadHead++;
     }
 
     if (!_init_from_hist(&decodeState.hist, &hist, TotalSymbolCountBits))
@@ -150,19 +151,22 @@ size_t block_rANS32x32_16w_decode(const uint8_t *pInData, const size_t inLength,
     else if ((blockEndInStates & (StateCount - 1)) != 0)
       return 0;
 
-    pReadHead = rans32x32_16w_decoder<Impl, TotalSymbolCountBits, hist_type>::decode_section(&decodeState, pReadHead, pOutData, i, blockEndInStates);
+    i = rans32x32_16w_decoder<Impl, TotalSymbolCountBits, hist_type>::decode_section(&decodeState, pOutData, i, blockEndInStates);
 
-    i = blockEndInStates;
+    if (i > outLengthInStates)
+    {
+      if (i >= expectedOutputLength)
+        return expectedOutputLength;
+      else
+        break;
+    }
 
-    if (i + StateCount > outLengthInStates)
-      break;
-  }
-  while (i < outLengthInStates);
+  } while (i < outLengthInStates);
 
   if (i < expectedOutputLength)
   {
     hist_dec_t<TotalSymbolCountBits> histDec;
-    memcpy(&histDec, &hist, sizeof(hist));
+    memcpy(&histDec.symbolCount, &hist.symbolCount, sizeof(hist.symbolCount));
 
     if (!inplace_make_hist_dec<TotalSymbolCountBits>(&histDec))
       return 0;
@@ -184,16 +188,16 @@ size_t block_rANS32x32_16w_decode(const uint8_t *pInData, const size_t inLength,
         if constexpr (DecodeNoBranch)
         {
           const bool read = state < DecodeConsumePoint16;
-          const uint32_t newState = state << 16 | *pReadHead;
+          const uint32_t newState = state << 16 | *decodeState.pReadHead;
           state = read ? newState : state;
-          pReadHead += (size_t)read;
+          decodeState.pReadHead += (size_t)read;
         }
         else
         {
           if (state < DecodeConsumePoint16)
           {
-            state = state << 16 | *pReadHead;
-            pReadHead++;
+            state = state << 16 | *decodeState.pReadHead;
+            decodeState.pReadHead++;
           }
         }
 
