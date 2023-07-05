@@ -51,6 +51,8 @@ static size_t _HistMin = 10;
 static bool _Include32Block = false;
 static bool _IncludeRaw = false;
 static size_t _RunCount = 8;
+static size_t _EncodeRunCount = 2;
+static size_t _DecodeRunCount = 16;
 
 constexpr size_t MaxRunCount = 256;
 static uint64_t _ClocksPerRun[MaxRunCount];
@@ -202,6 +204,8 @@ const char ArgumentIncludeRaw[] = "--include-raw";
 const char ArgumentNoSleep[] = "--no-sleep";
 const char ArgumentCpuCore[] = "--cpu-core";
 const char ArgumentRuns[] = "--runs";
+const char ArgumentRunsEncode[] = "--runs-enc";
+const char ArgumentRunsDecode[] = "--runs-dec";
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -217,7 +221,10 @@ int32_t main(const int32_t argc, char **pArgv)
     printf("\t%s \tRun the benchmark on a specific core\n", ArgumentCpuCore);
     printf("\t%s \tInclude RAW variants with one only one histogram for the entire file\n", ArgumentIncludeRaw);
     printf("\t%s \tInclude 32 block variants (which are generally quite slow), requires '%s'\n", ArgumentInclude32Blk, ArgumentIncludeRaw);
-    printf("\t%s <uint>\tRun the benchmark for a specified amount of times (default: 8)\n", ArgumentNoSleep);
+    printf("\t%s <uint>\tRun the benchmark for a specified amount of times (default: 2 encode, 16 decode; will override '%s'/'%s')\n", ArgumentRuns, ArgumentRunsEncode, ArgumentRunsDecode);
+    printf("\t%s <uint>\tWhen Encoding: Run the benchmark for a specified amount of times (default: 2)\n", ArgumentRunsEncode);
+    printf("\t%s <uint>\tWhen Decoding: Run the benchmark for a specified amount of times (default: 16)\n", ArgumentRunsDecode);
+    printf("\t%s <uint>\tPrevent sleeping between runs/codecs (may lead to thermal throttling)\n", ArgumentNoSleep);
     return 1;
   }
 
@@ -267,6 +274,44 @@ int32_t main(const int32_t argc, char **pArgv)
         else if (_RunCount == 0)
         {
           _RunCount = 1;
+          _DisableSleep = true;
+        }
+
+        _EncodeRunCount = _DecodeRunCount = _RunCount;
+
+        argIndex += 2;
+        argsRemaining -= 2;
+      }
+      else if (argsRemaining >= 2 && strncmp(pArgv[argIndex], ArgumentRunsEncode, sizeof(ArgumentRunsEncode)) == 0)
+      {
+        _EncodeRunCount = strtoull(pArgv[argIndex + 1], nullptr, 10);
+
+        if (_EncodeRunCount > MaxRunCount)
+        {
+          puts("Invalid Parameter.");
+          return 1;
+        }
+        else if (_EncodeRunCount == 0)
+        {
+          _EncodeRunCount = 1;
+          _DisableSleep = true;
+        }
+
+        argIndex += 2;
+        argsRemaining -= 2;
+      }
+      else if (argsRemaining >= 2 && strncmp(pArgv[argIndex], ArgumentRunsDecode, sizeof(ArgumentRunsDecode)) == 0)
+      {
+        _DecodeRunCount = strtoull(pArgv[argIndex + 1], nullptr, 10);
+
+        if (_DecodeRunCount > MaxRunCount)
+        {
+          puts("Invalid Parameter.");
+          return 1;
+        }
+        else if (_DecodeRunCount == 0)
+        {
+          _DecodeRunCount = 1;
           _DisableSleep = true;
         }
 
@@ -445,6 +490,7 @@ int32_t main(const int32_t argc, char **pArgv)
     printf("%-37s %2" PRIu32 " | -------- | ---------------- | ------------------------------------ | -------------- | ------------------------------------\n", _Codecs[codecId].name, _Codecs[codecId].totalSymbolCountBits);
 
     size_t encodedSize = 0;
+    _RunCount = _EncodeRunCount;
 
     for (size_t i = 0; i < MaxEncoderCount; i++)
     {
@@ -510,6 +556,7 @@ int32_t main(const int32_t argc, char **pArgv)
     }
 
     size_t decodedSize = 0;
+    _RunCount = _DecodeRunCount;
 
     for (size_t i = 0; i < MaxDecoderCount; i++)
     {
