@@ -241,7 +241,7 @@ size_t block_rANS32x32_16w_encode(const uint8_t *pInData, const size_t length, u
   // Performance of this could be improved by keeping the current counts around. (or simply using the original hist, if that was only good for one block)
   observe_hist(symCount, pInData + inputBlockTargetIndex, blockBackPoint - inputBlockTargetIndex);
   normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex, TotalSymbolCountBits);
-  blockBackPoint = inputBlockTargetIndex;
+  blockBackPoint = length;
 
   // Init States.
   for (size_t i = 0; i < StateCount; i++)
@@ -324,7 +324,7 @@ size_t block_rANS32x32_16w_encode(const uint8_t *pInData, const size_t length, u
       // Performance of this could be improved by keeping the current counts around. (or simply using the original hist, if that was only good for one block)
       observe_hist(symCount, pInData + inputBlockTargetIndex, blockBackPoint - inputBlockTargetIndex);
       normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex, TotalSymbolCountBits);
-      blockBackPoint = inputBlockTargetIndex;
+      blockBackPoint = inputIndex;
     }
   }
 
@@ -361,10 +361,3 @@ size_t block_rANS32x32_16w_encode_13(const uint8_t *pInData, const size_t length
 size_t block_rANS32x32_16w_encode_12(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode<12, r32x32_et_scalar>(pInData, length, pOutData, outCapacity); }
 size_t block_rANS32x32_16w_encode_11(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode<11, r32x32_et_scalar>(pInData, length, pOutData, outCapacity); }
 size_t block_rANS32x32_16w_encode_10(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode<10, r32x32_et_scalar>(pInData, length, pOutData, outCapacity); }
-
-size_t block_rANS32x32_16w_decode_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { (void)pInData; (void)inLength; (void)pOutData; (void)outCapacity; return 0; }
-size_t block_rANS32x32_16w_decode_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { (void)pInData; (void)inLength; (void)pOutData; (void)outCapacity; return 0; }
-size_t block_rANS32x32_16w_decode_13(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { (void)pInData; (void)inLength; (void)pOutData; (void)outCapacity; return 0; }
-size_t block_rANS32x32_16w_decode_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { (void)pInData; (void)inLength; (void)pOutData; (void)outCapacity; return 0; }
-size_t block_rANS32x32_16w_decode_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { (void)pInData; (void)inLength; (void)pOutData; (void)outCapacity; return 0; }
-size_t block_rANS32x32_16w_decode_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { (void)pInData; (void)inLength; (void)pOutData; (void)outCapacity; return 0; }
