@@ -9,8 +9,9 @@
 constexpr size_t StateCount = 32; // Needs to be a power of two.
 constexpr bool EncodeNoBranch = false;
 constexpr size_t SafeHistBitMax = 0;
-constexpr size_t MinBlockSizeBits = 15;
-constexpr size_t MinBlockSize = 1 << MinBlockSizeBits;
+
+constexpr size_t MinMinBlockSizeBits = 15;
+constexpr size_t MinMinBlockSize = (size_t)1 << MinMinBlockSizeBits;
 
 template <size_t TotalSymbolCountBits>
 struct HistReplaceMul
@@ -25,10 +26,29 @@ template <> struct HistReplaceMul<12> { constexpr static size_t GetValue() { ret
 template <> struct HistReplaceMul<11> { constexpr static size_t GetValue() { return 7730; } };
 template <> struct HistReplaceMul<10> { constexpr static size_t GetValue() { return 4000; } };
 
+template <size_t TotalSymbolCountBits>
+struct MinBlockSizeBits
+{
+  constexpr static size_t GetValue();
+};
+
+template <> struct MinBlockSizeBits<15> { constexpr static size_t GetValue() { return 18; } };
+template <> struct MinBlockSizeBits<14> { constexpr static size_t GetValue() { return 17; } };
+template <> struct MinBlockSizeBits<13> { constexpr static size_t GetValue() { return 17; } };
+template <> struct MinBlockSizeBits<12> { constexpr static size_t GetValue() { return 15; } };
+template <> struct MinBlockSizeBits<11> { constexpr static size_t GetValue() { return 19; } };
+template <> struct MinBlockSizeBits<10> { constexpr static size_t GetValue() { return 20; } };
+
+template <uint32_t TotalSymbolCountBits>
+constexpr size_t MinBlockSize()
+{
+  return (size_t)1 << MinBlockSizeBits<TotalSymbolCountBits>::GetValue();
+}
+
 size_t block_rANS32x32_16w_capacity(const size_t inputSize)
 {
   const size_t baseSize = 2 * sizeof(uint64_t) + 256 * sizeof(uint16_t) + inputSize + StateCount * sizeof(uint32_t);
-  const size_t blockCount = (inputSize + MinBlockSize) / MinBlockSize + 1;
+  const size_t blockCount = (inputSize + MinMinBlockSize) / MinMinBlockSize + 1;
   const size_t perBlockExtraSize = sizeof(uint64_t) + 256 * sizeof(uint16_t);
 
   return baseSize + blockCount * perBlockExtraSize; // inputIndex hope this covers all of our bases.
@@ -127,7 +147,7 @@ static bool _CanExtendHist(const uint8_t *pData, const size_t nextBlockStartOffs
 
   hist_t newHist;
 
-  if constexpr (!IsSafeHist && TotalSymbolCountBits == MinBlockSizeBits)
+  if constexpr (TotalSymbolCountBits == MinBlockSize<TotalSymbolCountBits>())
   {
     for (size_t j = 0; j < 256; j++)
       newHist.symbolCount[j] = (uint16_t)symCount[j];
@@ -142,17 +162,7 @@ static bool _CanExtendHist(const uint8_t *pData, const size_t nextBlockStartOffs
   }
   else
   {
-    if constexpr (IsSafeHist)
-    {
-      for (size_t j = 0; j < 256; j++)
-        symCount[j]++;
-
-      normalize_hist(&newHist, symCount, MinBlockSize + 256, TotalSymbolCountBits);
-    }
-    else
-    {
-      normalize_hist(&newHist, symCount, MinBlockSize, TotalSymbolCountBits);
-    }
+    normalize_hist(&newHist, symCount, MinBlockSize<TotalSymbolCountBits>(), TotalSymbolCountBits);
   }
 
   constexpr size_t totalSymbolCount = (1 << TotalSymbolCountBits);
@@ -170,7 +180,7 @@ static bool _CanExtendHist(const uint8_t *pData, const size_t nextBlockStartOffs
         continue;
 
       const float before = (symCount[j] - 1) * log2f(pOldHist->symbolCount[j] / (float)totalSymbolCount);
-      const float after = (symCount[j] - 1) * log2f(newHist.symbolCount[j] / (float)totalSymbolCount);
+      const float after = symCount[j] * log2f(newHist.symbolCount[j] / (float)totalSymbolCount);
 
       costBefore -= before;
       costAfter -= after;
@@ -208,15 +218,16 @@ size_t block_rANS32x32_16w_encode(const uint8_t *pInData, const size_t length, u
   constexpr size_t EncodeEmitPoint = ((DecodeConsumePoint16 >> TotalSymbolCountBits) << 16);
 
   constexpr bool IsSafeHist = TotalSymbolCountBits >= SafeHistBitMax;
+  constexpr size_t MinBlockSizeX = MinBlockSize<TotalSymbolCountBits>();
 
   _rans_encode_state_t encodeState;
   encodeState.pEnd = reinterpret_cast<uint16_t *>(pOutData + outCapacity - sizeof(uint16_t));
   encodeState.pStart = encodeState.pEnd;
   
-  size_t inputBlockTargetIndex = (((length - 1) & ~(size_t)(StateCount - 1)) & ~(size_t)(MinBlockSize - 1));
+  size_t inputBlockTargetIndex = (((length - 1) & ~(size_t)(StateCount - 1)) & ~(size_t)(MinBlockSizeX - 1));
 
-  if (inputBlockTargetIndex > MinBlockSize)
-    inputBlockTargetIndex -= MinBlockSize;
+  if (inputBlockTargetIndex > MinBlockSizeX)
+    inputBlockTargetIndex -= MinBlockSizeX;
 
   size_t blockBackPoint = length;
 
@@ -232,8 +243,8 @@ size_t block_rANS32x32_16w_encode(const uint8_t *pInData, const size_t length, u
 
   while (inputBlockTargetIndex > 0)
   {
-    if (_CanExtendHist<TotalSymbolCountBits>(pInData, inputBlockTargetIndex - MinBlockSize, MinBlockSize, &encodeState.hist, symCount))
-      inputBlockTargetIndex -= MinBlockSize;
+    if (_CanExtendHist<TotalSymbolCountBits>(pInData, inputBlockTargetIndex - MinBlockSizeX, MinBlockSizeX, &encodeState.hist, symCount))
+      inputBlockTargetIndex -= MinBlockSizeX;
     else
       break;
   }
@@ -302,21 +313,21 @@ size_t block_rANS32x32_16w_encode(const uint8_t *pInData, const size_t length, u
 
     // Determine new histogram.
     {
-      inputBlockTargetIndex -= MinBlockSize;
+      inputBlockTargetIndex -= MinBlockSizeX;
 
-      observe_hist(symCount, pInData + inputBlockTargetIndex, MinBlockSize);
+      observe_hist(symCount, pInData + inputBlockTargetIndex, MinBlockSizeX);
 
       if constexpr (IsSafeHist)
         for (size_t j = 0; j < 256; j++)
           if (symCount[j] == 0)
             symCount[j] = 1;
 
-      normalize_hist(&encodeState.hist, symCount, MinBlockSize, TotalSymbolCountBits);
+      normalize_hist(&encodeState.hist, symCount, MinBlockSizeX, TotalSymbolCountBits);
 
       while (inputBlockTargetIndex > 0)
       {
-        if (_CanExtendHist<TotalSymbolCountBits>(pInData, inputBlockTargetIndex - MinBlockSize, MinBlockSize, &encodeState.hist, symCount))
-          inputBlockTargetIndex -= MinBlockSize;
+        if (_CanExtendHist<TotalSymbolCountBits>(pInData, inputBlockTargetIndex - MinBlockSizeX, MinBlockSizeX, &encodeState.hist, symCount))
+          inputBlockTargetIndex -= MinBlockSizeX;
         else
           break;
       }

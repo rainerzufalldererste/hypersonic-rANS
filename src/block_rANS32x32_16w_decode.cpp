@@ -25,7 +25,13 @@ extern const uint8_t _DoubleShuffleLutShfl32[256 * 8 * 2];
 template <typename hist_type>
 struct _rans_decode_state_t
 {
+#ifdef _MSC_VER
+  __declspec(align(32))
+#else
+  __attribute__((aligned(32)))
+#endif
   uint32_t states[StateCount];
+
   hist_type hist;
   const uint16_t *pReadHead;
 };
