@@ -8,7 +8,6 @@
 
 constexpr size_t StateCount = 32; // Needs to be a power of two.
 constexpr bool EncodeNoBranch = false;
-//constexpr bool DecodeNoBranch = false;
 constexpr size_t SafeHistBitMax = 0;
 constexpr size_t MinBlockSizeBits = 15;
 constexpr size_t MinBlockSize = 1 << MinBlockSizeBits;
@@ -39,6 +38,74 @@ size_t block_rANS32x32_16w_capacity(const size_t inputSize)
 
 static const uint8_t _Rans32x32_idx2idx[] = { 0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13, 0x04, 0x05, 0x06, 0x07, 0x14, 0x15, 0x16, 0x17, 0x08, 0x09, 0x0A, 0x0B, 0x18, 0x19, 0x1A, 0x1B, 0x0C, 0x0D, 0x0E, 0x0F, 0x1C, 0x1D, 0x1E, 0x1F };
 static_assert(sizeof(_Rans32x32_idx2idx) == StateCount);
+
+//////////////////////////////////////////////////////////////////////////
+
+struct _rans_encode_state_t
+{
+  uint32_t states[StateCount];
+  hist_t hist;
+  uint16_t *pEnd, *pStart; // both compressed.
+};
+
+enum rans32x32_encoder_type_t
+{
+  r32x32_et_scalar,
+};
+
+template <rans32x32_encoder_type_t type>
+struct rans32x32_16w_encoder
+{
+  template <uint32_t TotalSymbolCountBits>
+  static void encode_section(_rans_encode_state_t *pState, const uint8_t *pInData, const size_t startIndex, const size_t targetIndex);
+};
+
+template <>
+struct rans32x32_16w_encoder<r32x32_et_scalar>
+{
+  template <uint32_t TotalSymbolCountBits>
+  static void encode_section(_rans_encode_state_t *pState, const uint8_t *pInData, const size_t startIndex, const size_t targetIndex)
+  {
+    int64_t targetCmp = targetIndex + StateCount;
+
+    constexpr size_t EncodeEmitPoint = ((DecodeConsumePoint16 >> TotalSymbolCountBits) << 16);
+
+    for (int64_t i = startIndex; i >= (int64_t)targetCmp; i -= StateCount)
+    {
+      for (int64_t j = StateCount - 1; j >= 0; j--)
+      {
+        const uint8_t index = _Rans32x32_idx2idx[j];
+
+        const uint8_t in = pInData[i - StateCount + index];
+        const uint32_t symbolCount = pState->hist.symbolCount[in];
+        const uint32_t max = EncodeEmitPoint * symbolCount;
+
+        const size_t stateIndex = j;
+
+        uint32_t state = pState->states[stateIndex];
+
+        if constexpr (EncodeNoBranch)
+        {
+          const bool write = state >= max;
+          *pState->pStart = (uint16_t)(state & 0xFFFF);
+          *pState->pStart -= (size_t)write;
+          state = write ? state >> 16 : state;
+        }
+        else
+        {
+          if (state >= max)
+          {
+            *pState->pStart = (uint16_t)(state & 0xFFFF);
+            pState->pStart--;
+            state >>= 16;
+          }
+        }
+
+        pState->states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pState->hist.cumul[in] + (state % symbolCount);
+      }
+    }
+  }
+};
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -131,58 +198,8 @@ static bool _CanExtendHist(const uint8_t *pData, const size_t nextBlockStartOffs
 
 //////////////////////////////////////////////////////////////////////////
 
-struct _rans_encode_state_t
-{
-  uint32_t states[StateCount];
-  hist_t hist;
-  uint16_t *pEnd, *pStart; // both compressed.
-};
-
-template <uint32_t TotalSymbolCountBits>
-static void rans32x32_16w_encode_internal_scalar(_rans_encode_state_t *pState, const uint8_t *pInData, const size_t startIndex, const size_t targetIndex)
-{
-  int64_t targetCmp = targetIndex + StateCount;
-
-  constexpr size_t EncodeEmitPoint = ((DecodeConsumePoint16 >> TotalSymbolCountBits) << 16);
-
-  for (int64_t i = startIndex; i >= (int64_t)targetCmp; i -= StateCount)
-  {
-    for (int64_t j = StateCount - 1; j >= 0; j--)
-    {
-      const uint8_t index = _Rans32x32_idx2idx[j];
-
-      const uint8_t in = pInData[i - StateCount + index];
-      const uint32_t symbolCount = pState->hist.symbolCount[in];
-      const uint32_t max = EncodeEmitPoint * symbolCount;
-
-      const size_t stateIndex = j;
-
-      uint32_t state = pState->states[stateIndex];
-
-      if constexpr (EncodeNoBranch)
-      {
-        const bool write = state >= max;
-        *pState->pStart = (uint16_t)(state & 0xFFFF);
-        *pState->pStart -= (size_t)write;
-        state = write ? state >> 16 : state;
-      }
-      else
-      {
-        if (state >= max)
-        {
-          *pState->pStart = (uint16_t)(state & 0xFFFF);
-          pState->pStart--;
-          state >>= 16;
-        }
-      }
-
-      pState->states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pState->hist.cumul[in] + (state % symbolCount);
-    }
-  }
-}
-
-template <uint32_t TotalSymbolCountBits>
-size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity)
+template <uint32_t TotalSymbolCountBits, rans32x32_encoder_type_t Impl>
+size_t block_rANS32x32_16w_encode(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity)
 {
   if (outCapacity < block_rANS32x32_16w_capacity(length))
     return 0;
@@ -263,7 +280,7 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
 
   while (true)
   {
-    rans32x32_16w_encode_internal_scalar<TotalSymbolCountBits>(&encodeState, pInData, inputIndex, inputBlockTargetIndex);
+    rans32x32_16w_encoder<Impl>::template encode_section<TotalSymbolCountBits>(&encodeState, pInData, inputIndex, inputBlockTargetIndex);
     inputIndex = inputBlockTargetIndex;
 
     // Write hist.
@@ -338,12 +355,12 @@ size_t block_rANS32x32_16w_encode_scalar(const uint8_t *pInData, const size_t le
 
 //////////////////////////////////////////////////////////////////////////
 
-size_t block_rANS32x32_16w_encode_15(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode_scalar<15>(pInData, length, pOutData, outCapacity); }
-size_t block_rANS32x32_16w_encode_14(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode_scalar<14>(pInData, length, pOutData, outCapacity); }
-size_t block_rANS32x32_16w_encode_13(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode_scalar<13>(pInData, length, pOutData, outCapacity); }
-size_t block_rANS32x32_16w_encode_12(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode_scalar<12>(pInData, length, pOutData, outCapacity); }
-size_t block_rANS32x32_16w_encode_11(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode_scalar<11>(pInData, length, pOutData, outCapacity); }
-size_t block_rANS32x32_16w_encode_10(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode_scalar<10>(pInData, length, pOutData, outCapacity); }
+size_t block_rANS32x32_16w_encode_15(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode<15, r32x32_et_scalar>(pInData, length, pOutData, outCapacity); }
+size_t block_rANS32x32_16w_encode_14(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode<14, r32x32_et_scalar>(pInData, length, pOutData, outCapacity); }
+size_t block_rANS32x32_16w_encode_13(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode<13, r32x32_et_scalar>(pInData, length, pOutData, outCapacity); }
+size_t block_rANS32x32_16w_encode_12(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode<12, r32x32_et_scalar>(pInData, length, pOutData, outCapacity); }
+size_t block_rANS32x32_16w_encode_11(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode<11, r32x32_et_scalar>(pInData, length, pOutData, outCapacity); }
+size_t block_rANS32x32_16w_encode_10(const uint8_t *pInData, const size_t length, uint8_t *pOutData, const size_t outCapacity) { return block_rANS32x32_16w_encode<10, r32x32_et_scalar>(pInData, length, pOutData, outCapacity); }
 
 size_t block_rANS32x32_16w_decode_15(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { (void)pInData; (void)inLength; (void)pOutData; (void)outCapacity; return 0; }
 size_t block_rANS32x32_16w_decode_14(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { (void)pInData; (void)inLength; (void)pOutData; (void)outCapacity; return 0; }
