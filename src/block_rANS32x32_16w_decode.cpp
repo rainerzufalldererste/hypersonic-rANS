@@ -34,6 +34,9 @@ enum rans32x32_decoder_type_t
 {
   r32x32_dt_scalar,
   r32x32_dt_avx2_large_cache_15_to_13,
+  r32x32_dt_avx2_small_cache_15_to_13,
+  r32x32_dt_avx2_large_cache_12_to_10,
+  r32x32_dt_avx2_small_cache_12_to_10,
 };
 
 template <rans32x32_decoder_type_t type, uint32_t TotalSymbolCountBits, typename hist_type>
@@ -89,6 +92,9 @@ struct rans32x32_16w_decoder<r32x32_dt_scalar, TotalSymbolCountBits, hist_dec_t<
 };
 
 template <uint32_t TotalSymbolCountBits, bool ShuffleMask16, bool WriteAligned32 = false>
+#ifndef _MSC_VER
+__attribute__((target("avx2")))
+#endif
 static size_t _block_rans32x32_decode_section_avx2_varA(_rans_decode_state_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
 {
   if constexpr (!WriteAligned32)
@@ -110,7 +116,6 @@ static size_t _block_rans32x32_decode_section_avx2_varA(_rans_decode_state_t<his
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint16);
   const simd_t _16 = _mm256_set1_epi32(16);
-  const simd_t _1 = _mm256_set1_epi32(1);
   const __m128i shuffleDoubleMask = _mm_set_epi8(7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
   const __m128i shuffleUpper16Bit = _mm_set1_epi16(0x0100);
 
@@ -328,6 +333,16 @@ struct rans32x32_16w_decoder<r32x32_dt_avx2_large_cache_15_to_13, TotalSymbolCou
   static size_t decode_section(_rans_decode_state_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
   {
     return _block_rans32x32_decode_section_avx2_varA<TotalSymbolCountBits, true>(pState, pOutData, startIndex, endIndex);
+  }
+};
+
+template <uint32_t TotalSymbolCountBits>
+struct rans32x32_16w_decoder<r32x32_dt_avx2_small_cache_15_to_13, TotalSymbolCountBits, hist_dec2_t<TotalSymbolCountBits>>
+{
+  template <bool WriteAligned = false>
+  static size_t decode_section(_rans_decode_state_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
+  {
+    return _block_rans32x32_decode_section_avx2_varA<TotalSymbolCountBits, false>(pState, pOutData, startIndex, endIndex);
   }
 };
 
