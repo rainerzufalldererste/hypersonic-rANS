@@ -11,6 +11,7 @@
 #include "rANS32x16_16w.h"
 #include "rANS32x64_16w.h"
 #include "block_rANS32x32_16w.h"
+#include "block_rANS32x64_16w.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -151,12 +152,19 @@ size_t encode_no_hist_wrapper(const uint8_t *pInData, const size_t length, uint8
 
 static codec_info_t _Codecs[] =
 {
-  { "rANS32x32 16w (variable block size)", 15, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_15>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_15, true }, {}}},
-  { "rANS32x32 16w (variable block size)", 14, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_14>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_14, true }, {}}},
-  { "rANS32x32 16w (variable block size)", 13, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_13>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_13, true }, {}}},
-  { "rANS32x32 16w (variable block size)", 12, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_12>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_12, true }, {}}},
-  { "rANS32x32 16w (variable block size)", 11, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_11>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_11, true }, {}}},
-  { "rANS32x32 16w (variable block size)", 10, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_10>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_10, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 15, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_15>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_15, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 14, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_14>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_14, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 13, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_13>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_13, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 12, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_12>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_12, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 11, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_11>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_11, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 10, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_10>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_10, true }, {}}},
+  
+  { "rANS32x64 16w (variable block size)", 15, {{ "encode", encode_no_hist_wrapper<block_rANS32x64_16w_encode_15>, true }, {}}, {{ "decode", block_rANS32x64_16w_decode_15, true }, {}}},
+  { "rANS32x64 16w (variable block size)", 14, {{ "encode", encode_no_hist_wrapper<block_rANS32x64_16w_encode_14>, true }, {}}, {{ "decode", block_rANS32x64_16w_decode_14, true }, {}}},
+  { "rANS32x64 16w (variable block size)", 13, {{ "encode", encode_no_hist_wrapper<block_rANS32x64_16w_encode_13>, true }, {}}, {{ "decode", block_rANS32x64_16w_decode_13, true }, {}}},
+  { "rANS32x64 16w (variable block size)", 12, {{ "encode", encode_no_hist_wrapper<block_rANS32x64_16w_encode_12>, true }, {}}, {{ "decode", block_rANS32x64_16w_decode_12, true }, {}}},
+  { "rANS32x64 16w (variable block size)", 11, {{ "encode", encode_no_hist_wrapper<block_rANS32x64_16w_encode_11>, true }, {}}, {{ "decode", block_rANS32x64_16w_decode_11, true }, {}}},
+  { "rANS32x64 16w (variable block size)", 10, {{ "encode", encode_no_hist_wrapper<block_rANS32x64_16w_encode_10>, true }, {}}, {{ "decode", block_rANS32x64_16w_decode_10, true }, {}}},
   
   { "rANS32x32 16w (raw)", 15, {{ "enc scalar", rANS32x32_16w_encode_scalar_15, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_15 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_15 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_15 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_15, true }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_15, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_15 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_15 }, {}}},
   { "rANS32x32 16w (raw)", 14, {{ "enc scalar", rANS32x32_16w_encode_scalar_14, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_14 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_14 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_14 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_14, true }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_14, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_14 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_14 }, {}}},
@@ -386,12 +394,14 @@ int32_t main(const int32_t argc, char **pArgv)
     pUncompressedData = (uint8_t *)ALIGNED_ALLOC(64, fileSize);
     pDecompressedData = (uint8_t *)ALIGNED_ALLOC(64, fileSize);
 
-    compressedDataCapacity = rANS32x64_16w_capacity(fileSize);
+    compressedDataCapacity = 0;
+    compressedDataCapacity = rans_max(compressedDataCapacity, rANS32x64_16w_capacity(fileSize));
     compressedDataCapacity = rans_max(compressedDataCapacity, rANS32x32_16w_capacity(fileSize));
     compressedDataCapacity = rans_max(compressedDataCapacity, rANS32x16_16w_capacity(fileSize));
     compressedDataCapacity = rans_max(compressedDataCapacity, rANS32x32_32blk_16w_capacity(fileSize));
     compressedDataCapacity = rans_max(compressedDataCapacity, rANS32x32_32blk_8w_capacity(fileSize));
     compressedDataCapacity = rans_max(compressedDataCapacity, block_rANS32x32_16w_capacity(fileSize));
+    compressedDataCapacity = rans_max(compressedDataCapacity, block_rANS32x64_16w_capacity(fileSize));
 
     pCompressedData = (uint8_t *)ALIGNED_ALLOC(64, compressedDataCapacity);
 

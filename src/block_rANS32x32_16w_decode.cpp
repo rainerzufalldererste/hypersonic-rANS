@@ -23,7 +23,7 @@ extern const uint8_t _DoubleShuffleLutShfl32[256 * 8 * 2];
 //////////////////////////////////////////////////////////////////////////
 
 template <typename hist_type>
-struct _rans_decode_state_t
+struct _rans_decode_state32_t
 {
 #ifdef _MSC_VER
   __declspec(align(32))
@@ -48,13 +48,13 @@ enum rans32x32_decoder_type_t
 template <rans32x32_decoder_type_t type, uint32_t TotalSymbolCountBits, typename hist_type>
 struct rans32x32_16w_decoder
 {
-  static size_t decode_section(_rans_decode_state_t<hist_type> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex);
+  static size_t decode_section(_rans_decode_state32_t<hist_type> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex);
 };
 
 template <uint32_t TotalSymbolCountBits>
 struct rans32x32_16w_decoder<r32x32_dt_scalar, TotalSymbolCountBits, hist_dec_t<TotalSymbolCountBits>>
 {
-  static size_t decode_section(_rans_decode_state_t<hist_dec_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
+  static size_t decode_section(_rans_decode_state32_t<hist_dec_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
   {
     constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
 
@@ -101,7 +101,7 @@ template <uint32_t TotalSymbolCountBits, bool ShuffleMask16, bool WriteAligned32
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
-static size_t _block_rans32x32_decode_section_avx2_varA(_rans_decode_state_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
+static size_t _block_rans32x32_decode_section_avx2_varA(_rans_decode_state32_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
 {
   if constexpr (!WriteAligned32)
     if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
@@ -337,7 +337,7 @@ template <uint32_t TotalSymbolCountBits, bool ShuffleMask16, bool WriteAligned32
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
-static size_t _block_rans32x32_decode_section_avx2_varC(_rans_decode_state_t<hist_dec_pack_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
+static size_t _block_rans32x32_decode_section_avx2_varC(_rans_decode_state32_t<hist_dec_pack_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
 {
   if constexpr (!WriteAligned32)
     if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
@@ -350,7 +350,7 @@ static size_t _block_rans32x32_decode_section_avx2_varC(_rans_decode_state_t<his
   simd_t statesX8[StateCount / (sizeof(simd_t) / sizeof(uint32_t))];
 
   for (size_t i = 0; i < sizeof(statesX8) / sizeof(simd_t); i++)
-    statesX8[i] = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(reinterpret_cast<const uint8_t *>(pState->states) + i * sizeof(simd_t)));
+    statesX8[i] = _mm256_load_si256(reinterpret_cast<const simd_t *>(reinterpret_cast<const uint8_t *>(pState->states) + i * sizeof(simd_t)));
 
   size_t i = startIndex;
 
@@ -558,7 +558,7 @@ static size_t _block_rans32x32_decode_section_avx2_varC(_rans_decode_state_t<his
   }
 
   for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)
-    _mm256_storeu_si256(reinterpret_cast<simd_t *>(reinterpret_cast<uint8_t *>(pState->states) + j * sizeof(simd_t)), statesX8[j]);
+    _mm256_store_si256(reinterpret_cast<simd_t *>(reinterpret_cast<uint8_t *>(pState->states) + j * sizeof(simd_t)), statesX8[j]);
 
   return i;
 }
@@ -567,7 +567,7 @@ template <uint32_t TotalSymbolCountBits>
 struct rans32x32_16w_decoder<r32x32_dt_avx2_large_cache_15_to_13, TotalSymbolCountBits, hist_dec2_t<TotalSymbolCountBits>>
 {
   template <bool WriteAligned = false>
-  static size_t decode_section(_rans_decode_state_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
+  static size_t decode_section(_rans_decode_state32_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
   {
     return _block_rans32x32_decode_section_avx2_varA<TotalSymbolCountBits, true>(pState, pOutData, startIndex, endIndex);
   }
@@ -577,7 +577,7 @@ template <uint32_t TotalSymbolCountBits>
 struct rans32x32_16w_decoder<r32x32_dt_avx2_small_cache_15_to_13, TotalSymbolCountBits, hist_dec2_t<TotalSymbolCountBits>>
 {
   template <bool WriteAligned = false>
-  static size_t decode_section(_rans_decode_state_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
+  static size_t decode_section(_rans_decode_state32_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
   {
     return _block_rans32x32_decode_section_avx2_varA<TotalSymbolCountBits, false>(pState, pOutData, startIndex, endIndex);
   }
@@ -587,7 +587,7 @@ template <uint32_t TotalSymbolCountBits>
 struct rans32x32_16w_decoder<r32x32_dt_avx2_large_cache_12_to_10, TotalSymbolCountBits, hist_dec_pack_t<TotalSymbolCountBits>>
 {
   template <bool WriteAligned = false>
-  static size_t decode_section(_rans_decode_state_t<hist_dec_pack_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
+  static size_t decode_section(_rans_decode_state32_t<hist_dec_pack_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
   {
     return _block_rans32x32_decode_section_avx2_varC<TotalSymbolCountBits, true>(pState, pOutData, startIndex, endIndex);
   }
@@ -597,7 +597,7 @@ template <uint32_t TotalSymbolCountBits>
 struct rans32x32_16w_decoder<r32x32_dt_avx2_small_cache_12_to_10, TotalSymbolCountBits, hist_dec_pack_t<TotalSymbolCountBits>>
 {
   template <bool WriteAligned = false>
-  static size_t decode_section(_rans_decode_state_t<hist_dec_pack_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
+  static size_t decode_section(_rans_decode_state32_t<hist_dec_pack_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
   {
     return _block_rans32x32_decode_section_avx2_varC<TotalSymbolCountBits, false>(pState, pOutData, startIndex, endIndex);
   }
@@ -661,7 +661,7 @@ size_t block_rANS32x32_16w_decode(const uint8_t *pInData, const size_t inLength,
   if (inLength < expectedInputLength)
     return 0;
 
-  _rans_decode_state_t<hist_type> decodeState;
+  _rans_decode_state32_t<hist_type> decodeState;
 
   for (size_t i = 0; i < StateCount; i++)
   {
