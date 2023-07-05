@@ -234,12 +234,21 @@ size_t block_rANS32x32_16w_encode(const uint8_t *pInData, const size_t length, u
   uint32_t symCount[256];
   observe_hist(symCount, pInData + inputBlockTargetIndex, blockBackPoint - inputBlockTargetIndex);
 
-  if constexpr (IsSafeHist)
-    for (size_t j = 0; j < 256; j++)
-      if (symCount[j] == 0)
-        symCount[j] = 1;
+  size_t extraCount = 0;
 
-  normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex, TotalSymbolCountBits);
+  if constexpr (IsSafeHist)
+  {
+    for (size_t j = 0; j < 256; j++)
+    {
+      if (symCount[j] == 0)
+      {
+        symCount[j] = 1;
+        extraCount++;
+      }
+    }
+  }
+
+  normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex + extraCount, TotalSymbolCountBits);
 
   while (inputBlockTargetIndex > 0)
   {

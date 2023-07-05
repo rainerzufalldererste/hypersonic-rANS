@@ -154,7 +154,7 @@ void normalize_hist(hist_t *pHist, const uint32_t hist[256], const size_t dataBy
             capped[i]++;
             cappedSum++;
 
-            if (cappedSum == totalSymbolCount + 1)
+            if (cappedSum == totalSymbolCount)
               goto hist_ready;
           }
         }
@@ -173,6 +173,11 @@ hist_ready:
     pHist->symbolCount[i] = capped[i];
     counter += capped[i];
   }
+
+#if defined(_DEBUG) && defined(_MSC_VER)
+  if (counter != totalSymbolCount)
+    __debugbreak();
+#endif
 }
 
 void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const size_t totalSymbolCountBits)

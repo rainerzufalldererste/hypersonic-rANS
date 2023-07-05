@@ -114,7 +114,7 @@ static size_t _block_rans32x32_decode_section_avx2_varA(_rans_decode_state_t<his
   simd_t statesX8[StateCount / (sizeof(simd_t) / sizeof(uint32_t))];
 
   for (size_t i = 0; i < sizeof(statesX8) / sizeof(simd_t); i++)
-    statesX8[i] = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(reinterpret_cast<const uint8_t *>(pState->states) + i * sizeof(simd_t)));
+    statesX8[i] = _mm256_load_si256(reinterpret_cast<const simd_t *>(reinterpret_cast<const uint8_t *>(pState->states) + i * sizeof(simd_t)));
 
   size_t i = startIndex;
 
@@ -328,7 +328,7 @@ static size_t _block_rans32x32_decode_section_avx2_varA(_rans_decode_state_t<his
   }
 
   for (size_t j = 0; j < sizeof(statesX8) / sizeof(simd_t); j++)
-    _mm256_storeu_si256(reinterpret_cast<simd_t *>(reinterpret_cast<uint8_t *>(pState->states) + j * sizeof(simd_t)), statesX8[j]);
+    _mm256_store_si256(reinterpret_cast<simd_t *>(reinterpret_cast<uint8_t *>(pState->states) + j * sizeof(simd_t)), statesX8[j]);
 
   return i;
 }
