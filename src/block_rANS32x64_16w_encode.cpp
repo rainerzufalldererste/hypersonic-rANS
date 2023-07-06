@@ -19,9 +19,9 @@ struct HistReplaceMul
   constexpr static size_t GetValue();
 };
 
-template <> struct HistReplaceMul<15> { constexpr static size_t GetValue() { return 822; } };
-template <> struct HistReplaceMul<14> { constexpr static size_t GetValue() { return 2087; } };
-template <> struct HistReplaceMul<13> { constexpr static size_t GetValue() { return 3120; } };
+template <> struct HistReplaceMul<15> { constexpr static size_t GetValue() { return 850; } };
+template <> struct HistReplaceMul<14> { constexpr static size_t GetValue() { return 1500; } };
+template <> struct HistReplaceMul<13> { constexpr static size_t GetValue() { return 2500; } };
 template <> struct HistReplaceMul<12> { constexpr static size_t GetValue() { return 5600; } };
 template <> struct HistReplaceMul<11> { constexpr static size_t GetValue() { return 7730; } };
 template <> struct HistReplaceMul<10> { constexpr static size_t GetValue() { return 4000; } };
@@ -32,10 +32,10 @@ struct MinBlockSizeBits
   constexpr static size_t GetValue();
 };
 
-template <> struct MinBlockSizeBits<15> { constexpr static size_t GetValue() { return 18; } };
+template <> struct MinBlockSizeBits<15> { constexpr static size_t GetValue() { return 16; } };
 template <> struct MinBlockSizeBits<14> { constexpr static size_t GetValue() { return 17; } };
 template <> struct MinBlockSizeBits<13> { constexpr static size_t GetValue() { return 17; } };
-template <> struct MinBlockSizeBits<12> { constexpr static size_t GetValue() { return 15; } };
+template <> struct MinBlockSizeBits<12> { constexpr static size_t GetValue() { return 16; } };
 template <> struct MinBlockSizeBits<11> { constexpr static size_t GetValue() { return 19; } };
 template <> struct MinBlockSizeBits<10> { constexpr static size_t GetValue() { return 20; } };
 

@@ -1808,14 +1808,14 @@ static size_t block_rANS32x64_decode_wrapper(const uint8_t *pInData, const size_
 {
   _DetectCPUFeatures();
 
-  if (avx512FSupported && avx512BWSupported && avx512DQSupported && (_CpuVendor != cpu_vendor_AMD || _CpuFamily != cpu_family_amd_zen3_zen4))
+  if (avx512FSupported && avx512BWSupported && (_CpuVendor != cpu_vendor_AMD || _CpuFamily != cpu_family_amd_zen3_zen4))
   {
     if constexpr (TotalSymbolCountBits >= 13)
       return block_rANS32x64_16w_decode<TotalSymbolCountBits, r32x64_dt_avx512_large_cache_15_to_13, hist_dec2_t<TotalSymbolCountBits>>(pInData, inLength, pOutData, outCapacity);
     else
       return block_rANS32x64_16w_decode<TotalSymbolCountBits, r32x64_dt_avx512_large_cache_12_to_10, hist_dec_pack_t<TotalSymbolCountBits>>(pInData, inLength, pOutData, outCapacity);
   }
-  if (avx2Supported)
+  else if (avx2Supported)
   {
     if constexpr (TotalSymbolCountBits >= 13)
       return block_rANS32x64_16w_decode<TotalSymbolCountBits, r32x64_dt_avx2_large_cache_15_to_13, hist_dec2_t<TotalSymbolCountBits>>(pInData, inLength, pOutData, outCapacity);
