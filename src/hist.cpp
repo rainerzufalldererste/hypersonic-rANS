@@ -1,6 +1,7 @@
 #include "hist.h"
 
 #include <string.h>
+#include <algorithm>
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -101,65 +102,98 @@ void normalize_hist(hist_t *pHist, const uint32_t hist[256], const size_t dataBy
 
   if (cappedSum != totalSymbolCount)
   {
+    uint8_t sortedIdx[256];
+
+    for (size_t i = 0; i < 256; i++)
+      sortedIdx[i] = (uint8_t)i;
+
+    struct _internal
+    {
+      static void heapify(uint8_t *pIdx, const uint16_t *pVal, const int64_t n, const int64_t i)
+      {
+        const int64_t left = 2 * i + 1;
+        const int64_t right = 2 * i + 2;
+        int64_t largest = i;
+
+        if (left < n && pVal[pIdx[left]] > pVal[pIdx[largest]])
+          largest = left;
+
+        if (right < n && pVal[pIdx[right]] > pVal[pIdx[largest]])
+          largest = right;
+
+        if (largest != i)
+        {
+          std::swap(pIdx[i], pIdx[largest]);
+          heapify(pIdx, pVal, n, largest);
+        }
+      }
+
+      static void heapSort(uint8_t *pIdx, const uint16_t *pVal, const size_t length)
+      {
+        for (int64_t i = (int64_t)length / 2 - 1; i >= 0; i--)
+          heapify(pIdx, pVal, length, i);
+
+        for (int64_t i = length - 1; i >= 0; i--)
+        {
+          std::swap(pIdx[0], pIdx[i]);
+          heapify(pIdx, pVal, i, 0);
+        }
+      }
+    };
+
+    _internal::heapSort(sortedIdx, capped, 256);
+    size_t minTwo = 0;
+
+    for (size_t i = 0; i < 256; i++)
+    {
+      if (capped[sortedIdx[i]] >= 2)
+      {
+        minTwo = i;
+        break;
+      }
+    }
+
     while (cappedSum > totalSymbolCount) // Start stealing.
     {
-      size_t target = 2;
-
-      while (true)
+      for (size_t i = minTwo; i < 256; i++)
       {
-        size_t found = totalSymbolCount + 1;
+        capped[sortedIdx[i]]--;
+        cappedSum--;
 
-        for (size_t i = 0; i < 256; i++)
-          if (capped[i] > target && capped[i] < found)
-            found = capped[i];
+        if (cappedSum == totalSymbolCount)
+          goto hist_ready;
+      }
 
-        if (found == totalSymbolCount + 1)
-          break;
-
-        for (size_t i = 0; i < 256; i++)
+      // Re-Adjust `minTwo`.
+      for (size_t i = minTwo; i < 256; i++)
+      {
+        if (capped[sortedIdx[i]] >= 2)
         {
-          if (capped[i] == found)
-          {
-            capped[i]--;
-            cappedSum--;
-
-            if (cappedSum == totalSymbolCount)
-              goto hist_ready;
-          }
+          minTwo = i;
+          break;
         }
-
-        target = found + 1;
       }
     }
 
     while (cappedSum < totalSymbolCount) // Start a charity.
     {
-      size_t target = totalSymbolCount + 1;
-
-      while (true)
+      for (int64_t i = 255; i >= (int64_t)minTwo; i--)
       {
-        size_t found = 1;
+        capped[sortedIdx[i]]++;
+        cappedSum++;
 
-        for (size_t i = 0; i < 256; i++)
-          if (capped[i] < target && capped[i] > found)
-            found = capped[i];
+        if (cappedSum == totalSymbolCount)
+          goto hist_ready;
+      }
 
-        if (found == 1)
-          break;
-
-        for (size_t i = 0; i < 256; i++)
+      // Re-Adjust `minTwo`.
+      for (size_t i = minTwo; i < 256; i++)
+      {
+        if (capped[sortedIdx[i]] >= 2)
         {
-          if (capped[i] == found)
-          {
-            capped[i]++;
-            cappedSum++;
-
-            if (cappedSum == totalSymbolCount)
-              goto hist_ready;
-          }
+          minTwo = i;
+          break;
         }
-
-        target = found - 1;
       }
     }
   }
