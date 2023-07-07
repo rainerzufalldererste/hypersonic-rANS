@@ -710,4 +710,4 @@ struct rans32x32_16w_decoder<r32x32_dt_avx2_small_cache_12_to_10, TotalSymbolCou
   }
 };
 
-#endif block_codec32_h__
+#endif // block_codec32_h__

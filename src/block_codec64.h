@@ -1758,4 +1758,4 @@ struct rans32x64_16w_decoder<r32x64_dt_avx512_small_cache_12_to_10, TotalSymbolC
   }
 };
 
-#endif
+#endif // block_codec64_h__
