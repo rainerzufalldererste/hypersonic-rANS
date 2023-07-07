@@ -307,7 +307,7 @@ void make_dec_pack_hist(hist_dec_pack_t<TotalSymbolCountBits> *pHistDec, const h
 
 bool inplace_complete_hist(hist_t *pHist, const size_t totalSymbolCountBits)
 {
-  uint16_t counter = 0;
+  uint32_t counter = 0;
 
   for (size_t i = 0; i < 256; i++)
   {
@@ -315,7 +315,12 @@ bool inplace_complete_hist(hist_t *pHist, const size_t totalSymbolCountBits)
     counter += pHist->symbolCount[i];
   }
 
-  return (counter == 1 << totalSymbolCountBits);
+#if defined(_DEBUG) && defined(_MSC_VER)
+  if (counter != ((uint32_t)1 << totalSymbolCountBits))
+    __debugbreak();
+#endif
+
+  return (counter == (uint32_t)(1 << totalSymbolCountBits));
 }
 
 template <uint32_t TotalSymbolCountBits>

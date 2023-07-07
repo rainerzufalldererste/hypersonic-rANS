@@ -10,6 +10,9 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <sched.h>
+#include <pthread.h>
 #endif
 
 struct thread_pool
@@ -34,7 +37,12 @@ void thread_pool_ThreadFunc(thread_pool *pThreadPool, const size_t index)
   SetThreadIdealProcessor(GetCurrentThread(), (DWORD)index);
   SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 #else
-  (void)index;
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET((int32_t)index, &cpuset);
+
+  pthread_t current_thread = pthread_self();
+  pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
 #endif
 
   while (pThreadPool->isRunning)

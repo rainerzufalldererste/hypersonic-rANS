@@ -675,6 +675,7 @@ size_t mt_rANS32x32_16w_decode(const uint8_t *pInData, const size_t inLength, ui
 
     const uint64_t readHeadBackOffset = *reinterpret_cast<const uint64_t *>(decodeState.pReadHead);
     decodeState.pReadHead += sizeof(uint64_t) / sizeof(uint16_t);
+    const uint16_t *pReadHeadAfter = decodeState.pReadHead + readHeadBackOffset + 1;
     (void)readHeadBackOffset; // unused in single-threaded version.
 
     for (size_t j = 0; j < StateCount; j++)
@@ -708,6 +709,8 @@ size_t mt_rANS32x32_16w_decode(const uint8_t *pInData, const size_t inLength, ui
       else
         break;
     }
+
+    decodeState.pReadHead = pReadHeadAfter;
 
   } while (i < outLengthInStates);
 

@@ -20,11 +20,11 @@ struct HistReplaceMul
 };
 
 template <> struct HistReplaceMul<15> { constexpr static size_t GetValue() { return 50; } };
-template <> struct HistReplaceMul<14> { constexpr static size_t GetValue() { return 50; } };
-template <> struct HistReplaceMul<13> { constexpr static size_t GetValue() { return 50; } };
-template <> struct HistReplaceMul<12> { constexpr static size_t GetValue() { return 50; } };
-template <> struct HistReplaceMul<11> { constexpr static size_t GetValue() { return 50; } };
-template <> struct HistReplaceMul<10> { constexpr static size_t GetValue() { return 50; } };
+template <> struct HistReplaceMul<14> { constexpr static size_t GetValue() { return 500; } };
+template <> struct HistReplaceMul<13> { constexpr static size_t GetValue() { return 500; } };
+template <> struct HistReplaceMul<12> { constexpr static size_t GetValue() { return 500; } };
+template <> struct HistReplaceMul<11> { constexpr static size_t GetValue() { return 500; } };
+template <> struct HistReplaceMul<10> { constexpr static size_t GetValue() { return 500; } };
 
 template <size_t TotalSymbolCountBits>
 struct MinBlockSizeBits
@@ -44,6 +44,9 @@ constexpr size_t MinBlockSize()
 {
   return (size_t)1 << MinBlockSizeBits<TotalSymbolCountBits>::GetValue();
 }
+
+constexpr size_t MaxBlockSizeBits = 25;
+constexpr size_t MaxBlockSize = (size_t)1 << MaxBlockSizeBits;
 
 size_t mt_rANS32x32_16w_capacity(const size_t inputSize)
 {
@@ -251,7 +254,7 @@ size_t mt_rANS32x32_16w_encode(const uint8_t *pInData, const size_t length, uint
 
   normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex + extraCount, TotalSymbolCountBits);
 
-  while (inputBlockTargetIndex > 0)
+  while (inputBlockTargetIndex > 0 && blockBackPoint - inputBlockTargetIndex < MaxBlockSize)
   {
     if (_CanExtendHist<TotalSymbolCountBits>(pInData, inputBlockTargetIndex - MinBlockSizeX, MinBlockSizeX, &encodeState.hist, symCount))
       inputBlockTargetIndex -= MinBlockSizeX;
@@ -343,7 +346,7 @@ size_t mt_rANS32x32_16w_encode(const uint8_t *pInData, const size_t length, uint
 
       normalize_hist(&encodeState.hist, symCount, MinBlockSizeX, TotalSymbolCountBits);
 
-      while (inputBlockTargetIndex > 0)
+      while (inputBlockTargetIndex > 0 && blockBackPoint - inputBlockTargetIndex < MaxBlockSize)
       {
         if (_CanExtendHist<TotalSymbolCountBits>(pInData, inputBlockTargetIndex - MinBlockSizeX, MinBlockSizeX, &encodeState.hist, symCount))
           inputBlockTargetIndex -= MinBlockSizeX;
