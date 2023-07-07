@@ -53,6 +53,11 @@ static size_t _HistMax = 15;
 static size_t _HistMin = 10;
 static bool _Include32Block = false;
 static bool _IncludeRaw = false;
+static bool _IncludeMT = false;
+static bool _ExcludeBlock = false;
+static bool _Exclude32x16 = false;
+static bool _Exclude32x32 = false;
+static bool _Exclude32x64 = false;
 static size_t _RunCount = 8;
 static size_t _EncodeRunCount = 2;
 static size_t _DecodeRunCount = 16;
@@ -236,6 +241,11 @@ const char ArgumentHistMin[] = "--hist-min";
 const char ArgumentHistMax[] = "--hist-max";
 const char ArgumentInclude32Blk[] = "--include-32blk";
 const char ArgumentIncludeRaw[] = "--include-raw";
+const char ArgumentIncludeMT[] = "--include-mt";
+const char ArgumentExcludeBlock[] = "--exclude-block";
+const char ArgumentExclude16[] = "--exclude-16";
+const char ArgumentExclude32[] = "--exclude-32";
+const char ArgumentExclude64[] = "--exclude-64";
 const char ArgumentNoSleep[] = "--no-sleep";
 const char ArgumentCpuCore[] = "--cpu-core";
 const char ArgumentRuns[] = "--runs";
@@ -249,14 +259,18 @@ int32_t main(const int32_t argc, char **pArgv)
   if (argc == 1)
   {
     puts("Invalid Parameter.\n\nUsage: hsrans <filename>");
-    printf("\t%s \tRun all variants of the specified codecs, not just the ones that we'd expect to be fast\n", ArgumentRuns);
+    printf("\t%s \t\t\tRun all variants of the specified codecs, not just the ones that we'd expect to be fast\n", ArgumentAllVariants);
     printf("\t%s <10-15> \tRestrict codecs to a number of histogram bits\n", ArgumentHistMin);
     printf("\t%s <10-15> \tRestrict codecs to a number of histogram bits\n", ArgumentHistMax);
-    printf("\t%s \tRun all implementations of the specified codecs, not just the ones that we'd expect to be fast\n", ArgumentAllVariants);
-    printf("\t%s \tRun the benchmark on a specific core\n", ArgumentCpuCore);
-    printf("\t%s \tInclude RAW variants with one only one histogram for the entire file\n", ArgumentIncludeRaw);
+    printf("\t%s \t\tRun the (single-threaded) benchmark on a specific core\n", ArgumentCpuCore);
+    printf("\t%s \t\tInclude multi-threading optimized variants\n", ArgumentIncludeMT);
+    printf("\t%s \t\tInclude RAW variants with one only one histogram for the entire file\n", ArgumentIncludeRaw);
     printf("\t%s \tInclude 32 block variants (which are generally quite slow), requires '%s'\n", ArgumentInclude32Blk, ArgumentIncludeRaw);
-    printf("\t%s <uint>\tRun the benchmark for a specified amount of times (default: 2 encode, 16 decode; will override '%s'/'%s')\n", ArgumentRuns, ArgumentRunsEncode, ArgumentRunsDecode);
+    printf("\t%s \tExclude the main (variable block size) variants form the benchmark\n", ArgumentExcludeBlock);
+    printf("\t%s \t\tExclude 16 state variants from the benchmark (only RAW)\n", ArgumentExclude16);
+    printf("\t%s \t\tExclude 32 state variants from the benchmark\n", ArgumentExclude32);
+    printf("\t%s \t\tExclude 64 state variants from the benchmark\n", ArgumentExclude64);
+    printf("\t%s <uint>\t\tRun the benchmark for a specified amount of times (default: 2 encode, 16 decode; will override '%s'/'%s')\n", ArgumentRuns, ArgumentRunsEncode, ArgumentRunsDecode);
     printf("\t%s <uint>\tWhen Encoding: Run the benchmark for a specified amount of times (default: 2)\n", ArgumentRunsEncode);
     printf("\t%s <uint>\tWhen Decoding: Run the benchmark for a specified amount of times (default: 16)\n", ArgumentRunsDecode);
     printf("\t%s <uint>\tPrevent sleeping between runs/codecs (may lead to thermal throttling)\n", ArgumentNoSleep);
@@ -279,6 +293,12 @@ int32_t main(const int32_t argc, char **pArgv)
         argsRemaining--;
         _OnlyRelevantCodecs = false;
       }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentIncludeMT, sizeof(ArgumentIncludeMT)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _IncludeMT = true;
+      }
       else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentIncludeRaw, sizeof(ArgumentIncludeRaw)) == 0)
       {
         argIndex++;
@@ -290,6 +310,30 @@ int32_t main(const int32_t argc, char **pArgv)
         argIndex++;
         argsRemaining--;
         _Include32Block = true;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentExcludeBlock, sizeof(ArgumentExcludeBlock)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _ExcludeBlock = true;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentExclude16, sizeof(ArgumentExclude16)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _Exclude32x16 = true;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentExclude32, sizeof(ArgumentExclude32)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _Exclude32x32 = true;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentExclude64, sizeof(ArgumentExclude64)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _Exclude32x64 = true;
       }
       else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentNoSleep, sizeof(ArgumentNoSleep)) == 0)
       {
@@ -518,8 +562,13 @@ int32_t main(const int32_t argc, char **pArgv)
     make_hist(&hist, pUncompressedData, fileSize, _Codecs[codecId].totalSymbolCountBits);
     bool skipCodec = false;
 
+    skipCodec |= (!_IncludeMT && strstr(_Codecs[codecId].name, " (independent blocks)") != nullptr);
     skipCodec |= (!_IncludeRaw && strstr(_Codecs[codecId].name, " (raw)") != nullptr);
     skipCodec |= (!_Include32Block && strstr(_Codecs[codecId].name, " 32blk ") != nullptr);
+    skipCodec |= (_ExcludeBlock && strstr(_Codecs[codecId].name, " (variable block size)") != nullptr);
+    skipCodec |= (_Exclude32x16 && strstr(_Codecs[codecId].name, "32x16") != nullptr);
+    skipCodec |= (_Exclude32x32 && strstr(_Codecs[codecId].name, "32x32") != nullptr);
+    skipCodec |= (_Exclude32x64 && strstr(_Codecs[codecId].name, "32x64") != nullptr);
     skipCodec |= _Codecs[codecId].totalSymbolCountBits > _HistMax;
     skipCodec |= _Codecs[codecId].totalSymbolCountBits < _HistMin;
 
