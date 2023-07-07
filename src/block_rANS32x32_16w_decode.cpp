@@ -48,30 +48,42 @@ size_t block_rANS32x32_16w_decode(const uint8_t *pInData, const size_t inLength,
   decodeState.pReadHead = reinterpret_cast<const uint16_t *>(pInData + inputIndex);
   const size_t outLengthInStates = expectedOutputLength - StateCount + 1;
   size_t i = 0;
-  hist_t hist;
+  hist_t hist = {};
 
   do
   {
-    const uint64_t blockSize = *reinterpret_cast<const uint64_t *>(decodeState.pReadHead);
+    const uint64_t blockSizeVal = *reinterpret_cast<const uint64_t *>(decodeState.pReadHead);
     decodeState.pReadHead += sizeof(uint64_t) / sizeof(uint16_t);
 
-    for (size_t j = 0; j < 256; j++)
+    if (blockSizeVal & ((uint64_t)1 << 63)) // Single symbol hist
     {
-      hist.symbolCount[j] = *decodeState.pReadHead;
-      decodeState.pReadHead++;
+      const uint8_t symbol = (blockSizeVal >> 54) & 0xFF;
+      const uint64_t blockSize = blockSizeVal & (((uint64_t)1 << 54) - 1);
+
+      memset(pOutData + i, symbol, blockSize);
+
+      i += blockSize;
     }
+    else
+    {
+      for (size_t j = 0; j < 256; j++)
+      {
+        hist.symbolCount[j] = *decodeState.pReadHead;
+        decodeState.pReadHead++;
+      }
 
-    if (!_init_from_hist(&decodeState.hist, &hist, TotalSymbolCountBits))
-      return 0;
+      if (!_init_from_hist(&decodeState.hist, &hist, TotalSymbolCountBits))
+        return 0;
 
-    uint64_t blockEndInStates = (i + blockSize);
+      uint64_t blockEndInStates = (i + blockSizeVal);
 
-    if (blockEndInStates > outLengthInStates)
-      blockEndInStates = outLengthInStates;
-    else if ((blockEndInStates & (StateCount - 1)) != 0)
-      return 0;
+      if (blockEndInStates > outLengthInStates)
+        blockEndInStates = outLengthInStates;
+      else if ((blockEndInStates & (StateCount - 1)) != 0)
+        return 0;
 
-    i = rans32x32_16w_decoder<Impl, TotalSymbolCountBits, hist_type>::decode_section(&decodeState, pOutData, i, blockEndInStates);
+      i = rans32x32_16w_decoder<Impl, TotalSymbolCountBits, hist_type>::decode_section(&decodeState, pOutData, i, blockEndInStates);
+    }
 
     if (i > outLengthInStates)
     {
@@ -86,7 +98,7 @@ size_t block_rANS32x32_16w_decode(const uint8_t *pInData, const size_t inLength,
   if (i < expectedOutputLength)
   {
     hist_dec_t<TotalSymbolCountBits> histDec;
-    memcpy(&histDec.symbolCount, &hist.symbolCount, sizeof(hist.symbolCount));
+    memcpy(&histDec.symbolCount, &hist.symbolCount, sizeof(hist.symbolCount)); // this is unreachable with single symbol hist at the end.
 
     if (!inplace_make_hist_dec<TotalSymbolCountBits>(&histDec))
       return 0;
