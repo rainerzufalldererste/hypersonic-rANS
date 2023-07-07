@@ -2,12 +2,11 @@
 
 #include "hist.h"
 #include "simd_platform.h"
+#include "block_codec64.h"
 
 #include <string.h>
 #include <math.h>
 
-constexpr size_t StateCount = 64; // Needs to be a power of two.
-constexpr bool EncodeNoBranch = false;
 constexpr size_t SafeHistBitMax = 0;
 
 constexpr size_t MinMinBlockSizeBits = 15;
@@ -53,86 +52,6 @@ size_t block_rANS32x64_16w_capacity(const size_t inputSize)
 
   return baseSize + blockCount * perBlockExtraSize; // inputIndex hope this covers all of our bases.
 }
-
-//////////////////////////////////////////////////////////////////////////
-
-static const uint8_t _Rans32x64_idx2idx[] =
-{
-  0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13, 0x04, 0x05, 0x06, 0x07, 0x14, 0x15, 0x16, 0x17,
-  0x08, 0x09, 0x0A, 0x0B, 0x18, 0x19, 0x1A, 0x1B, 0x0C, 0x0D, 0x0E, 0x0F, 0x1C, 0x1D, 0x1E, 0x1F,
-  0x20, 0x21, 0x22, 0x23, 0x30, 0x31, 0x32, 0x33, 0x24, 0x25, 0x26, 0x27, 0x34, 0x35, 0x36, 0x37,
-  0x28, 0x29, 0x2A, 0x2B, 0x38, 0x39, 0x3A, 0x3B, 0x2C, 0x2D, 0x2E, 0x2F, 0x3C, 0x3D, 0x3E, 0x3F,
-};
-
-static_assert(sizeof(_Rans32x64_idx2idx) == StateCount);
-
-//////////////////////////////////////////////////////////////////////////
-
-struct _rans_encode_state64_t
-{
-  uint32_t states[StateCount];
-  hist_t hist;
-  uint16_t *pEnd, *pStart; // both compressed.
-};
-
-enum rans32x64_encoder_type_t
-{
-  r32x64_et_scalar,
-};
-
-template <rans32x64_encoder_type_t type>
-struct rans32x64_16w_encoder
-{
-  template <uint32_t TotalSymbolCountBits>
-  static void encode_section(_rans_encode_state64_t *pState, const uint8_t *pInData, const size_t startIndex, const size_t targetIndex);
-};
-
-template <>
-struct rans32x64_16w_encoder<r32x64_et_scalar>
-{
-  template <uint32_t TotalSymbolCountBits>
-  static void encode_section(_rans_encode_state64_t *pState, const uint8_t *pInData, const size_t startIndex, const size_t targetIndex)
-  {
-    int64_t targetCmp = targetIndex + StateCount;
-
-    constexpr size_t EncodeEmitPoint = ((DecodeConsumePoint16 >> TotalSymbolCountBits) << 16);
-
-    for (int64_t i = startIndex; i >= (int64_t)targetCmp; i -= StateCount)
-    {
-      for (int64_t j = StateCount - 1; j >= 0; j--)
-      {
-        const uint8_t index = _Rans32x64_idx2idx[j];
-
-        const uint8_t in = pInData[i - StateCount + index];
-        const uint32_t symbolCount = pState->hist.symbolCount[in];
-        const uint32_t max = EncodeEmitPoint * symbolCount;
-
-        const size_t stateIndex = j;
-
-        uint32_t state = pState->states[stateIndex];
-
-        if constexpr (EncodeNoBranch)
-        {
-          const bool write = state >= max;
-          *pState->pStart = (uint16_t)(state & 0xFFFF);
-          *pState->pStart -= (size_t)write;
-          state = write ? state >> 16 : state;
-        }
-        else
-        {
-          if (state >= max)
-          {
-            *pState->pStart = (uint16_t)(state & 0xFFFF);
-            pState->pStart--;
-            state >>= 16;
-          }
-        }
-
-        pState->states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)pState->hist.cumul[in] + (state % symbolCount);
-      }
-    }
-  }
-};
 
 //////////////////////////////////////////////////////////////////////////
 
