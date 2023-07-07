@@ -4,6 +4,7 @@
 #include "hist.h"
 
 #include <string.h>
+#include <stdio.h>
 
 constexpr size_t StateCount = 64; // Needs to be a power of two.
 

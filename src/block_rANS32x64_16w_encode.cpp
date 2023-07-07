@@ -156,37 +156,63 @@ size_t block_rANS32x64_16w_encode(const uint8_t *pInData, const size_t length, u
     inputBlockTargetIndex -= MinBlockSizeX;
 
   size_t blockBackPoint = length;
+  size_t numSymbols = 0;
+  uint8_t selectedSymbol = 0;
 
   uint32_t symCount[256];
   observe_hist(symCount, pInData + inputBlockTargetIndex, blockBackPoint - inputBlockTargetIndex);
 
-  size_t extraCount = 0;
-
-  if constexpr (IsSafeHist)
+  for (size_t j = 0; j < 256; j++)
   {
-    for (size_t j = 0; j < 256; j++)
+    numSymbols += (size_t)!!symCount[j];
+    selectedSymbol = symCount[j] ? (uint8_t)j : selectedSymbol;
+  }
+
+  if (numSymbols == 1)
+  {
+    int64_t idx = inputBlockTargetIndex - 1;
+
+    for (; idx >= 0; idx--)
+      if (pInData[idx] != selectedSymbol)
+        break;
+
+    inputBlockTargetIndex = (size_t)(idx + 1);
+
+    // Align with `StateCount`.
+    inputBlockTargetIndex += StateCount - 1;
+    inputBlockTargetIndex &= ~(StateCount - 1);
+  }
+  else
+  {
+    size_t extraCount = 0;
+
+    if constexpr (IsSafeHist)
     {
-      if (symCount[j] == 0)
+      for (size_t j = 0; j < 256; j++)
       {
-        symCount[j] = 1;
-        extraCount++;
+        if (symCount[j] == 0)
+        {
+          symCount[j] = 1;
+          extraCount++;
+        }
       }
     }
+
+    normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex + extraCount, TotalSymbolCountBits);
+
+    while (inputBlockTargetIndex > 0)
+    {
+      if (_CanExtendHist<TotalSymbolCountBits>(pInData, inputBlockTargetIndex - MinBlockSizeX, MinBlockSizeX, &encodeState.hist, symCount))
+        inputBlockTargetIndex -= MinBlockSizeX;
+      else
+        break;
+    }
+
+    // Performance of this could be improved by keeping the current counts around. (or simply using the original hist, if that was only good for one block)
+    observe_hist(symCount, pInData + inputBlockTargetIndex, blockBackPoint - inputBlockTargetIndex);
+    normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex, TotalSymbolCountBits);
   }
 
-  normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex + extraCount, TotalSymbolCountBits);
-
-  while (inputBlockTargetIndex > 0)
-  {
-    if (_CanExtendHist<TotalSymbolCountBits>(pInData, inputBlockTargetIndex - MinBlockSizeX, MinBlockSizeX, &encodeState.hist, symCount))
-      inputBlockTargetIndex -= MinBlockSizeX;
-    else
-      break;
-  }
-
-  // Performance of this could be improved by keeping the current counts around. (or simply using the original hist, if that was only good for one block)
-  observe_hist(symCount, pInData + inputBlockTargetIndex, blockBackPoint - inputBlockTargetIndex);
-  normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex, TotalSymbolCountBits);
   blockBackPoint = length;
 
   // Init States.
@@ -197,28 +223,31 @@ size_t block_rANS32x64_16w_encode(const uint8_t *pInData, const size_t length, u
   inputIndex &= ~(size_t)(StateCount - 1);
   inputIndex += StateCount;
 
-  for (int64_t j = StateCount - 1; j >= 0; j--)
+  if (numSymbols != 1)
   {
-    const uint8_t index = _Rans32x64_idx2idx[j];
-
-    if (inputIndex - (int64_t)StateCount + (int64_t)index < (int64_t)length)
+    for (int64_t j = StateCount - 1; j >= 0; j--)
     {
-      const uint8_t in = pInData[inputIndex - StateCount + index];
-      const uint32_t symbolCount = encodeState.hist.symbolCount[in];
-      const uint32_t max = EncodeEmitPoint * symbolCount;
+      const uint8_t index = _Rans32x64_idx2idx[j];
 
-      const size_t stateIndex = j;
-
-      uint32_t state = encodeState.states[stateIndex];
-
-      if (state >= max)
+      if (inputIndex - (int64_t)StateCount + (int64_t)index < (int64_t)length)
       {
-        *encodeState.pStart = (uint16_t)(state & 0xFFFF);
-        encodeState.pStart--;
-        state >>= 16;
-      }
+        const uint8_t in = pInData[inputIndex - StateCount + index];
+        const uint32_t symbolCount = encodeState.hist.symbolCount[in];
+        const uint32_t max = EncodeEmitPoint * symbolCount;
 
-      encodeState.states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)encodeState.hist.cumul[in] + (state % symbolCount);
+        const size_t stateIndex = j;
+
+        uint32_t state = encodeState.states[stateIndex];
+
+        if (state >= max)
+        {
+          *encodeState.pStart = (uint16_t)(state & 0xFFFF);
+          encodeState.pStart--;
+          state >>= 16;
+        }
+
+        encodeState.states[stateIndex] = ((state / symbolCount) << TotalSymbolCountBits) + (uint32_t)encodeState.hist.cumul[in] + (state % symbolCount);
+      }
     }
   }
 
@@ -226,19 +255,32 @@ size_t block_rANS32x64_16w_encode(const uint8_t *pInData, const size_t length, u
 
   while (true)
   {
-    rans32x64_16w_encoder<Impl>::template encode_section<TotalSymbolCountBits>(&encodeState, pInData, inputIndex, inputBlockTargetIndex);
+    if (numSymbols != 1)
+      rans32x64_16w_encoder<Impl>::template encode_section<TotalSymbolCountBits>(&encodeState, pInData, inputIndex, inputBlockTargetIndex);
+
     inputIndex = inputBlockTargetIndex;
 
-    // Write hist.
+    // Write block info.
     {
       const uint64_t blockSize = blockBackPoint - inputBlockTargetIndex;
 
       encodeState.pStart++;
-      encodeState.pStart -= 256;
-      memcpy(encodeState.pStart, encodeState.hist.symbolCount, sizeof(encodeState.hist.symbolCount));
 
-      encodeState.pStart -= sizeof(uint64_t) / sizeof(uint16_t);
-      memcpy(encodeState.pStart, &blockSize, sizeof(blockSize));
+      if (numSymbols != 1) // write hist.
+      {
+        encodeState.pStart -= 256;
+        memcpy(encodeState.pStart, encodeState.hist.symbolCount, sizeof(encodeState.hist.symbolCount));
+
+        encodeState.pStart -= sizeof(uint64_t) / sizeof(uint16_t);
+        memcpy(encodeState.pStart, &blockSize, sizeof(blockSize));
+      }
+      else
+      {
+        const uint64_t singleSymbolIndicator = blockSize | ((uint64_t)1 << 63) | ((uint64_t)selectedSymbol << 54);
+
+        encodeState.pStart -= sizeof(uint64_t) / sizeof(uint16_t);
+        memcpy(encodeState.pStart, &singleSymbolIndicator, sizeof(singleSymbolIndicator));
+      }
 
       encodeState.pStart--;
     }
@@ -248,28 +290,60 @@ size_t block_rANS32x64_16w_encode(const uint8_t *pInData, const size_t length, u
 
     // Determine new histogram.
     {
-      inputBlockTargetIndex -= MinBlockSizeX;
+      inputBlockTargetIndex -= 1;
+      inputBlockTargetIndex &= ~(MinBlockSizeX - 1);
 
-      observe_hist(symCount, pInData + inputBlockTargetIndex, MinBlockSizeX);
+      const size_t initialSize = inputIndex - inputBlockTargetIndex;
 
-      if constexpr (IsSafeHist)
-        for (size_t j = 0; j < 256; j++)
-          if (symCount[j] == 0)
-            symCount[j] = 1;
+      if (inputBlockTargetIndex > 0 && initialSize < MinBlockSizeX * 2 / 3)
+        inputBlockTargetIndex -= MinBlockSizeX;
 
-      normalize_hist(&encodeState.hist, symCount, MinBlockSizeX, TotalSymbolCountBits);
+      observe_hist(symCount, pInData + inputBlockTargetIndex, inputIndex - inputBlockTargetIndex);
 
-      while (inputBlockTargetIndex > 0)
+      numSymbols = 0;
+
+      for (size_t j = 0; j < 256; j++)
       {
-        if (_CanExtendHist<TotalSymbolCountBits>(pInData, inputBlockTargetIndex - MinBlockSizeX, MinBlockSizeX, &encodeState.hist, symCount))
-          inputBlockTargetIndex -= MinBlockSizeX;
-        else
-          break;
+        numSymbols += (size_t)!!symCount[j];
+        selectedSymbol = symCount[j] ? (uint8_t)j : selectedSymbol;
       }
 
-      // Performance of this could be improved by keeping the current counts around. (or simply using the original hist, if that was only good for one block)
-      observe_hist(symCount, pInData + inputBlockTargetIndex, blockBackPoint - inputBlockTargetIndex);
-      normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex, TotalSymbolCountBits);
+      if (numSymbols == 1)
+      {
+        int64_t idx = inputBlockTargetIndex - 1;
+
+        for (; idx >= 0; idx--)
+          if (pInData[idx] != selectedSymbol)
+            break;
+
+        inputBlockTargetIndex = (size_t)(idx + 1);
+
+        // Align with `StateCount`.
+        inputBlockTargetIndex += StateCount - 1;
+        inputBlockTargetIndex &= ~(StateCount - 1);
+      }
+      else
+      {
+        if constexpr (IsSafeHist)
+          for (size_t j = 0; j < 256; j++)
+            if (symCount[j] == 0)
+              symCount[j] = 1;
+
+        normalize_hist(&encodeState.hist, symCount, MinBlockSizeX, TotalSymbolCountBits);
+
+        while (inputBlockTargetIndex > 0)
+        {
+          if (_CanExtendHist<TotalSymbolCountBits>(pInData, inputBlockTargetIndex - MinBlockSizeX, MinBlockSizeX, &encodeState.hist, symCount))
+            inputBlockTargetIndex -= MinBlockSizeX;
+          else
+            break;
+        }
+
+        // Performance of this could be improved by keeping the current counts around. (or simply using the original hist, if that was only good for one block)
+        observe_hist(symCount, pInData + inputBlockTargetIndex, blockBackPoint - inputBlockTargetIndex);
+        normalize_hist(&encodeState.hist, symCount, blockBackPoint - inputBlockTargetIndex, TotalSymbolCountBits);
+      }
+
       blockBackPoint = inputIndex;
     }
   }

@@ -165,12 +165,12 @@ size_t decode_with_thread_pool_wrapper(const uint8_t *pInData, const size_t inLe
 
 static codec_info_t _Codecs[] =
 {
-  { "rANS32x32 16w (variable block size)", 15, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_15>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_15, true }, {}}},
-  { "rANS32x32 16w (variable block size)", 14, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_14>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_14, true }, {}}},
-  { "rANS32x32 16w (variable block size)", 13, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_13>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_13, true }, {}}},
-  { "rANS32x32 16w (variable block size)", 12, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_12>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_12, true }, {}}},
-  { "rANS32x32 16w (variable block size)", 11, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_11>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_11, true }, {}}},
-  { "rANS32x32 16w (variable block size)", 10, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_10>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_10, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 15, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_15>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_15, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 14, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_14>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_14, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 13, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_13>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_13, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 12, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_12>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_12, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 11, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_11>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_11, true }, {}}},
+  //{ "rANS32x32 16w (variable block size)", 10, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_10>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_10, true }, {}}},
   
   { "rANS32x64 16w (variable block size)", 15, {{ "encode", encode_no_hist_wrapper<block_rANS32x64_16w_encode_15>, true }, {}}, {{ "decode", block_rANS32x64_16w_decode_15, true }, {}}},
   { "rANS32x64 16w (variable block size)", 14, {{ "encode", encode_no_hist_wrapper<block_rANS32x64_16w_encode_14>, true }, {}}, {{ "decode", block_rANS32x64_16w_decode_14, true }, {}}},
