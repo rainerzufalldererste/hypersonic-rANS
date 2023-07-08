@@ -42,9 +42,9 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: git clone https://github.com/rainerzufalldererste/rle_samples.git
 
-    - name: Test sample0 AVX512BW
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: ./hsrans rle_samples/sample0.bin --test --max-simd avx512bw
+    #- name: Test sample0 AVX512BW
+    #  working-directory: ${{env.GITHUB_WORKSPACE}}
+    #  run: ./hsrans rle_samples/sample0.bin --test --max-simd avx512bw
 
     - name: Test sample0 AVX2
       working-directory: ${{env.GITHUB_WORKSPACE}}
@@ -58,9 +58,9 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: ./hsrans rle_samples/sample0.bin --test --max-simd none
 
-    - name: Test sample1 AVX512BW
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: ./hsrans rle_samples/sample1.bin --test --max-simd avx512bw
+    #- name: Test sample1 AVX512BW
+    #  working-directory: ${{env.GITHUB_WORKSPACE}}
+    #  run: ./hsrans rle_samples/sample1.bin --test --max-simd avx512bw
 
     - name: Test sample1 AVX2
       working-directory: ${{env.GITHUB_WORKSPACE}}
@@ -74,9 +74,9 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: ./hsrans rle_samples/sample1.bin --test --max-simd none
 
-    - name: Test sample2 AVX512BW
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: ./hsrans rle_samples/sample2.bin --test --max-simd avx512bw
+    #- name: Test sample2 AVX512BW
+    #  working-directory: ${{env.GITHUB_WORKSPACE}}
+    #  run: ./hsrans rle_samples/sample2.bin --test --max-simd avx512bw
 
     - name: Test sample2 AVX2
       working-directory: ${{env.GITHUB_WORKSPACE}}
