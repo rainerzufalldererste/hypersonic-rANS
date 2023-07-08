@@ -2,6 +2,7 @@
 #define block_codec32_h__
 
 #include "hist.h"
+#include "simd_platform.h"
 
 #include <string.h>
 
@@ -205,7 +206,7 @@ struct rans32x32_16w_decoder<r32x32_dt_scalar, TotalSymbolCountBits, hist_dec_t<
 };
 
 template <uint32_t TotalSymbolCountBits, bool ShuffleMask16, bool WriteAligned32 = false>
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || defined(__llvm__)
 __attribute__((target("avx2")))
 #endif
 static size_t _block_rans32x32_decode_section_avx2_varA(_rans_decode_state32_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
@@ -441,7 +442,7 @@ static size_t _block_rans32x32_decode_section_avx2_varA(_rans_decode_state32_t<h
 }
 
 template <uint32_t TotalSymbolCountBits, bool ShuffleMask16, bool WriteAligned32 = false>
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || defined(__llvm__)
 __attribute__((target("avx2")))
 #endif
 static size_t _block_rans32x32_decode_section_avx2_varC(_rans_decode_state32_t<hist_dec_pack_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)

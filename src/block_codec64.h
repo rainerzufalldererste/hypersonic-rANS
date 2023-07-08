@@ -2,6 +2,7 @@
 #define block_codec64_h__
 
 #include "hist.h"
+#include "simd_platform.h"
 
 #include <string.h>
 
@@ -216,7 +217,7 @@ struct rans32x64_16w_decoder<r32x64_dt_scalar, TotalSymbolCountBits, hist_dec_t<
 };
 
 template <uint32_t TotalSymbolCountBits, bool ShuffleMask16, bool WriteAligned32 = false>
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || defined(__llvm__)
 __attribute__((target("avx2")))
 #endif
 static size_t _block_rans32x64_decode_section_avx2_varA(_rans_decode_state64_t<hist_dec2_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
@@ -601,7 +602,7 @@ static size_t _block_rans32x64_decode_section_avx2_varA(_rans_decode_state64_t<h
 }
 
 template <uint32_t TotalSymbolCountBits, bool ShuffleMask16, bool WriteAligned32 = false>
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || defined(__llvm__)
 __attribute__((target("avx2")))
 #endif
 static size_t _block_rans32x64_decode_section_avx2_varC(_rans_decode_state64_t<hist_dec_pack_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
@@ -976,7 +977,7 @@ static size_t _block_rans32x64_decode_section_avx2_varC(_rans_decode_state64_t<h
 }
 
 template <uint32_t TotalSymbolCountBits, bool ShuffleMask16, bool YmmShuffle, bool WriteAligned64 = false>
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || defined(__llvm__)
 #ifdef __llvm__
 __attribute__((target("avx512bw")))
 #else
@@ -1330,7 +1331,7 @@ static size_t _block_rans32x64_decode_section_avx512_varA(_rans_decode_state64_t
 }
 
 template <uint32_t TotalSymbolCountBits, bool ShuffleMask16, bool YmmShuffle, bool WriteAligned64 = false>
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || defined(__llvm__)
 #ifdef __llvm__
 __attribute__((target("avx512bw")))
 #else
