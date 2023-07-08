@@ -34,6 +34,10 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: build-gcc64
+
+    - name: Mark as Executable
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: chmod +x hsrans
     
     - name: Download Samples
       working-directory: ${{env.GITHUB_WORKSPACE}}
