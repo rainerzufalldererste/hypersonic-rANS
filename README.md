@@ -28,7 +28,7 @@
 
 ### [enwik8](http://mattmahoney.net/dc/textdata.html) (Wikipedia Extract, 100,000,000 Bytes)
 | Codec Type | Open-<br/>Source | Ratio | Encoder<br/>Throughput | Decoder<br/>Clocks/Byte | Decoder<br/>Throughput |
-| -- | --: | --: | --: | --: | --: |
+| -- | :-: | --: | --: | --: | --: |
 | **rANS32x64 16w 11 (raw)**                | ✔️ |  64.48 % |   336.81 MiB/s |   1.42 clk/byte |  3,018.02 MiB/s |
 | **rANS32x64 16w 10 (raw)**                | ✔️ |  65.97 % |   335.28 MiB/s |   1.42 clk/byte |  3,013.45 MiB/s |
 | **rANS32x64 16w 12 (raw)**                | ✔️ |  63.83 % |   347.90 MiB/s |   1.42 clk/byte |  3,009.18 MiB/s |
@@ -77,7 +77,7 @@
 
 ### [x-ray](https://sun.aei.polsl.pl//~sdeor/index.php?page=silesia) (X-Ray Medical Image, Part of the Silesia Corpus)
 | Codec Type | Open-<br/>Source | Ratio | Encoder<br/>Throughput | Decoder<br/>Clocks/Byte | Decoder<br/>Throughput |
-| -- | --: | --: | --: | --: | --: |
+| -- | :-: | --: | --: | --: | --: |
 | **rANS32x64 16w 11 (raw)**   | ✔️ |  82.60 % |   311.60 MiB/s |   1.39 clk/byte |  3,079.98 MiB/s |
 | **rANS32x64 16w 12**         | ✔️ |  80.17 % |   193.60 MiB/s |   1.41 clk/byte |  3,048.15 MiB/s |
 | **rANS32x64 16w 12 (raw)**   | ✔️ |  82.57 % |   308.10 MiB/s |   1.41 clk/byte |  3,041.07 MiB/s |
@@ -126,7 +126,7 @@
 
 ### [mozilla](https://sun.aei.polsl.pl//~sdeor/index.php?page=silesia) (Tarred executables of Mozilla 1.0, Part of the Silesia Corpus)
 | Codec Type | Open-<br/>Source | Ratio | Encoder<br/>Throughput | Decoder<br/>Clocks/Byte | Decoder<br/>Throughput |
-| -- | --: | --: | --: | --: | --: |
+| -- | :-: | --: | --: | --: | --: |
 | **rANS32x64 16w 11 (raw)**                | ✔️ |  77.82 % |   309.39 MiB/s |   1.44 clk/byte |  2,978.20 MiB/s |
 | TurboANX 63                               | ❌ |  70.1  % |   965.97 MiB/s |   -             |  2,959.13 MiB/s |
 | **rANS32x64 16w 12 (raw)**                | ✔️ |  77.79 % |   308.29 MiB/s |   1.45 clk/byte |  2,946.52 MiB/s |
