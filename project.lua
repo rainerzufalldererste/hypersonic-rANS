@@ -7,15 +7,22 @@ project(ProjectName)
   staticruntime "On"
 
   filter { "system:windows" }
-    buildoptions { '/Gm-' }
-    buildoptions { '/MP' }
     ignoredefaultlibraries { "msvcrt" }
-    buildoptions { '/std:c++20' }
   filter { "system:linux" }
     buildoptions { "-mxsave" }
     linkoptions { "-pthread" }
     cppdialect "C++20"
   filter { }
+
+  filter { "system:windows", "configurations:not *Clang" }
+    buildoptions { '/std:c++20' }
+    buildoptions { '/Gm-' }
+    buildoptions { '/MP' }
+
+  filter { "system:windows", "configurations:*Clang" }
+    toolset("clang")
+    cppdialect "C++17"
+    defines { "__llvm__" }
   
   filter { "configurations:Release" }
     flags { "LinkTimeOptimization" }

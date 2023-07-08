@@ -7,13 +7,13 @@ solution "hsrans"
     configurations { "Release", "Debug", "ReleaseClang", "DebugClang" }
     linkgroups "On"
     filter { "configurations:*Clang" }
-      toolset "clang"
+    toolset "clang"
     filter { }
   elseif os.target() == "macosx" then
     configurations { "Release", "Debug" }
     toolset "clang"
   else
-    configurations { "Debug", "Release" }
+    configurations { "Release", "Debug", "ReleaseClang", "DebugClang" }
   end
 
   dofile "project.lua"

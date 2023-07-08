@@ -1,24 +1,23 @@
 #include "hist.h"
 
 #include <string.h>
+#include <algorithm>
 
 //////////////////////////////////////////////////////////////////////////
 
-void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const size_t totalSymbolCountBits)
+void observe_hist(uint32_t hist[256], const uint8_t *pData, const size_t size)
 {
-  uint32_t hist[256];
-  memset(hist, 0, sizeof(hist));
-
-  const uint32_t totalSymbolCount = ((uint32_t)1 << totalSymbolCountBits);
+  memset(hist, 0, sizeof(uint32_t) * 256);
 
   for (size_t i = 0; i < size; i++)
     hist[pData[i]]++;
+}
 
-  uint32_t counter = 0;
+void normalize_hist(hist_t *pHist, const uint32_t hist[256], const size_t dataBytes, const size_t totalSymbolCountBits)
+{
+  const uint32_t totalSymbolCount = ((uint32_t)1 << totalSymbolCountBits);
 
-  for (size_t i = 0; i < 256; i++)
-    counter += hist[i];
-
+  size_t counter = dataBytes;
   uint16_t capped[256];
   size_t cappedSum = 0;
 
@@ -73,7 +72,7 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const siz
   }
   else
   {
-    const uint32_t div = counter / totalSymbolCount;
+    const uint32_t div = (uint32_t)(counter / (size_t)totalSymbolCount);
 
     if (div)
     {
@@ -91,7 +90,7 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const siz
     }
     else
     {
-      const uint32_t mul = totalSymbolCount / counter;
+      const uint32_t mul = (uint32_t)((size_t)totalSymbolCount / counter);
 
       for (size_t i = 0; i < 256; i++)
       {
@@ -103,65 +102,98 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const siz
 
   if (cappedSum != totalSymbolCount)
   {
+    uint8_t sortedIdx[256];
+
+    for (size_t i = 0; i < 256; i++)
+      sortedIdx[i] = (uint8_t)i;
+
+    struct _internal
+    {
+      static void heapify(uint8_t *pIdx, const uint16_t *pVal, const int64_t n, const int64_t i)
+      {
+        const int64_t left = 2 * i + 1;
+        const int64_t right = 2 * i + 2;
+        int64_t largest = i;
+
+        if (left < n && pVal[pIdx[left]] > pVal[pIdx[largest]])
+          largest = left;
+
+        if (right < n && pVal[pIdx[right]] > pVal[pIdx[largest]])
+          largest = right;
+
+        if (largest != i)
+        {
+          std::swap(pIdx[i], pIdx[largest]);
+          heapify(pIdx, pVal, n, largest);
+        }
+      }
+
+      static void heapSort(uint8_t *pIdx, const uint16_t *pVal, const size_t length)
+      {
+        for (int64_t i = (int64_t)length / 2 - 1; i >= 0; i--)
+          heapify(pIdx, pVal, length, i);
+
+        for (int64_t i = length - 1; i >= 0; i--)
+        {
+          std::swap(pIdx[0], pIdx[i]);
+          heapify(pIdx, pVal, i, 0);
+        }
+      }
+    };
+
+    _internal::heapSort(sortedIdx, capped, 256);
+    size_t minTwo = 0;
+
+    for (size_t i = 0; i < 256; i++)
+    {
+      if (capped[sortedIdx[i]] >= 2)
+      {
+        minTwo = i;
+        break;
+      }
+    }
+
     while (cappedSum > totalSymbolCount) // Start stealing.
     {
-      size_t target = 2;
-
-      while (true)
+      for (size_t i = minTwo; i < 256; i++)
       {
-        size_t found = totalSymbolCount;
+        capped[sortedIdx[i]]--;
+        cappedSum--;
 
-        for (size_t i = 0; i < 256; i++)
-          if (capped[i] > target && capped[i] < found)
-            found = capped[i];
+        if (cappedSum == totalSymbolCount)
+          goto hist_ready;
+      }
 
-        if (found == totalSymbolCount)
-          break;
-
-        for (size_t i = 0; i < 256; i++)
+      // Re-Adjust `minTwo`.
+      for (size_t i = minTwo; i < 256; i++)
+      {
+        if (capped[sortedIdx[i]] >= 2)
         {
-          if (capped[i] == found)
-          {
-            capped[i]--;
-            cappedSum--;
-
-            if (cappedSum == totalSymbolCount)
-              goto hist_ready;
-          }
+          minTwo = i;
+          break;
         }
-
-        target = found + 1;
       }
     }
 
     while (cappedSum < totalSymbolCount) // Start a charity.
     {
-      size_t target = totalSymbolCount;
-
-      while (true)
+      for (int64_t i = 255; i >= (int64_t)minTwo; i--)
       {
-        size_t found = 1;
+        capped[sortedIdx[i]]++;
+        cappedSum++;
 
-        for (size_t i = 0; i < 256; i++)
-          if (capped[i] < target && capped[i] > found)
-            found = capped[i];
+        if (cappedSum == totalSymbolCount)
+          goto hist_ready;
+      }
 
-        if (found == 1)
-          break;
-
-        for (size_t i = 0; i < 256; i++)
+      // Re-Adjust `minTwo`.
+      for (size_t i = minTwo; i < 256; i++)
+      {
+        if (capped[sortedIdx[i]] >= 2)
         {
-          if (capped[i] == found)
-          {
-            capped[i]++;
-            cappedSum++;
-
-            if (cappedSum == totalSymbolCount)
-              goto hist_ready;
-          }
+          minTwo = i;
+          break;
         }
-
-        target = found - 1;
       }
     }
   }
@@ -175,6 +207,18 @@ hist_ready:
     pHist->symbolCount[i] = capped[i];
     counter += capped[i];
   }
+
+#if defined(_DEBUG) && defined(_MSC_VER)
+  if (counter != totalSymbolCount)
+    __debugbreak();
+#endif
+}
+
+void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const size_t totalSymbolCountBits)
+{
+  uint32_t hist[256];
+  observe_hist(hist, pData, size);
+  normalize_hist(pHist, hist, size, totalSymbolCountBits);
 }
 
 void make_enc_hist(hist_enc_t *pHistEnc, const hist_t *pHist)
@@ -263,7 +307,7 @@ void make_dec_pack_hist(hist_dec_pack_t<TotalSymbolCountBits> *pHistDec, const h
 
 bool inplace_complete_hist(hist_t *pHist, const size_t totalSymbolCountBits)
 {
-  uint16_t counter = 0;
+  uint32_t counter = 0;
 
   for (size_t i = 0; i < 256; i++)
   {
@@ -271,7 +315,12 @@ bool inplace_complete_hist(hist_t *pHist, const size_t totalSymbolCountBits)
     counter += pHist->symbolCount[i];
   }
 
-  return (counter == 1 << totalSymbolCountBits);
+#if defined(_DEBUG) && defined(_MSC_VER)
+  if (counter != ((uint32_t)1 << totalSymbolCountBits))
+    __debugbreak();
+#endif
+
+  return (counter == (uint32_t)(1 << totalSymbolCountBits));
 }
 
 template <uint32_t TotalSymbolCountBits>

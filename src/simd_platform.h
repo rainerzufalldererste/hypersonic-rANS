@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__llvm__)
 #include <intrin.h>
 #define __builtin_popcount __popcnt
 #else

@@ -51,6 +51,10 @@ struct hist_dec_pack_t
 
 //////////////////////////////////////////////////////////////////////////
 
+void observe_hist(uint32_t hist[256], const uint8_t *pData, const size_t size);
+
+void normalize_hist(hist_t *pHist, const uint32_t hist[256], const size_t dataBytes, const size_t totalSymbolCountBits);
+
 // `totalSymbolCountBits` should be <= 15
 void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const size_t totalSymbolCountBits);
 
