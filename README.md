@@ -157,7 +157,7 @@ The following benchmarks demonstrate, apart from incredibly high decompression s
 | htscodecs_arith_dyn 1                     |  52.1  % |   -              |    62.87 MiB/s |   -             |    62.98 MiB/s |
 | htscodecs_arith_dyn 0                     |  66.4  % |   -              |    63.82 MiB/s |   -             |    59.92 MiB/s |
 
-Thanks to [James Bonfield](https://github.com/jkbonfield) I also have benchmarks for `htscodecs` (MB/s converted to MiB/s) and `hypersonic-rANS` on an `Intel i7-1185G7` (Tiger Lake) via WSL1, where the AVX-512 versions of the 32x64 codecs seemed to be particularly fast:
+Thanks to [James Bonfield](https://github.com/jkbonfield) I also have benchmarks for `htscodecs` (MB/s converted to MiB/s) and `hypersonic-rANS` on an `Intel i7-1185G7` (Tiger Lake) via WSL1 compiled with GCC, where the AVX-512 versions of the 32x64 codecs seemed to be particularly fast:
 
 ### [enwik8](http://mattmahoney.net/dc/textdata.html) (Wikipedia Extract, 100,000,000 Bytes)
 | Codec Type | Ratio | Encoder<br/>Clocks/Byte | Encoder<br/>Throughput | Decoder<br/>Clocks/Byte | Decoder<br/>Throughput |

@@ -26,16 +26,49 @@ void make_hist(hist_t *pHist, const uint8_t *pData, const size_t size, const siz
 
   if constexpr (FloatingPointHistLimit)
   {
-    const float mul = (float)totalSymbolCount / counter;
+    constexpr bool NewHistModeling = false; // This is far more consistent performance wise, but ends up being slower on average.
 
-    for (size_t i = 0; i < 256; i++)
+    if constexpr (NewHistModeling)
     {
-      capped[i] = (uint16_t)(hist[i] * mul + 0.5f);
+      const float mulStage1 = (float)totalSymbolCount / counter;
 
-      if (capped[i] == 0 && hist[i])
-        capped[i] = 1;
+      uint32_t nonOneCount = 0;
+      uint32_t onlyOneCount = 0;
 
-      cappedSum += capped[i];
+      for (size_t i = 0; i < 256; i++)
+      {
+        if (hist[i] * mulStage1 >= 1.5)
+          nonOneCount += hist[i];
+        else
+          onlyOneCount++;
+      }
+
+      const float maxCombined = nonOneCount + onlyOneCount * totalSymbolCount / (float)(counter - onlyOneCount);
+      const float mulStage2 = (float)totalSymbolCount / maxCombined;
+
+      for (size_t i = 0; i < 256; i++)
+      {
+        capped[i] = (uint16_t)(hist[i] * mulStage2 + 0.5f);
+
+        if (capped[i] == 0 && hist[i])
+          capped[i] = 1;
+
+        cappedSum += capped[i];
+      }
+    }
+    else
+    {
+      const float mul = (float)totalSymbolCount / counter;
+
+      for (size_t i = 0; i < 256; i++)
+      {
+        capped[i] = (uint16_t)(hist[i] * mul + 0.5f);
+
+        if (capped[i] == 0 && hist[i])
+          capped[i] = 1;
+
+        cappedSum += capped[i];
+      }
     }
   }
   else
