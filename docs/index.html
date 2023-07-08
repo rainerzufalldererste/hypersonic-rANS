@@ -597,103 +597,6 @@ window.addEventListener("scroll", reveal);
       <hr/>
       <h2>benchmarks</h2>
       <div class="graph_container">
-        <h3>enwik8 (wikipedia extract)</h3>
-        <p>Order 1 codecs excluded, they're not particularly fast, but they compress a lot better, which makes visibility a lot worse.</p>
-        <!--
-        <div class="graph_metric_container">
-          <a class="graph_metricY r" onclick="javascript:setYMetric('entropy')">entropy</a>
-          <a class="graph_metricY l active" onclick="javascript:setYMetric('ratio')">ratio</a>
-        </div>
-        <div class="graph_metric_container">
-          <a class="graph_metricX r" onclick="javascript:setXMetric('encode')">encode</a>
-          <a class="graph_metricX l active" onclick="javascript:setXMetric('decode')">decode</a>
-        </div>
-        -->
-        <canvas id="enwik8" class="chart"></canvas>
-        <script>
-            var obj = document.getElementById("enwik8");
-            var ctx = obj.getContext("2d");
-            ctx.scale(pixelRatio(), pixelRatio());
-
-            init_obj(obj);
-
-            add_point_no_entropy(obj, 1675.11, 63.57,  342.60, "rANS32x32 16w 15"                     );
-            add_point_no_entropy(obj, 1795.66, 63.55,  341.70, "rANS32x32 16w 14"                     );
-            add_point_no_entropy(obj, 1800.28, 63.61,  341.20, "rANS32x32 16w 13"                     );
-            add_point_no_entropy(obj, 2784.13, 63.81,  343.55, "rANS32x32 16w 12"                     );
-            add_point_no_entropy(obj, 2856.20, 64.33,  333.03, "rANS32x32 16w 11"                     );
-            add_point_no_entropy(obj, 2845.56, 65.59,  334.68, "rANS32x32 16w 10"                     );
-
-            add_point_no_entropy(obj, 1828.28, 63.57,  350.49, "rANS32x64 16w 15"                     );
-            add_point_no_entropy(obj, 1876.95, 63.55,  346.57, "rANS32x64 16w 14"                     );
-            add_point_no_entropy(obj, 1872.44, 63.61,  348.13, "rANS32x64 16w 13"                     );
-            add_point_no_entropy(obj, 2967.92, 63.81,  342.31, "rANS32x64 16w 12"                     );
-            add_point_no_entropy(obj, 2973.71, 64.33,  347.24, "rANS32x64 16w 11"                     );
-            add_point_no_entropy(obj, 2989.66, 65.59,  341.55, "rANS32x64 16w 10"                     );
-
-            add_point_no_entropy(obj, 1550.93, 63.57,  324.33, "rANS32x32 32blk 16w 15"               );
-            add_point_no_entropy(obj, 1607.26, 63.55,  329.08, "rANS32x32 32blk 16w 14"               );
-            add_point_no_entropy(obj, 1582.28, 63.61,  341.16, "rANS32x32 32blk 16w 13"               );
-            add_point_no_entropy(obj, 2312.10, 63.81,  339.50, "rANS32x32 32blk 16w 12"               );
-            add_point_no_entropy(obj, 2299.31, 64.33,  338.00, "rANS32x32 32blk 16w 11"               );
-            add_point_no_entropy(obj, 2289.10, 65.59,  331.80, "rANS32x32 32blk 16w 10"               );
-
-            add_point_no_entropy(obj, 1381.63, 63.51,  283.41, "rANS32x32 32blk 8w 15"                );
-            add_point_no_entropy(obj, 1429.24, 63.53,  284.45, "rANS32x32 32blk 8w 14"                );
-            add_point_no_entropy(obj, 1438.01, 63.60,  284.24, "rANS32x32 32blk 8w 13"                );
-            add_point_no_entropy(obj, 1984.68, 63.82,  282.80, "rANS32x32 32blk 8w 12"                );
-            add_point_no_entropy(obj, 1988.10, 64.33,  285.45, "rANS32x32 32blk 8w 11"                );
-            add_point_no_entropy(obj, 1977.26, 65.60,  291.41, "rANS32x32 32blk 8w 10"                );
-
-            add_point_no_entropy(obj, 1017.12, 63.57,  322.51, "rANS32x16 16w 15"                     );
-            add_point_no_entropy(obj, 1175.92, 63.55,  320.41, "rANS32x16 16w 14"                     );
-            add_point_no_entropy(obj, 1190.23, 63.61,  325.92, "rANS32x16 16w 13"                     );
-            add_point_no_entropy(obj, 1681.73, 63.81,  324.24, "rANS32x16 16w 12"                     );
-            add_point_no_entropy(obj, 1676.41, 64.33,  323.17, "rANS32x16 16w 11"                     );
-            add_point_no_entropy(obj, 1684.80, 65.59,  323.07, "rANS32x16 16w 10"                     );
-
-            //add_point_no_entropy(obj,   81.63, 47.8 ,   89.60, "htscodecs_arith_dyn 1"              , true);
-            //add_point_no_entropy(obj,  322.22, 51.6 ,  168.22, "htscodecs_rans32avx512 1"           , true);
-            //add_point_no_entropy(obj,  319.15, 51.6 ,  177.36, "htscodecs_rans32avx2 1"             , true);
-            add_point_no_entropy(obj,   75.05, 62.0 ,   88.09, "htscodecs_arith_dyn 0"                , true);
-            add_point_no_entropy(obj,   84.37, 63.2 ,  223.06, "FastAC"                               , true);
-            add_point_no_entropy(obj,  966.58, 63.2 ,  736.10, "fse"                                  , true);
-            add_point_no_entropy(obj, 2515.23, 63.4 , 1581.32, "fsehuf"                               , true);
-            add_point_no_entropy(obj, 2374.04, 63.5 , 1041.93, "htscodecs_rans32avx2 0"               , true);
-            add_point_no_entropy(obj, 2221.93, 63.5 ,  796.70, "htscodecs_rans32avx512 0"             , true);
-            add_point_no_entropy(obj, 1948.66, 63.5 ,  732.08, "htscodecs_rans32sse 0"                , true);
-            add_point_no_entropy(obj,  151.62, 63.6 ,  189.84, "FastHF"                               , true);
-            add_point_no_entropy(obj,  942.43, 66.4 ,  522.13, "TurboANX 1  (Native Windows Build)"   , true);
-            add_point_no_entropy(obj, 1416.33, 64.0 ,  656.86, "TurboANX 2  (Native Windows Build)"   , true);
-            add_point_no_entropy(obj, 1929.18, 63.0 ,  706.92, "TurboANX 4  (Native Windows Build)"   , true);
-            add_point_no_entropy(obj, 2347.10, 62.7 ,  823.76, "TurboANX 8  (Native Windows Build)"   , true);
-            add_point_no_entropy(obj, 2631.85, 62.8 ,  902.32, "TurboANX 16 (Native Windows Build)"   , true);
-            add_point_no_entropy(obj, 2765.31, 63.0 ,  936.12, "TurboANX 24 (Native Windows Build)"   , true);
-            add_point_no_entropy(obj, 2856.26, 63.1 ,  951.53, "TurboANX 32 (Native Windows Build)"   , true);
-            add_point_no_entropy(obj, 2883.45, 63.2 ,  964.45, "TurboANX 40 (Native Windows Build)"   , true);
-            add_point_no_entropy(obj, 2917.59, 63.3 ,  969.72, "TurboANX 48 (Native Windows Build)"   , true);
-            add_point_no_entropy(obj, 2964.02, 63.4 ,  981.79, "TurboANX 63 (Native Windows Build)"   , true);
-
-            add_line(obj, ["rANS32x32 16w 15", "rANS32x32 16w 14", "rANS32x32 16w 13", "rANS32x32 16w 12", "rANS32x32 16w 11", "rANS32x32 16w 10"], getColor());
-            add_line(obj, ["rANS32x32 32blk 16w 15", "rANS32x32 32blk 16w 14", "rANS32x32 32blk 16w 13", "rANS32x32 32blk 16w 12", "rANS32x32 32blk 16w 11", "rANS32x32 32blk 16w 10"], getColor());
-            add_line(obj, ["rANS32x32 32blk 8w 15", "rANS32x32 32blk 8w 14", "rANS32x32 32blk 8w 13", "rANS32x32 32blk 8w 12", "rANS32x32 32blk 8w 11", "rANS32x32 32blk 8w 10"], getColor());
-            add_line(obj, ["rANS32x64 16w 15", "rANS32x64 16w 14", "rANS32x64 16w 13", "rANS32x64 16w 12", "rANS32x64 16w 11", "rANS32x64 16w 10"], getColor());
-            add_line(obj, ["rANS32x16 16w 15", "rANS32x16 16w 14", "rANS32x16 16w 13", "rANS32x16 16w 12", "rANS32x16 16w 11", "rANS32x16 16w 10"], getColor());
-            
-            add_line(obj, ["fse", "fsehuf" ], "#55555588");
-            add_line(obj, ["htscodecs_rans32sse 0", "htscodecs_rans32avx2 0", "htscodecs_rans32avx512 0" ], "#55555588");
-            add_line(obj, ["FastAC", "FastHF"], "#55555588");
-            add_line(obj, ["TurboANX 1  (Native Windows Build)", "TurboANX 2  (Native Windows Build)", "TurboANX 4  (Native Windows Build)", "TurboANX 8  (Native Windows Build)", "TurboANX 16 (Native Windows Build)", "TurboANX 24 (Native Windows Build)", "TurboANX 32 (Native Windows Build)", "TurboANX 40 (Native Windows Build)", "TurboANX 48 (Native Windows Build)", "TurboANX 63 (Native Windows Build)"], "#55555588");
-
-            calc_pareto_line(obj);
-            calc_pareto_line2(obj);
-
-            window.addEventListener("resize", () => { draw_obj(document.getElementById("enwik8").getContext("2d"), document.getElementById("enwik8")); });
-            window.addEventListener("load", () => { draw_obj(document.getElementById("enwik8").getContext("2d"), document.getElementById("enwik8")); });
-            obj.addEventListener("mousemove", (e) => { handle_mouseover(e, document.getElementById("enwik8")); });
-        </script>
-      </div>
-      <div class="graph_container">
         <h3>x-ray (medical x-ray image)</h3>
         <p>Order 1 codecs excluded, they're not particularly fast, but they compress a lot better, which makes visibility a lot worse.</p>
         <!--
@@ -742,17 +645,6 @@ window.addEventListener("scroll", reveal);
             add_point_no_entropy(obj, 3015.25, 80.24,  186.41, "rANS32x64 16w 11"        );
             add_point_no_entropy(obj, 3040.97, 80.81,  193.28, "rANS32x64 16w 10"        );
 
-            add_point_no_entropy(obj, 2966.83, 79.6,  989.68, "TurboANX 63 (Native Windows Build)", true);
-            add_point_no_entropy(obj, 2923.90, 79.6,  979.24, "TurboANX 48 (Native Windows Build)", true);
-            add_point_no_entropy(obj, 2904.99, 79.7,  982.57, "TurboANX 40 (Native Windows Build)", true);
-            add_point_no_entropy(obj, 2860.76, 79.7,  973.82, "TurboANX 32 (Native Windows Build)", true);
-            add_point_no_entropy(obj, 2785.82, 79.8,  962.68, "TurboANX 24 (Native Windows Build)", true);
-            add_point_no_entropy(obj, 2661.07, 79.9,  937.33, "TurboANX 16 (Native Windows Build)", true);
-            add_point_no_entropy(obj, 2360.30, 80.5,  864.63, "TurboANX 8  (Native Windows Build)", true);
-            add_point_no_entropy(obj, 1883.40, 81.9,  677.08, "TurboANX 4  (Native Windows Build)", true);
-            add_point_no_entropy(obj, 1292.65, 83.7,  600.46, "TurboANX 2  (Native Windows Build)", true);
-            add_point_no_entropy(obj,  719.84, 85.1,  387.40, "TurboANX 1  (Native Windows Build)", true);
-
             add_point_no_entropy(obj, 1914.15, 80.6,  723.48, "htscodecs rans32sse 0"    , true);
             add_point_no_entropy(obj, 2244.87, 80.6,  966.58, "htscodecs rans32avx2 0"   , true);
             add_point_no_entropy(obj, 2139.47, 80.6,  739.14, "htscodecs rans32avx512 0" , true);
@@ -767,6 +659,17 @@ window.addEventListener("scroll", reveal);
 
             add_point_no_entropy(obj,  144.30, 80.0,  183.35, "FastHF"                   , true);
             add_point_no_entropy(obj,   77.33, 79.7,  244.35, "FastAC"                   , true);
+
+            add_point_no_entropy(obj, 2966.83, 79.6,  989.68, "TurboANX 63 (Native Windows Build)", true);
+            add_point_no_entropy(obj, 2923.90, 79.6,  979.24, "TurboANX 48 (Native Windows Build)", true);
+            add_point_no_entropy(obj, 2904.99, 79.7,  982.57, "TurboANX 40 (Native Windows Build)", true);
+            add_point_no_entropy(obj, 2860.76, 79.7,  973.82, "TurboANX 32 (Native Windows Build)", true);
+            add_point_no_entropy(obj, 2785.82, 79.8,  962.68, "TurboANX 24 (Native Windows Build)", true);
+            add_point_no_entropy(obj, 2661.07, 79.9,  937.33, "TurboANX 16 (Native Windows Build)", true);
+            add_point_no_entropy(obj, 2360.30, 80.5,  864.63, "TurboANX 8  (Native Windows Build)", true);
+            add_point_no_entropy(obj, 1883.40, 81.9,  677.08, "TurboANX 4  (Native Windows Build)", true);
+            add_point_no_entropy(obj, 1292.65, 83.7,  600.46, "TurboANX 2  (Native Windows Build)", true);
+            add_point_no_entropy(obj,  719.84, 85.1,  387.40, "TurboANX 1  (Native Windows Build)", true);
 
             add_line(obj, ["rANS32x32 16w 15", "rANS32x32 16w 14", "rANS32x32 16w 13", "rANS32x32 16w 12", "rANS32x32 16w 11", "rANS32x32 16w 10"], getColor());
             add_line(obj, ["rANS32x64 16w 15", "rANS32x64 16w 14", "rANS32x64 16w 13", "rANS32x64 16w 12", "rANS32x64 16w 11", "rANS32x64 16w 10"], getColor());
@@ -785,6 +688,95 @@ window.addEventListener("scroll", reveal);
             window.addEventListener("resize", () => { draw_obj(document.getElementById("xray").getContext("2d"), document.getElementById("xray")); });
             window.addEventListener("load", () => { draw_obj(document.getElementById("xray").getContext("2d"), document.getElementById("xray")); });
             obj.addEventListener("mousemove", (e) => { handle_mouseover(e, document.getElementById("xray")); });
+        </script>
+      </div>
+      <div class="graph_container">
+        <h3>enwik8 (wikipedia extract)</h3>
+        <p>Order 1 codecs excluded, they're not particularly fast, but they compress a lot better, which makes visibility a lot worse.</p>
+        <!--
+        <div class="graph_metric_container">
+          <a class="graph_metricY r" onclick="javascript:setYMetric('entropy')">entropy</a>
+          <a class="graph_metricY l active" onclick="javascript:setYMetric('ratio')">ratio</a>
+        </div>
+        <div class="graph_metric_container">
+          <a class="graph_metricX r" onclick="javascript:setXMetric('encode')">encode</a>
+          <a class="graph_metricX l active" onclick="javascript:setXMetric('decode')">decode</a>
+        </div>
+        -->
+        <canvas id="enwik8" class="chart"></canvas>
+        <script>
+            var obj = document.getElementById("enwik8");
+            var ctx = obj.getContext("2d");
+            ctx.scale(pixelRatio(), pixelRatio());
+
+            init_obj(obj);
+
+            add_point_no_entropy(obj, 1622.75, 63.50,  250.86, "rANS32x32 16w 15"        );
+            add_point_no_entropy(obj, 1772.88, 63.45,  252.28, "rANS32x32 16w 14"        );
+            add_point_no_entropy(obj, 1772.30, 63.52,  249.07, "rANS32x32 16w 13"        );
+            add_point_no_entropy(obj, 2642.01, 63.71,  243.00, "rANS32x32 16w 12"        );
+            add_point_no_entropy(obj, 2735.12, 64.30,  238.29, "rANS32x32 16w 11"        );
+            add_point_no_entropy(obj, 2765.18, 65.56,  237.21, "rANS32x32 16w 10"        );
+
+            add_point_no_entropy(obj, 1744.39, 63.48,  235.02, "rANS32x64 16w 15"        );
+            add_point_no_entropy(obj, 1837.19, 63.47,  235.14, "rANS32x64 16w 14"        );
+            add_point_no_entropy(obj, 1846.34, 63.53,  232.05, "rANS32x64 16w 13"        );
+            add_point_no_entropy(obj, 2856.76, 63.73,  230.37, "rANS32x64 16w 12"        );
+            add_point_no_entropy(obj, 2907.73, 64.30,  225.35, "rANS32x64 16w 11"        );
+            add_point_no_entropy(obj, 2934.64, 65.56,  239.77, "rANS32x64 16w 10"        );
+
+            add_point_no_entropy(obj, 1679.08, 63.57,  336.51, "rANS32x32 16w 15 (raw)"  );
+            add_point_no_entropy(obj, 1810.24, 63.55,  324.44, "rANS32x32 16w 14 (raw)"  );
+            add_point_no_entropy(obj, 1818.86, 63.61,  344.26, "rANS32x32 16w 13 (raw)"  );
+            add_point_no_entropy(obj, 2800.63, 63.83,  341.70, "rANS32x32 16w 12 (raw)"  );
+            add_point_no_entropy(obj, 2817.60, 64.48,  332.10, "rANS32x32 16w 11 (raw)"  );
+            add_point_no_entropy(obj, 2822.60, 65.97,  328.77, "rANS32x32 16w 10 (raw)"  );
+
+            add_point_no_entropy(obj, 1861.57, 63.57,  340.96, "rANS32x64 16w 15 (raw)"  );
+            add_point_no_entropy(obj, 1926.82, 63.55,  350.13, "rANS32x64 16w 14 (raw)"  );
+            add_point_no_entropy(obj, 1924.81, 63.61,  345.16, "rANS32x64 16w 13 (raw)"  );
+            add_point_no_entropy(obj, 3009.18, 63.83,  347.90, "rANS32x64 16w 12 (raw)"  );
+            add_point_no_entropy(obj, 3018.02, 64.48,  336.81, "rANS32x64 16w 11 (raw)"  );
+            add_point_no_entropy(obj, 3013.45, 65.97,  335.28, "rANS32x64 16w 10 (raw)"  );
+
+            //add_point_no_entropy(obj,   81.63, 47.8 ,   89.60, "htscodecs arith_dyn 1"              , true);
+            //add_point_no_entropy(obj,  322.22, 51.6 ,  168.22, "htscodecs rans32avx512 1"           , true);
+            //add_point_no_entropy(obj,  319.15, 51.6 ,  177.36, "htscodecs rans32avx2 1"             , true);
+            add_point_no_entropy(obj,   75.05, 62.0 ,   88.09, "htscodecs arith_dyn 0"                , true);
+            add_point_no_entropy(obj,   84.37, 63.2 ,  223.06, "FastAC"                               , true);
+            add_point_no_entropy(obj,  966.58, 63.2 ,  736.10, "FSE"                                  , true);
+            add_point_no_entropy(obj, 2515.23, 63.4 , 1581.32, "FSE Huff0"                            , true);
+            add_point_no_entropy(obj, 2374.04, 63.5 , 1041.93, "htscodecs rans32avx2 0"               , true);
+            add_point_no_entropy(obj, 2221.93, 63.5 ,  796.70, "htscodecs rans32avx512 0"             , true);
+            add_point_no_entropy(obj, 1948.66, 63.5 ,  732.08, "htscodecs rans32sse 0"                , true);
+            add_point_no_entropy(obj,  151.62, 63.6 ,  189.84, "FastHF"                               , true);
+            add_point_no_entropy(obj,  942.43, 66.4 ,  522.13, "TurboANX 1  (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 1416.33, 64.0 ,  656.86, "TurboANX 2  (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 1929.18, 63.0 ,  706.92, "TurboANX 4  (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2347.10, 62.7 ,  823.76, "TurboANX 8  (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2631.85, 62.8 ,  902.32, "TurboANX 16 (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2765.31, 63.0 ,  936.12, "TurboANX 24 (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2856.26, 63.1 ,  951.53, "TurboANX 32 (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2883.45, 63.2 ,  964.45, "TurboANX 40 (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2917.59, 63.3 ,  969.72, "TurboANX 48 (Native Windows Build)"   , true);
+            add_point_no_entropy(obj, 2964.02, 63.4 ,  981.79, "TurboANX 63 (Native Windows Build)"   , true);
+
+            add_line(obj, ["rANS32x32 16w 15", "rANS32x32 16w 14", "rANS32x32 16w 13", "rANS32x32 16w 12", "rANS32x32 16w 11", "rANS32x32 16w 10"], getColor());
+            add_line(obj, ["rANS32x64 16w 15", "rANS32x64 16w 14", "rANS32x64 16w 13", "rANS32x64 16w 12", "rANS32x64 16w 11", "rANS32x64 16w 10"], getColor());
+            add_line(obj, ["rANS32x32 16w 15 (raw)", "rANS32x32 16w 14 (raw)", "rANS32x32 16w 13 (raw)", "rANS32x32 16w 12 (raw)", "rANS32x32 16w 11 (raw)", "rANS32x32 16w 10 (raw)"], getColor());
+            add_line(obj, ["rANS32x64 16w 15 (raw)", "rANS32x64 16w 14 (raw)", "rANS32x64 16w 13 (raw)", "rANS32x64 16w 12 (raw)", "rANS32x64 16w 11 (raw)", "rANS32x64 16w 10 (raw)"], getColor());
+            
+            add_line(obj, ["FSE", "FSE Huff0" ], "#55555588");
+            add_line(obj, ["htscodecs rans32sse 0", "htscodecs rans32avx2 0", "htscodecs rans32avx512 0" ], "#55555588");
+            add_line(obj, ["FastAC", "FastHF"], "#55555588");
+            add_line(obj, ["TurboANX 1  (Native Windows Build)", "TurboANX 2  (Native Windows Build)", "TurboANX 4  (Native Windows Build)", "TurboANX 8  (Native Windows Build)", "TurboANX 16 (Native Windows Build)", "TurboANX 24 (Native Windows Build)", "TurboANX 32 (Native Windows Build)", "TurboANX 40 (Native Windows Build)", "TurboANX 48 (Native Windows Build)", "TurboANX 63 (Native Windows Build)"], "#55555588");
+
+            calc_pareto_line(obj);
+            calc_pareto_line2(obj);
+
+            window.addEventListener("resize", () => { draw_obj(document.getElementById("enwik8").getContext("2d"), document.getElementById("enwik8")); });
+            window.addEventListener("load", () => { draw_obj(document.getElementById("enwik8").getContext("2d"), document.getElementById("enwik8")); });
+            obj.addEventListener("mousemove", (e) => { handle_mouseover(e, document.getElementById("enwik8")); });
         </script>
       </div>
     </div>
