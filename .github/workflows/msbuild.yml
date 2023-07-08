@@ -36,3 +36,65 @@ jobs:
         name: build-win64
         path: builds/bin/hsrans.exe
 
+  test:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: build-win64
+    
+    - name: Download Samples
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: git clone https://github.com/rainerzufalldererste/rle_samples.git
+
+    - name: Test sample0 AVX512BW
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample0.bin --test --min-time 0 --runs 0 --max-simd avx512bw
+
+    - name: Test sample0 AVX2
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample0.bin --test --min-time 0 --runs 0 --max-simd avx2
+      
+    - name: Test sample0 SSE4.2
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample0.bin --test --min-time 0 --runs 0 --max-simd sse4.2
+      
+    - name: Test sample0 No-SIMD
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample0.bin --test --min-time 0 --runs 0 --max-simd none
+
+    - name: Test sample1 AVX512BW
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample1.bin --test --min-time 0 --runs 0 --max-simd avx512bw
+
+    - name: Test sample1 AVX2
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample1.bin --test --min-time 0 --runs 0 --max-simd avx2
+      
+    - name: Test sample1 SSE4.2
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample1.bin --test --min-time 0 --runs 0 --max-simd sse4.2
+      
+    - name: Test sample1 No-SIMD
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample1.bin --test --min-time 0 --runs 0 --max-simd none
+
+    - name: Test sample2 AVX512BW
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample2.bin --test --min-time 0 --runs 0 --max-simd avx512bw
+
+    - name: Test sample2 AVX2
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample2.bin --test --min-time 0 --runs 0 --max-simd avx2
+      
+    - name: Test sample2 SSE4.2
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample2.bin --test --min-time 0 --runs 0 --max-simd sse4.2
+      
+    - name: Test sample2 No-SIMD
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample2.bin --test --min-time 0 --runs 0 --max-simd none
+
+

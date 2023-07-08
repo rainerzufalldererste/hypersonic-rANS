@@ -58,6 +58,7 @@ static bool _ExcludeBlock = false;
 static bool _Exclude32x16 = false;
 static bool _Exclude32x32 = false;
 static bool _Exclude32x64 = false;
+static bool _IsTest = false;
 static size_t _RunCount = 8;
 static size_t _EncodeRunCount = 2;
 static size_t _DecodeRunCount = 16;
@@ -168,7 +169,7 @@ size_t decode_with_thread_pool_wrapper(const uint8_t *pInData, const size_t inLe
   return func(pInData, inLength, pOutData, outCapacity, _pGlobalThreadPool);
 }
 
-static codec_info_t _Codecs[] =
+static const codec_info_t _Codecs[] =
 {
   { "rANS32x32 16w (variable block size)", 15, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_15>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_15, true }, {}}},
   { "rANS32x32 16w (variable block size)", 14, {{ "encode", encode_no_hist_wrapper<block_rANS32x32_16w_encode_14>, true }, {}}, {{ "decode", block_rANS32x32_16w_decode_14, true }, {}}},
@@ -251,6 +252,18 @@ const char ArgumentCpuCore[] = "--cpu-core";
 const char ArgumentRuns[] = "--runs";
 const char ArgumentRunsEncode[] = "--runs-enc";
 const char ArgumentRunsDecode[] = "--runs-dec";
+const char ArgumentTest[] = "--test";
+const char ArgumentMaxSimd[] = "--max-simd";
+const char ArgumentMaxSimdAVX512BW[] = "avx512bw";
+const char ArgumentMaxSimdAVX512F[] = "avx512f";
+const char ArgumentMaxSimdAVX2[] = "avx2";
+const char ArgumentMaxSimdAVX[] = "avx";
+const char ArgumentMaxSimdSSE42[] = "sse4.2";
+const char ArgumentMaxSimdSSE41[] = "sse4.1";
+const char ArgumentMaxSimdSSSE3[] = "ssse3";
+const char ArgumentMaxSimdSSE3[] = "sse3";
+const char ArgumentMaxSimdSSE2[] = "sse2";
+const char ArgumentMaxSimdNone[] = "none";
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -273,7 +286,9 @@ int32_t main(const int32_t argc, char **pArgv)
     printf("\t%s <uint>\t\tRun the benchmark for a specified amount of times (default: 2 encode, 16 decode; will override '%s'/'%s')\n", ArgumentRuns, ArgumentRunsEncode, ArgumentRunsDecode);
     printf("\t%s <uint>\tWhen Encoding: Run the benchmark for a specified amount of times (default: 2)\n", ArgumentRunsEncode);
     printf("\t%s <uint>\tWhen Decoding: Run the benchmark for a specified amount of times (default: 16)\n", ArgumentRunsDecode);
-    printf("\t%s <uint>\tPrevent sleeping between runs/codecs (may lead to thermal throttling)\n", ArgumentNoSleep);
+    printf("\t%s\t\tPrevent sleeping between runs/codecs (may lead to thermal throttling)\n", ArgumentNoSleep);
+    printf("\t%s\t\t\tRun as test scenario, fail on error, call codecs\n", ArgumentTest);
+    printf("\t%s <%s / %s / %s / %s / %s / %s / %s / %s / %s / %s>\n\t\t\t\tRestrict SIMD functions to specific instruction set\n", ArgumentMaxSimd, ArgumentMaxSimdAVX512BW, ArgumentMaxSimdAVX512F, ArgumentMaxSimdAVX2, ArgumentMaxSimdAVX, ArgumentMaxSimdSSE42, ArgumentMaxSimdSSE41, ArgumentMaxSimdSSSE3, ArgumentMaxSimdSSE3, ArgumentMaxSimdSSE2, ArgumentMaxSimdNone);
     return 1;
   }
 
@@ -340,6 +355,19 @@ int32_t main(const int32_t argc, char **pArgv)
         argIndex++;
         argsRemaining--;
         _DisableSleep = true;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentTest, sizeof(ArgumentTest)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _IsTest = true;
+        _DisableSleep = true;
+        _EncodeRunCount = 1;
+        _DecodeRunCount = 1;
+        _Include32Block = true;
+        _IncludeRaw = true;
+        _IncludeMT = true;
+        _OnlyRelevantCodecs = false;
       }
       else if (argsRemaining >= 2 && strncmp(pArgv[argIndex], ArgumentRuns, sizeof(ArgumentRuns)) == 0)
       {
@@ -431,6 +459,162 @@ int32_t main(const int32_t argc, char **pArgv)
         pthread_t current_thread = pthread_self();
         pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
 #endif
+      }
+      else if (argsRemaining >= 2 && strncmp(pArgv[argIndex], ArgumentMaxSimd, sizeof(ArgumentMaxSimd)) == 0)
+      {
+        _DetectCPUFeatures();
+
+        do
+        {
+          if (strncmp(pArgv[argIndex + 1], ArgumentMaxSimdAVX512BW, sizeof(ArgumentMaxSimdAVX512BW)) == 0)
+          {
+            if (!avx512BWSupported)
+            {
+              puts("AVX512BW is not supported by this platform. Aborting.");
+              return 1;
+            }
+
+            // In future versions with other simd flavours better than avx512 supported, disable them here.
+
+            break;
+          }
+
+          avx512PFSupported = false;
+          avx512ERSupported = false;
+          avx512CDSupported = false;
+          avx512BWSupported = false;
+          avx512DQSupported = false;
+          avx512VLSupported = false;
+          avx512IFMASupported = false;
+          avx512VBMISupported = false;
+          avx512VNNISupported = false;
+          avx512VBMI2Supported = false;
+          avx512POPCNTDQSupported = false;
+          avx512BITALGSupported = false;
+          avx5124VNNIWSupported = false;
+          avx5124FMAPSSupported = false;
+
+          if (strncmp(pArgv[argIndex + 1], ArgumentMaxSimdAVX512F, sizeof(ArgumentMaxSimdAVX512F)) == 0)
+          {
+            if (!avx512FSupported)
+            {
+              puts("AVX512F is not supported by this platform. Aborting.");
+              return 1;
+            }
+
+            // In future versions with other simd flavours better than avx512 supported, disable them here.
+
+            break;
+          }
+
+          avx512FSupported = false;
+
+          if (strncmp(pArgv[argIndex + 1], ArgumentMaxSimdAVX2, sizeof(ArgumentMaxSimdAVX2)) == 0)
+          {
+            if (!avx2Supported)
+            {
+              puts("AVX2 is not supported by this platform. Aborting.");
+              return 1;
+            }
+
+            break;
+          }
+
+          avx2Supported = false;
+          fma3Supported = false;
+
+          if (strncmp(pArgv[argIndex + 1], ArgumentMaxSimdAVX, sizeof(ArgumentMaxSimdAVX)) == 0)
+          {
+            if (!avxSupported)
+            {
+              puts("AVX is not supported by this platform. Aborting.");
+              return 1;
+            }
+
+            break;
+          }
+
+          avxSupported = false;
+
+          if (strncmp(pArgv[argIndex + 1], ArgumentMaxSimdSSE42, sizeof(ArgumentMaxSimdSSE42)) == 0)
+          {
+            if (!sse42Supported)
+            {
+              puts("SSE4.2 is not supported by this platform. Aborting.");
+              return 1;
+            }
+
+            break;
+          }
+
+          sse42Supported = false;
+
+          if (strncmp(pArgv[argIndex + 1], ArgumentMaxSimdSSE41, sizeof(ArgumentMaxSimdSSE41)) == 0)
+          {
+            if (!sse41Supported)
+            {
+              puts("SSE4.1 is not supported by this platform. Aborting.");
+              return 1;
+            }
+
+            break;
+          }
+
+          sse41Supported = false;
+
+          if (strncmp(pArgv[argIndex + 1], ArgumentMaxSimdSSSE3, sizeof(ArgumentMaxSimdSSSE3)) == 0)
+          {
+            if (!ssse3Supported)
+            {
+              puts("SSSE3 is not supported by this platform. Aborting.");
+              return 1;
+            }
+
+            break;
+          }
+
+          ssse3Supported = false;
+
+          if (strncmp(pArgv[argIndex + 1], ArgumentMaxSimdSSE3, sizeof(ArgumentMaxSimdSSE3)) == 0)
+          {
+            if (!sse3Supported)
+            {
+              puts("SSE3 is not supported by this platform. Aborting.");
+              return 1;
+            }
+
+            break;
+          }
+
+          sse3Supported = false;
+
+          if (strncmp(pArgv[argIndex + 1], ArgumentMaxSimdSSE2, sizeof(ArgumentMaxSimdSSE2)) == 0)
+          {
+            if (!sse2Supported)
+            {
+              puts("SSE2 is not supported by this platform. Aborting.");
+              return 1;
+            }
+
+            break;
+          }
+
+          sse2Supported = false;
+
+          if (strncmp(pArgv[argIndex + 1], ArgumentMaxSimdNone, sizeof(ArgumentMaxSimdNone)) == 0)
+          {
+            printf("%s %s is only intended for testing purposes and will only restrict some codecs to no SIMD\n", ArgumentMaxSimd, ArgumentMaxSimdNone);
+
+            break;
+          }
+
+          printf("Invalid SIMD Variant '%s' specified.", pArgv[argIndex + 1]);
+          return 1;
+
+        } while (false);
+
+        argIndex += 2;
+        argsRemaining -= 2;
       }
       else
       {
@@ -580,22 +764,22 @@ int32_t main(const int32_t argc, char **pArgv)
     size_t encodedSize = 0;
     _RunCount = _EncodeRunCount;
 
-    for (size_t i = 0; i < MaxEncoderCount; i++)
+    for (size_t codecFuncIndex = 0; codecFuncIndex < MaxEncoderCount; codecFuncIndex++)
     {
-      if (_Codecs[codecId].encoders[i].name == nullptr)
+      if (_Codecs[codecId].encoders[codecFuncIndex].name == nullptr)
         break;
 
-      if (_OnlyRelevantCodecs && !_Codecs[codecId].encoders[i].candidateForFastest)
+      if (_OnlyRelevantCodecs && !_Codecs[codecId].encoders[codecFuncIndex].candidateForFastest)
           continue;
 
-      if (strstr(_Codecs[codecId].encoders[i].name, " avx2 ") != nullptr && !avx2Supported)
+      if (strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx2 ") != nullptr && !avx2Supported)
       {
-        printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].encoders[i].name);
+        printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
         continue;
       }
-      else if (strstr(_Codecs[codecId].encoders[i].name, " avx512 ") != nullptr && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported))
+      else if (strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx512 ") != nullptr && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported))
       {
-        printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].encoders[i].name);
+        printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
         continue;
       }
 
@@ -604,7 +788,7 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_RunCount > 1)
       {
         printf("\r  (dry run)");
-        encodedSize = _Codecs[codecId].encoders[i].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
+        encodedSize = _Codecs[codecId].encoders[codecFuncIndex].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
       }
 
       SleepNs(2500ULL * 1000 * 1000);
@@ -613,7 +797,7 @@ int32_t main(const int32_t argc, char **pArgv)
       {
         const uint64_t startTick = GetCurrentTimeTicks();
         const uint64_t startClock = __rdtsc();
-        encodedSize = _Codecs[codecId].encoders[i].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
+        encodedSize = _Codecs[codecId].encoders[codecFuncIndex].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
         const uint64_t endClock = __rdtsc();
         const uint64_t endTick = GetCurrentTimeTicks();
 
@@ -622,12 +806,12 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r  %-38s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r  %-38s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].encoders[codecFuncIndex].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
 
         SleepNs(rans_min(_NsPerRun[run] * 2ULL, 500ULL * 1000 * 1000));
       }
 
-      printf("\r  %-38s | %6.2f %% ", _Codecs[codecId].encoders[i].name, encodedSize / (double)fileSize * 100.0);
+      printf("\r  %-38s | %6.2f %% ", _Codecs[codecId].encoders[codecFuncIndex].name, encodedSize / (double)fileSize * 100.0);
       print_perf_info(fileSize);
 
       if (_Codecs[codecId].decoders[0].func != nullptr)
@@ -635,33 +819,41 @@ int32_t main(const int32_t argc, char **pArgv)
         const size_t decodedSize = _Codecs[codecId].decoders[0].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
 
         if (decodedSize != fileSize || !Validate(pDecompressedData, pUncompressedData, fileSize))
+        {
           puts("Failed to validate.");
+
+          if (_IsTest)
+            return 1;
+        }
       }
       else
       {
         puts("Unable to validate, no decoder available.");
+
+        if (_IsTest)
+          return 2;
       }
     }
 
     size_t decodedSize = 0;
     _RunCount = _DecodeRunCount;
 
-    for (size_t i = 0; i < MaxDecoderCount; i++)
+    for (size_t codecFuncIndex = 0; codecFuncIndex < MaxDecoderCount; codecFuncIndex++)
     {
-      if (_Codecs[codecId].decoders[i].name == nullptr)
+      if (_Codecs[codecId].decoders[codecFuncIndex].name == nullptr)
         break;
 
-      if (_OnlyRelevantCodecs && !_Codecs[codecId].decoders[i].candidateForFastest)
-          continue;
+      if (_OnlyRelevantCodecs && !_Codecs[codecId].decoders[codecFuncIndex].candidateForFastest)
+        continue;
 
-      if (strstr(_Codecs[codecId].decoders[i].name, " avx2 ") != nullptr && !avx2Supported)
+      if (strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx2 ") != nullptr && !avx2Supported)
       {
-        printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].decoders[i].name);
+        printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
         continue;
       }
-      else if (strstr(_Codecs[codecId].decoders[i].name, " avx512 ") != nullptr && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported))
+      else if (strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx512 ") != nullptr && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported))
       {
-        printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].decoders[i].name);
+        printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
         continue;
       }
 
@@ -670,7 +862,7 @@ int32_t main(const int32_t argc, char **pArgv)
       if (_RunCount > 1)
       {
         printf("\r(dry run)");
-        decodedSize = _Codecs[codecId].decoders[i].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
+        decodedSize = _Codecs[codecId].decoders[codecFuncIndex].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
       }
 
       SleepNs(2500ULL * 1000 * 1000);
@@ -679,7 +871,7 @@ int32_t main(const int32_t argc, char **pArgv)
       {
         const uint64_t startTick = GetCurrentTimeTicks();
         const uint64_t startClock = __rdtsc();
-        decodedSize = _Codecs[codecId].decoders[i].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
+        decodedSize = _Codecs[codecId].decoders[codecFuncIndex].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
         const uint64_t endClock = __rdtsc();
         const uint64_t endTick = GetCurrentTimeTicks();
 
@@ -688,16 +880,21 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r  %-38s |          | decompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].decoders[i].name, decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r  %-38s |          | decompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].decoders[codecFuncIndex].name, decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
 
         SleepNs(rans_min(_NsPerRun[run] * 2ULL, 500ULL * 1000 * 1000));
       }
 
-      printf("\r  %-38s |          ", _Codecs[codecId].decoders[i].name);
+      printf("\r  %-38s |          ", _Codecs[codecId].decoders[codecFuncIndex].name);
       print_perf_info(fileSize);
 
       if (decodedSize != fileSize || !Validate(pDecompressedData, pUncompressedData, fileSize))
+      {
         puts("\nFailed to validate.");
+
+        if (_IsTest)
+          return 1;
+      }
     }
   }
 
