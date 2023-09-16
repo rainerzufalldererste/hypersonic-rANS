@@ -13,6 +13,26 @@
 
 //////////////////////////////////////////////////////////////////////////
 
+#ifdef _MSC_VER
+#define _ALIGN(bytes) __declspec(align(bytes))
+#else
+#define _ALIGN(bytes) __attribute__((aligned(bytes)))
+#endif
+
+#if defined(_MSC_VER) || defined(__clang__)
+#define _VECTORCALL __vectorcall
+#else
+#define _VECTORCALL
+#endif
+
+#ifdef _MSC_VER
+#define _INLINE __forceinline
+#else
+#define _INLINE __attribute__((always_inline))
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+
 #ifdef __cplusplus
 extern "C"
 {
