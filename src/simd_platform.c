@@ -62,6 +62,9 @@ uint8_t _CpuStepping = 0;
 uint8_t _CpuExtFamily = 0;
 uint8_t _CpuExtModel = 0;
 
+#ifndef _MSC_VER
+__attribute__((target("xsave")))
+#endif
 void _DetectCPUFeatures()
 {
   if (_CpuFeaturesDetected)
