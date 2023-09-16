@@ -1009,8 +1009,6 @@ static size_t _block_rans32x64_decode_section_znver4_varC(_rans_decode_state64_t
 
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint16);
-  const __m128i shuffleDoubleMask = _mm_set_epi8(7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
-  const __m128i shuffleUpper16Bit = _mm_set1_epi16(0x0100);
 
   // Trying to get other compilers as close as possible to clang codegen.
 
