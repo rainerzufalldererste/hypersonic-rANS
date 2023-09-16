@@ -777,9 +777,9 @@ int32_t main(const int32_t argc, char **pArgv)
         printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
         continue;
       }
-      else if (strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx512 ") != nullptr && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported))
+      else if ((strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx512 ") != nullptr || strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx256 ") != nullptr) && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported || !avx512VLSupported))
       {
-        printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW/VL available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
         continue;
       }
 
