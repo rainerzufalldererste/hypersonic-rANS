@@ -681,10 +681,24 @@ int32_t main(const int32_t argc, char **pArgv)
 
   _DetectCPUFeatures();
 
+#define STRINGIFY(a) #a
+#define STRINGIFY_VALUE(a) STRINGIFY(a)
+
   // Print info. 
   {
-    printf("File: '%s' (%" PRIu64 " Bytes)\n", filename, fileSize);
+    printf("hypersonic-rANS v0.2dev (%s %s)\n", 
+#ifdef _MSC_VER
+      "MSVC", STRINGIFY_VALUE(_MSC_VER) " [" STRINGIFY_VALUE(_MSC_FULL_VER) "]"
+#elif defined(__llvm__)
+      "Clang", STRINGIFY_VALUE(__clang_major__) "." STRINGIFY_VALUE(__clang_minor__) "." STRINGIFY_VALUE(__clang_patchlevel__)
+#elif defined(__GNUC__)
+      "GCC", STRINGIFY_VALUE(__GNUC__) "." STRINGIFY_VALUE(__GNUC_MINOR__) "." STRINGIFY_VALUE(__GNUC_PATCHLEVEL__)
+#else
+      "Unknown Compiler", "???"
+#endif
+      );
 
+    printf("File: '%s' (%" PRIu64 " Bytes)\n", filename, fileSize);
     printf("CPU: '%s' [%s] (Family: 0x%" PRIX8 " / Model: 0x%" PRIX8 " (0x%" PRIX8 ") / Stepping: 0x%" PRIX8 ")\nFeatures:", _CpuName, _GetCPUArchitectureName(), _CpuFamily, _CpuModel, _CpuExtModel, _CpuStepping);
 
     bool anysse = false;
