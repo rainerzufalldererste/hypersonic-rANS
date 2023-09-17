@@ -33,28 +33,37 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-#ifdef __cplusplus
 // Intel Downfall Mitigation: Simulated Gather to work around performance pitfalls...
-static __m256i _INLINE _mm256_i32gather_epi32_sim(const int32_t *pB, const __m256i idx, const size_t)
+
+#ifdef __cplusplus
+#ifndef _MSC_VER
+__attribute__((target("avx")))
+#endif
+inline __m256i _INLINE _mm256_i32gather_epi32_sim(const int32_t *pB, const __m256i idx, const size_t)
 {
 #if defined(__GNUC__) && !defined(__llvm__)
   volatile
 #endif 
     _ALIGN(32) int32_t i[8];
 
-  _mm256_store_si256(const_cast<__m256i *>(reinterpret_cast<volatile __m256i *>(i)), idx);
+  _mm256_store_si256((__m256i *)i, idx);
 
   return _mm256_set_epi32(pB[i[7]], pB[i[6]], pB[i[5]], pB[i[4]], pB[i[3]], pB[i[2]], pB[i[1]], pB[i[0]]);
 }
 
-static __m512i _INLINE _mm512_i32gather_epi32_sim(const int32_t *pB, const __m512i idx, const size_t)
+#ifndef _MSC_VER
+__attribute__((target("avx512f")))
+#endif
+inline __m512i _INLINE _mm512_i32gather_epi32_sim(const __m512i idx, const void *pV, const size_t)
 {
 #if defined(__GNUC__) && !defined(__llvm__)
   volatile
 #endif 
     _ALIGN(64) int32_t i[16];
 
-  _mm512_store_si512(const_cast<__m512i *>(reinterpret_cast<volatile __m512i *>(i)), idx);
+  _mm512_store_si512((__m512i *)i, idx);
+
+  const int32_t *pB = reinterpret_cast<const int32_t *>(pV);
 
   return _mm512_set_epi32(pB[i[15]], pB[i[14]], pB[i[13]], pB[i[12]], pB[i[11]], pB[i[10]], pB[i[9]], pB[i[8]], pB[i[7]], pB[i[6]], pB[i[5]], pB[i[4]], pB[i[3]], pB[i[2]], pB[i[1]], pB[i[0]]);
 }

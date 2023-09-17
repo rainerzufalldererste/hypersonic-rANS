@@ -979,7 +979,11 @@ static size_t _block_rans32x64_decode_section_avx2_varC(_rans_decode_state64_t<h
 
 template <uint32_t TotalSymbolCountBits, bool WriteAligned32 = false>
 #if !defined(_MSC_VER) || defined(__llvm__)
+#ifdef __llvm__
 __attribute__((target("arch=znver4")))
+#else
+__attribute__((target("avx512f", "avx512bw", "avx512vl")))
+#endif
 #endif
 static size_t _block_rans32x64_decode_section_znver4_varC(_rans_decode_state64_t<hist_dec_pack_t<TotalSymbolCountBits>> *pState, uint8_t *pOutData, const size_t startIndex, const size_t endIndex)
 {
