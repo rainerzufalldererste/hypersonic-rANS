@@ -3393,30 +3393,18 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
 
 //////////////////////////////////////////////////////////////////////////
 
-static __m256i _INLINE _mm256_i32gather_epi32_sim(const int32_t *pB, const __m256i idx, const size_t)
-{
-#if defined(__GNUC__) && !defined(__llvm__)
-  volatile
-#endif 
-    _ALIGN(32) int32_t i[8];
-
-  _mm256_store_si256(const_cast<__m256i *>(reinterpret_cast<volatile __m256i *>(i)), idx);
-
-  return _mm256_set_epi32(pB[i[7]], pB[i[6]], pB[i[5]], pB[i[4]], pB[i[3]], pB[i[2]], pB[i[1]], pB[i[0]]);
-}
-
 template <uint32_t TotalSymbolCountBits, bool XmmShuffle, bool ShuffleMask16 = false, bool WriteAligned32 = false>
 #ifndef _MSC_VER
 __attribute__((target("avx2")))
 #endif
-size_t rANS32x32_16w_decode_avx2_varC_sim_gthrather(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
+size_t rANS32x32_16w_decode_avx2_varC_sim_gather(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity)
 {
   if (inLength <= sizeof(uint64_t) * 2)
     return 0;
 
   if constexpr (!WriteAligned32)
     if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
-      return rANS32x32_16w_decode_avx2_varC_sim_gthrather<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x32_16w_decode_avx2_varC_sim_gather<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -4689,14 +4677,14 @@ size_t rANS32x32_ymmPerm_16w_decode_avx2_earlygather_varC_10(const uint8_t *pInD
 
 //////////////////////////////////////////////////////////////////////////
 
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gthrather<12, true, false>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gthrather<11, true, false>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gthrather<10, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gather<12, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gather<11, true, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl_16w_decode_avx2_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gather<10, true, false>(pInData, inLength, pOutData, outCapacity); }
 
-size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gthrather<12, true, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gthrather<11, true, true>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gthrather<10, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gather<12, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gather<11, true, true>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_xmmShfl2_16w_decode_avx2_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gather<10, true, true>(pInData, inLength, pOutData, outCapacity); }
 
-size_t rANS32x32_ymmPerm_16w_decode_avx2_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gthrather<12, false>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_ymmPerm_16w_decode_avx2_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gthrather<11, false>(pInData, inLength, pOutData, outCapacity); }
-size_t rANS32x32_ymmPerm_16w_decode_avx2_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gthrather<10, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmPerm_16w_decode_avx2_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gather<12, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmPerm_16w_decode_avx2_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gather<11, false>(pInData, inLength, pOutData, outCapacity); }
+size_t rANS32x32_ymmPerm_16w_decode_avx2_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity) { return rANS32x32_16w_decode_avx2_varC_sim_gather<10, false>(pInData, inLength, pOutData, outCapacity); }

@@ -180,4 +180,44 @@ size_t rANS32x64_xmmShfl2_16w_decode_avx256_varC_12(const uint8_t *pInData, cons
 size_t rANS32x64_xmmShfl2_16w_decode_avx256_varC_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 size_t rANS32x64_xmmShfl2_16w_decode_avx256_varC_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
 
+size_t rANS32x64_xmmShfl_16w_decode_avx2_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl_16w_decode_avx2_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl_16w_decode_avx2_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+
+size_t rANS32x64_xmmShfl2_16w_decode_avx2_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl2_16w_decode_avx2_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl2_16w_decode_avx2_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+
+size_t rANS32x64_ymmPerm_16w_decode_avx2_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_ymmPerm_16w_decode_avx2_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_ymmPerm_16w_decode_avx2_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+
+size_t rANS32x64_xmmShfl_16w_decode_avx512_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl_16w_decode_avx512_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl_16w_decode_avx512_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+
+size_t rANS32x64_xmmShfl2_16w_decode_avx512_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl2_16w_decode_avx512_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl2_16w_decode_avx512_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+
+size_t rANS32x64_zmmPerm_16w_decode_avx512_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_zmmPerm_16w_decode_avx512_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_zmmPerm_16w_decode_avx512_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+
+size_t rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+
+size_t rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+
+size_t rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_12(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_11(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+size_t rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_10(const uint8_t *pInData, const size_t inLength, uint8_t *pOutData, const size_t outCapacity);
+
 #endif // rANS32x64_16w_h__
