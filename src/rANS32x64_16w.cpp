@@ -4659,7 +4659,7 @@ static size_t rANS32x64_xmmShfl2_16w_decode_avx256_varC(const uint8_t *pInData, 
     }
   }
 
-  return i;
+  return expectedOutputLength;
 }
 
 //////////////////////////////////////////////////////////////////////////
