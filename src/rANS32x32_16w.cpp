@@ -2420,7 +2420,6 @@ size_t rANS32x32_16w_decode_avx2_varJ(const uint8_t *pInData, const size_t inLen
   const simd_t lower12 = _mm256_set1_epi32((1 << 12) - 1);
   const simd_t lower8 = _mm256_set1_epi32(0xFF);
   const simd_t decodeConsumePoint = _mm256_set1_epi32(DecodeConsumePoint16);
-  const simd_t _16 = _mm256_set1_epi32(16);
   const simd_t _1 = _mm256_set1_epi32(1);
   const __m128i shuffleDoubleMask = _mm_set_epi8(7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
   const __m128i shuffleUpper16Bit = _mm_set1_epi16(0x0100);
@@ -2485,29 +2484,122 @@ size_t rANS32x32_16w_decode_avx2_varJ(const uint8_t *pInData, const size_t inLen
     const simd_t symbol0 = _mm256_and_si256(pack0, lower8);
 
     const simd_t freq1 = _mm256_srli_epi32(pack1, 20);
-    const simd_t cumul1 = _mm256_and_si256(preCumul1, lower12);
+    const simd_t cumul0 = _mm256_and_si256(preCumul0, lower12);
     const simd_t freqScaled1 = _mm256_mullo_epi32(shiftedState1, freq1);
 
     // state = freqScaled + slot - cumul;
-    const simd_t state0 = _mm256_add_epi32(freqScaled0, _mm256_sub_epi32(slot0, cumul0));
+    const simd_t state0 = _mm256_add_epi32(freqScaled0, _mm256_sub_epi32(slot0, cumul0)); // this sub isn't there in james' version.
 
+    const simd_t preCumul1 = _mm256_srli_epi32(pack1, 8);
 
+    // somewhat randomly placed.
+    // read input for blocks 0.
+    const __m128i newWords0 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-
-
-
-
-
-
+    // missing: xor state with ?? to be used in cmp.
 
     const simd_t symbol1 = _mm256_and_si256(pack1, lower8);
-    const simd_t symbol2 = _mm256_and_si256(pack2, lower8);
-    const simd_t symbol3 = _mm256_and_si256(pack3, lower8);
+
+    // (state < DecodeConsumePoint16) ? -1 : 0 | well, actually (DecodeConsumePoint16 > state) ? -1 : 0
+    const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
+
+    const simd_t cumul1 = _mm256_and_si256(preCumul1, lower12);
 
     // pack symbols to one si256. (could possibly be `_mm256_cvtepi32_epi8` on avx-512f + avx-512-vl) (`_mm256_slli_epi32` + `_mm256_or_si256` packing is slower)
     const simd_t symPack01 = _mm256_packus_epi32(symbol0, symbol1);
+
+    // matching: state << 16
+    const simd_t matchShiftedState0 = _mm256_slli_epi32(state0, 16);
+
+    const simd_t state1 = _mm256_add_epi32(freqScaled1, _mm256_sub_epi32(slot1, cumul1));
+
+    // get masks of those compares. 
+    const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
+
+    const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
+
+    // missing: another xor with state.
+
+    constexpr size_t cmpMaskShift = ShuffleMask16 ? 4 : 3;
+
+    const size_t cmpMaskIdx0 = cmpMask0 << cmpMaskShift;
+
+    __m128i lut0;
+
+    if constexpr (ShuffleMask16)
+      lut0 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMaskIdx0]);
+    else
+      lut0 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMaskIdx0]);
+
+    // get popcnt to advance.
+    const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
+
+    // finalize lookups.
+    if constexpr (!ShuffleMask16)
+      lut0 = _mm_or_si128(_mm_shuffle_epi8(lut0, shuffleDoubleMask), shuffleUpper16Bit);
+
+    // shuffle new words in place.
+    const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
+    
+    // missing: some or with `newWordXmm0`.
+
+    const simd_t matchShiftedState1 = _mm256_slli_epi32(state1, 16);
+    const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
+
+    // missing: some `_mm_cvtepu16_epi32` with `matchShiftedState`.
+    // expand new word.
+    const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
+
+    const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
+    const size_t cmpMaskIdx1 = cmpMask1 << cmpMaskShift;
+
+    // state = state << 16 | newWord;
+    statesX8[0] = _mm256_blendv_epi8(matchShiftedState0, newWord0, cmp0);
+
+    const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
+
+    __m128i lut1;
+
+    if constexpr (ShuffleMask16)
+      lut1 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMaskIdx1]);
+    else
+      lut1 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMaskIdx1]);
+
+    pReadHead += maskPop0;
+    const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
+
+    const simd_t freq2 = _mm256_srli_epi32(pack2, 20);
+    const simd_t freqScaled2 = _mm256_mullo_epi32(shiftedState2, freq2);
+
+    // here it's already storing the `symbolsAB` equivalent, which is more expensive to compute.
+
+    const simd_t preCumul2 = _mm256_srli_epi32(pack2, 8);
+
+    if constexpr (!ShuffleMask16)
+      lut1 = _mm_or_si128(_mm_shuffle_epi8(lut1, shuffleDoubleMask), shuffleUpper16Bit);
+
+    const simd_t cumul2 = _mm256_and_si256(preCumul2, lower12);
+    const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
+
+    statesX8[1] = _mm256_blendv_epi8(matchShiftedState1, newWord1, cmp1);
+
+    const simd_t freq3 = _mm256_srli_epi32(pack3, 20);
+    const simd_t symbol3 = _mm256_and_si256(pack3, lower8);
+    const simd_t freqScaled3 = _mm256_mullo_epi32(shiftedState3, freq3);
+    const simd_t preCumul3 = _mm256_srli_epi32(pack3, 8);
+    const simd_t symbol2 = _mm256_and_si256(pack2, lower8);
+    const simd_t cumul3 = _mm256_and_si256(preCumul3, lower12);
+    
     const simd_t symPack23 = _mm256_packus_epi32(symbol2, symbol3);
+
+    const simd_t state2 = _mm256_add_epi32(freqScaled2, _mm256_sub_epi32(slot2, cumul2));
+    
     const simd_t symPack0123 = _mm256_packus_epi16(symPack01, symPack23); // `00 01 02 03 08 09 0A 0B 10 11 12 13 18 19 1A 1B 04 05 06 07 0C 0D 0E 0F 14 15 16 17 1C 1D 1E 1F`
+
+    // missing: another random xor with `state`.
+
+    const simd_t matchShiftedState2 = _mm256_slli_epi32(state2, 16);
+    const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
 
     // We intentionally encoded in a way to not have to do horrible things here.
     if constexpr (WriteAligned32)
@@ -2515,94 +2607,92 @@ size_t rANS32x32_16w_decode_avx2_varJ(const uint8_t *pInData, const size_t inLen
     else
       _mm256_storeu_si256(reinterpret_cast<simd_t *>(pOutData + i), symPack0123);
 
-    const simd_t preCumul1 = _mm256_srli_epi32(pack1, 8);
-    const simd_t preCumul2 = _mm256_srli_epi32(pack2, 8);
-    const simd_t preCumul3 = _mm256_srli_epi32(pack3, 8);
-
-    // unpack cumul.
-    const simd_t cumul0 = _mm256_and_si256(preCumul0, lower12);
-    
-    const simd_t cumul2 = _mm256_and_si256(preCumul2, lower12);
-    const simd_t freq2 = _mm256_srli_epi32(pack2, 20);
-    const simd_t cumul3 = _mm256_and_si256(preCumul3, lower12);
-    const simd_t freq3 = _mm256_srli_epi32(pack3, 20);
-
-    const simd_t freqScaled2 = _mm256_mullo_epi32(shiftedState2, freq2);
-    const simd_t freqScaled3 = _mm256_mullo_epi32(shiftedState3, freq3);
-
-    const simd_t state1 = _mm256_add_epi32(freqScaled1, _mm256_sub_epi32(slot1, cumul1));
-    const simd_t state2 = _mm256_add_epi32(freqScaled2, _mm256_sub_epi32(slot2, cumul2));
     const simd_t state3 = _mm256_add_epi32(freqScaled3, _mm256_sub_epi32(slot3, cumul3));
+
+    const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
+
+    // missing: another random xor with `state`.
+
+    const simd_t matchShiftedState3 = _mm256_slli_epi32(state3, 16);
+    const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
+
+    const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
+    const size_t cmpMaskIdx2 = cmpMask2 << cmpMaskShift;
+
+    __m128i lut2;
+
+    if constexpr (ShuffleMask16)
+      lut2 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMaskIdx2]);
+    else
+      lut2 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutShfl32[cmpMaskIdx2]);
+
+    const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
+    const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
+
+    if constexpr (!ShuffleMask16)
+      lut2 = _mm_or_si128(_mm_shuffle_epi8(lut2, shuffleDoubleMask), shuffleUpper16Bit);
+
+    const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
+    const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
+
+    const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
+    const size_t cmpMaskIdx3 = cmpMask3 << cmpMaskShift;
+    pReadHead += maskPop3;
+
+    // missing: another or.
+
+    __m128i lut3;
+
+    if constexpr (ShuffleMask16)
+      lut3 = _mm_load_si128(reinterpret_cast<const __m138i *>(&_DoubleShuffleLutShfl32[cmpMaskIdx3]);
+    else
+      lut3 = _mm_lddqu_si128(reinterpret_cast<const __m138i *>(&_ShuffleLutShfl32[cmpMaskIdx3]);
+
+    statesX8[2] = _mm256_blendv_epi8(matchShiftedState2, newWord2, cmp2);
+
+    if constexpr (!ShuffleMask16)
+      lut3 = _mm_or_si128(_mm_shuffle_epi8(lut3, shuffleDoubleMask), shuffleUpper16Bit);
+
+    const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords3, lut3);
+
+    // missing: another or.
+
+    statesX8[3] = _mm256_blendv_epi8(matchShiftedState3, newWord3, cmp3);
+
+
+
+
 
     // now to the messy part...
     if constexpr (XmmShuffle)
     {
-      // read input for blocks 0, 1.
-      const __m128i newWords0 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-      // (state < DecodeConsumePoint16) ? -1 : 0 | well, actually (DecodeConsumePoint16 > state) ? -1 : 0
-      const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
-      const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
-      const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
-      const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
 
       if constexpr (ShuffleMask16)
       {
-        // get masks of those compares & start loading shuffle masks.
-        const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
+        // start loading shuffle masks.
         __m128i lut0 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask0 << 4])); // `* 16`.
 
-        const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
         __m128i lut1 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask1 << 4])); // `* 16`.
 
-        const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
         __m128i lut2 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask2 << 4])); // `* 16`.
 
-        const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
         __m128i lut3 = _mm_load_si128(reinterpret_cast<const __m128i *>(&_DoubleShuffleLutShfl32[cmpMask3 << 4])); // `* 16`.
 
         // advance read head & read input for blocks 1, 2, 3.
-        const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
-        pReadHead += maskPop0;
 
-        const __m128i newWords1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-        const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
-        pReadHead += maskPop1;
 
-        const __m128i newWords2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-        const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
+      // somewhat randomly placed.
         pReadHead += maskPop2;
-
         const __m128i newWords3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(pReadHead));
 
-        const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
-        pReadHead += maskPop3;
 
-        // matching: state << 16
-        const simd_t matchShiftedState0 = _mm256_slli_epi32(state0, 16);
-        const simd_t matchShiftedState1 = _mm256_slli_epi32(state1, 16);
-        const simd_t matchShiftedState2 = _mm256_slli_epi32(state2, 16);
-        const simd_t matchShiftedState3 = _mm256_slli_epi32(state3, 16);
 
-        // shuffle new words in place.
-        const __m128i newWordXmm0 = _mm_shuffle_epi8(newWords0, lut0);
-        const __m128i newWordXmm1 = _mm_shuffle_epi8(newWords1, lut1);
-        const __m128i newWordXmm2 = _mm_shuffle_epi8(newWords2, lut2);
         const __m128i newWordXmm3 = _mm_shuffle_epi8(newWords3, lut3);
 
-        // expand new word.
-        const __m256i newWord0 = _mm256_cvtepu16_epi32(newWordXmm0);
-        const __m256i newWord1 = _mm256_cvtepu16_epi32(newWordXmm1);
-        const __m256i newWord2 = _mm256_cvtepu16_epi32(newWordXmm2);
-        const __m256i newWord3 = _mm256_cvtepu16_epi32(newWordXmm3);
 
-        // state = state << 16 | newWord;
-        statesX8[0] = _mm256_blendv_epi8(matchShiftedState0, newWord0, cmp0);
-        statesX8[1] = _mm256_blendv_epi8(matchShiftedState1, newWord1, cmp1);
-        statesX8[2] = _mm256_blendv_epi8(matchShiftedState2, newWord2, cmp2);
-        statesX8[3] = _mm256_blendv_epi8(matchShiftedState3, newWord3, cmp3);
       }
       else
       {
@@ -2638,8 +2728,6 @@ size_t rANS32x32_16w_decode_avx2_varJ(const uint8_t *pInData, const size_t inLen
         const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
         pReadHead += maskPop3;
 
-        // finalize lookups.
-        lut0 = _mm_or_si128(_mm_shuffle_epi8(lut0, shuffleDoubleMask), shuffleUpper16Bit);
         lut1 = _mm_or_si128(_mm_shuffle_epi8(lut1, shuffleDoubleMask), shuffleUpper16Bit);
         lut2 = _mm_or_si128(_mm_shuffle_epi8(lut2, shuffleDoubleMask), shuffleUpper16Bit);
         lut3 = _mm_or_si128(_mm_shuffle_epi8(lut3, shuffleDoubleMask), shuffleUpper16Bit);
@@ -2668,84 +2756,6 @@ size_t rANS32x32_16w_decode_avx2_varJ(const uint8_t *pInData, const size_t inLen
         statesX8[2] = _mm256_blendv_epi8(matchShiftedState2, newWord2, cmp2);
         statesX8[3] = _mm256_blendv_epi8(matchShiftedState3, newWord3, cmp3);
       }
-    }
-    else
-    {
-      // read input for blocks 0, 1.
-      const simd_t newWords01 = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(pReadHead));
-
-      // (state < DecodeConsumePoint16) ? -1 : 0 | well, actually (DecodeConsumePoint16 > state) ? -1 : 0
-      const simd_t cmp0 = _mm256_cmpgt_epi32(decodeConsumePoint, state0);
-      const simd_t cmp1 = _mm256_cmpgt_epi32(decodeConsumePoint, state1);
-      const simd_t cmp2 = _mm256_cmpgt_epi32(decodeConsumePoint, state2);
-      const simd_t cmp3 = _mm256_cmpgt_epi32(decodeConsumePoint, state3);
-
-      // get masks of those compares & start loading shuffle masks.
-      const uint32_t cmpMask0 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp0));
-      __m128i lutXmm0 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask0 << 3])); // `* 8`.
-
-      const uint32_t cmpMask1 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp1));
-      __m128i lutXmm1 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask1 << 3])); // `* 8`.
-
-      const uint32_t cmpMask2 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp2));
-      __m128i lutXmm2 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask2 << 3])); // `* 8`.
-
-      const uint32_t cmpMask3 = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(cmp3));
-      __m128i lutXmm3 = _mm_lddqu_si128(reinterpret_cast<const __m128i *>(&_ShuffleLutPerm32[cmpMask3 << 3])); // `* 8`.
-
-      // advance read head & read input for blocks 2, 3.
-      const uint32_t maskPop0 = (uint32_t)__builtin_popcount(cmpMask0);
-      const uint32_t maskPop1 = (uint32_t)__builtin_popcount(cmpMask1);
-      pReadHead += maskPop0 + maskPop1;
-
-      const simd_t newWords23 = _mm256_loadu_si256(reinterpret_cast<const simd_t *>(pReadHead));
-
-      const uint32_t maskPop2 = (uint32_t)__builtin_popcount(cmpMask2);
-      const uint32_t maskPop3 = (uint32_t)__builtin_popcount(cmpMask3);
-      pReadHead += maskPop2 + maskPop3;
-
-      // finalize lookups.
-      const simd_t lut0 = _mm256_cvtepi8_epi32(lutXmm0);
-      const simd_t lut2 = _mm256_cvtepi8_epi32(lutXmm2);
-      const simd_t lut1 = _mm256_add_epi32(_mm256_cvtepi8_epi32(lutXmm1), _mm256_set1_epi32(maskPop0));
-      const simd_t lut3 = _mm256_add_epi32(_mm256_cvtepi8_epi32(lutXmm3), _mm256_set1_epi32(maskPop2));
-
-      // lut /= 2 for corresponding word-pair that will be permuted in place.
-      const simd_t halfLut0 = _mm256_srli_epi32(lut0, 1);
-      const simd_t halfLut2 = _mm256_srli_epi32(lut2, 1);
-      const simd_t halfLut1 = _mm256_srli_epi32(lut1, 1);
-      const simd_t halfLut3 = _mm256_srli_epi32(lut3, 1);
-
-      // create `16` wherever we want to keep the lower word of the word pair.
-      const simd_t shiftLutMask0 = _mm256_slli_epi32(_mm256_andnot_si256(lut0, _1), 4);
-      const simd_t shiftLutMask1 = _mm256_slli_epi32(_mm256_andnot_si256(lut1, _1), 4);
-      const simd_t shiftLutMask2 = _mm256_slli_epi32(_mm256_andnot_si256(lut2, _1), 4);
-      const simd_t shiftLutMask3 = _mm256_slli_epi32(_mm256_andnot_si256(lut3, _1), 4);
-
-      // select corresponding word-pair.
-      const __m256i selectedWordPair0 = _mm256_permutevar8x32_epi32(newWords01, halfLut0);
-      const __m256i selectedWordPair1 = _mm256_permutevar8x32_epi32(newWords01, halfLut1);
-      const __m256i selectedWordPair2 = _mm256_permutevar8x32_epi32(newWords23, halfLut2);
-      const __m256i selectedWordPair3 = _mm256_permutevar8x32_epi32(newWords23, halfLut3);
-
-      // selectively shift up by the `shiftLutMask` wherever we want to keep the lower word and then shift all down to clear the upper word and select the correct one of the pair.
-      // then `and` with `cmp` mask, because `permute` (unlike `shuffle`) doesn't set the values with indexes > 8 to 0...
-      const simd_t newWord0 = _mm256_and_si256(cmp0, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair0, shiftLutMask0), 16));
-      const simd_t newWord1 = _mm256_and_si256(cmp1, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair1, shiftLutMask1), 16));
-      const simd_t newWord2 = _mm256_and_si256(cmp2, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair2, shiftLutMask2), 16));
-      const simd_t newWord3 = _mm256_and_si256(cmp3, _mm256_srli_epi32(_mm256_sllv_epi32(selectedWordPair3, shiftLutMask3), 16));
-
-      // matching: state << 16
-      const simd_t matchShiftedState0 = _mm256_sllv_epi32(state0, _mm256_and_si256(cmp0, _16));
-      const simd_t matchShiftedState1 = _mm256_sllv_epi32(state1, _mm256_and_si256(cmp1, _16));
-      const simd_t matchShiftedState2 = _mm256_sllv_epi32(state2, _mm256_and_si256(cmp2, _16));
-      const simd_t matchShiftedState3 = _mm256_sllv_epi32(state3, _mm256_and_si256(cmp3, _16));
-
-      // state = state << 16 | newWord;
-      statesX8[0] = _mm256_or_si256(matchShiftedState0, newWord0);
-      statesX8[1] = _mm256_or_si256(matchShiftedState1, newWord1);
-      statesX8[2] = _mm256_or_si256(matchShiftedState2, newWord2);
-      statesX8[3] = _mm256_or_si256(matchShiftedState3, newWord3);
     }
   }
 
