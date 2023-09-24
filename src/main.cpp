@@ -37,6 +37,8 @@
 uint64_t GetCurrentTimeTicks();
 uint64_t TicksToNs(const uint64_t ticks);
 void SleepNs(const uint64_t sleepNs);
+void OfferSleep();
+void OfferLongSleep();
 bool Validate(const uint8_t *pUncompressedData, const uint8_t *pDecompressedData, const size_t size);
 
 template <typename T>
@@ -62,6 +64,7 @@ static bool _IsTest = false;
 static size_t _RunCount = 8;
 static size_t _EncodeRunCount = 2;
 static size_t _DecodeRunCount = 16;
+static bool _Base2ByteUnits = true;
 
 constexpr size_t MaxRunCount = 1024;
 static uint64_t _ClocksPerRun[MaxRunCount];
@@ -71,6 +74,9 @@ static uint64_t _NsPerRun[MaxRunCount];
 
 void print_perf_info(const size_t fileSize)
 {
+  const char *MBUnit = _Base2ByteUnits ? "MiB" : " MB";
+  const double MBBytes = _Base2ByteUnits ? (double)(1024 * 1024) : (double)(1000 * 1000);
+
   if (_RunCount > 1)
   {
     uint64_t completeNs = 0;
@@ -107,13 +113,35 @@ void print_perf_info(const size_t fileSize)
     stdDevNs = sqrt(stdDevNs / (double)(_RunCount - 1));
     stdDevClocks = sqrt(stdDevClocks / (double)(_RunCount - 1));
 
-    printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", minClocks / (double_t)fileSize, meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
-    printf("| %8.2f MiB/s | %8.2f MiB/s (%8.2f ~ %8.2f)\n", (fileSize / (1024.0 * 1024.0)) / (minNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / (meanNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs + stdDevNs) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs - stdDevNs) * 1e-9));
+    printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", 
+      minClocks / (double_t)fileSize,
+      meanClocks / fileSize,
+      (meanClocks - stdDevClocks) / fileSize,
+      (meanClocks + stdDevClocks) / fileSize);
+
+    printf("| %8.2f %s/s | %8.2f %s/s (%8.2f ~ %8.2f)\n", 
+      (fileSize / MBBytes) / (minNs * 1e-9),
+      MBUnit,
+      (fileSize / MBBytes) / (meanNs * 1e-9),
+      MBUnit,
+      (fileSize / MBBytes) / ((meanNs + stdDevNs) * 1e-9),
+      (fileSize / MBBytes) / ((meanNs - stdDevNs) * 1e-9));
   }
   else
   {
-    printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", _ClocksPerRun[0] / (double_t)fileSize, _ClocksPerRun[0] / (double)fileSize, (_ClocksPerRun[0]) / (double)fileSize, (_ClocksPerRun[0]) / (double)fileSize);
-    printf("| %8.2f MiB/s | %8.2f MiB/s (%8.2f ~ %8.2f)\n", (fileSize / (1024.0 * 1024.0)) / (_NsPerRun[0] * 1e-9), (fileSize / (1024.0 * 1024.0)) / (_NsPerRun[0] * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((_NsPerRun[0]) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((_NsPerRun[0]) * 1e-9));
+    printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", 
+      _ClocksPerRun[0] / (double_t)fileSize, 
+      _ClocksPerRun[0] / (double)fileSize, 
+      (_ClocksPerRun[0]) / (double)fileSize, 
+      (_ClocksPerRun[0]) / (double)fileSize);
+
+    printf("| %8.2f %s/s | %8.2f %s/s (%8.2f ~ %8.2f)\n", 
+      (fileSize / MBBytes) / (_NsPerRun[0] * 1e-9),
+      MBUnit,
+      (fileSize / MBBytes) / (_NsPerRun[0] * 1e-9),
+      MBUnit,
+      (fileSize / MBBytes) / ((_NsPerRun[0]) * 1e-9),
+      (fileSize / MBBytes) / ((_NsPerRun[0]) * 1e-9));
   }
 }
 
@@ -253,6 +281,7 @@ const char ArgumentRuns[] = "--runs";
 const char ArgumentRunsEncode[] = "--runs-enc";
 const char ArgumentRunsDecode[] = "--runs-dec";
 const char ArgumentTest[] = "--test";
+const char ArgumentBase10[] = "--no-iec";
 const char ArgumentMaxSimd[] = "--max-simd";
 const char ArgumentMaxSimdAVX512BW[] = "avx512bw";
 const char ArgumentMaxSimdAVX512F[] = "avx512f";
@@ -288,6 +317,7 @@ int32_t main(const int32_t argc, char **pArgv)
     printf("\t%s <uint>\tWhen Decoding: Run the benchmark for a specified amount of times (default: 16)\n", ArgumentRunsDecode);
     printf("\t%s\t\tPrevent sleeping between runs/codecs (may lead to thermal throttling)\n", ArgumentNoSleep);
     printf("\t%s\t\t\tRun as test scenario, fail on error, call codecs\n", ArgumentTest);
+    printf("\t%s\t\t\tSwitch the unit-format from base-2 to base-10 (i.e. display 'Megabytes' instead of 'Mebibytes')\n", ArgumentBase10);
     printf("\t%s <%s / %s / %s / %s / %s / %s / %s / %s / %s / %s>\n\t\t\t\tRestrict SIMD functions to specific instruction set\n", ArgumentMaxSimd, ArgumentMaxSimdAVX512BW, ArgumentMaxSimdAVX512F, ArgumentMaxSimdAVX2, ArgumentMaxSimdAVX, ArgumentMaxSimdSSE42, ArgumentMaxSimdSSE41, ArgumentMaxSimdSSSE3, ArgumentMaxSimdSSE3, ArgumentMaxSimdSSE2, ArgumentMaxSimdNone);
     return 1;
   }
@@ -355,6 +385,12 @@ int32_t main(const int32_t argc, char **pArgv)
         argIndex++;
         argsRemaining--;
         _DisableSleep = true;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentBase10, sizeof(ArgumentBase10)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _Base2ByteUnits = false;
       }
       else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentTest, sizeof(ArgumentTest)) == 0)
       {
@@ -686,7 +722,7 @@ int32_t main(const int32_t argc, char **pArgv)
 
   // Print info. 
   {
-    printf("hypersonic-rANS v0.2a_dev (%s %s)\n", 
+    printf("hypersonic-rANS v0.2b_dev (%s %s)\n", 
 #ifdef _MSC_VER
       "MSVC", STRINGIFY_VALUE(_MSC_VER) " [" STRINGIFY_VALUE(_MSC_FULL_VER) "]"
 #elif defined(__llvm__)
@@ -751,6 +787,9 @@ int32_t main(const int32_t argc, char **pArgv)
     puts("\n");
   }
 
+  const char *MBUnit = _Base2ByteUnits ? "MiB" : " MB";
+  const double MBBytes = _Base2ByteUnits ? (double)(1024 * 1024) : (double)(1000 * 1000);
+
   puts("Codec Type (Enc/Dec Impl)            Hist  Ratio      Minimum            Average          ( StdDev.         )   Maximum          Average        ( StdDev.           )");
   puts("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
@@ -805,7 +844,7 @@ int32_t main(const int32_t argc, char **pArgv)
         encodedSize = _Codecs[codecId].encoders[codecFuncIndex].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
       }
 
-      SleepNs(2500ULL * 1000 * 1000);
+      OfferLongSleep();
 
       for (size_t run = 0; run < _RunCount; run++)
       {
@@ -820,9 +859,9 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r  %-38s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].encoders[codecFuncIndex].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r  %-38s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f %s/s)", _Codecs[codecId].encoders[codecFuncIndex].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / MBBytes) / (TicksToNs(endTick - startTick) * 1e-9), MBUnit);
 
-        SleepNs(rans_min(_NsPerRun[run] * 2ULL, 500ULL * 1000 * 1000));
+        OfferSleep();
       }
 
       printf("\r  %-38s | %6.2f %% ", _Codecs[codecId].encoders[codecFuncIndex].name, encodedSize / (double)fileSize * 100.0);
@@ -879,7 +918,7 @@ int32_t main(const int32_t argc, char **pArgv)
         decodedSize = _Codecs[codecId].decoders[codecFuncIndex].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
       }
 
-      SleepNs(2500ULL * 1000 * 1000);
+      OfferLongSleep();
 
       for (size_t run = 0; run < _RunCount; run++)
       {
@@ -894,9 +933,9 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r  %-38s |          | decompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].decoders[codecFuncIndex].name, decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r  %-38s |          | decompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f %s/s)", _Codecs[codecId].decoders[codecFuncIndex].name, decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / MBBytes) / (TicksToNs(endTick - startTick) * 1e-9), MBUnit);
 
-        SleepNs(rans_min(_NsPerRun[run] * 2ULL, 500ULL * 1000 * 1000));
+        OfferSleep();
       }
 
       printf("\r  %-38s |          ", _Codecs[codecId].decoders[codecFuncIndex].name);
@@ -948,16 +987,42 @@ uint64_t TicksToNs(const uint64_t ticks)
 #endif
 }
 
-void SleepNs(const uint64_t sleepNs)
+static int64_t _LastSleepTicks = GetCurrentTimeTicks();
+
+template <uint64_t MaxNoSleepNs, uint64_t SleepTimeDiv>
+void OfferSleepInternal()
 {
   if (!_DisableSleep && _RunCount > 1)
   {
-#ifdef _WIN32
-    Sleep((DWORD)((sleepNs + 500 * 1000) / (1000 * 1000)));
-#else
-    usleep((uint32_t)((sleepNs + 500) / (1000)));
-#endif
+    const uint64_t diffNs = TicksToNs(GetCurrentTimeTicks() - _LastSleepTicks);
+
+    if (diffNs > MaxNoSleepNs)
+    {
+      SleepNs(diffNs / SleepTimeDiv);
+      _LastSleepTicks = GetCurrentTimeTicks();
+    }
   }
+}
+
+void OfferSleep()
+{
+  constexpr uint64_t MaxNoSleepNs = 2500ULL * 1000 * 1000;
+  OfferSleepInternal<MaxNoSleepNs, 5>();
+}
+
+void OfferLongSleep()
+{
+  constexpr uint64_t MaxNoSleepNs = 1000ULL * 1000 * 1000;
+  OfferSleepInternal<MaxNoSleepNs, 3>();
+}
+
+void SleepNs(const uint64_t sleepNs)
+{
+#ifdef _WIN32
+  Sleep((DWORD)((sleepNs + 500 * 1000) / (1000 * 1000)));
+#else
+  usleep((uint32_t)((sleepNs + 500) / (1000)));
+#endif
 }
 
 bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t size)
