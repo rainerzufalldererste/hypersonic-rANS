@@ -2733,7 +2733,7 @@ size_t rANS32x32_16w_decode_avx256_varC(const uint8_t *pInData, const size_t inL
 
   if constexpr (!WriteAligned32)
     if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
-      return rANS32x32_16w_decode_avx256_varC<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x32_16w_decode_avx256_varC<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, SimulatedGather, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
@@ -3116,7 +3116,7 @@ size_t rANS32x32_16w_decode_avx2_pregather_varC(const uint8_t *pInData, const si
 
   if constexpr (!WriteAligned32)
     if ((reinterpret_cast<size_t>(pOutData) & (StateCount - 1)) == 0)
-      return rANS32x32_16w_decode_avx2_pregather_varC<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, ScalarPreGather, true>(pInData, inLength, pOutData, outCapacity);
+      return rANS32x32_16w_decode_avx2_pregather_varC<TotalSymbolCountBits, XmmShuffle, ShuffleMask16, LateFullGather, ScalarPreGather, true>(pInData, inLength, pOutData, outCapacity);
 
   static_assert(TotalSymbolCountBits < 16);
   constexpr uint32_t TotalSymbolCount = ((uint32_t)1 << TotalSymbolCountBits);
