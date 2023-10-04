@@ -65,6 +65,7 @@ static size_t _RunCount = 8;
 static size_t _EncodeRunCount = 2;
 static size_t _DecodeRunCount = 16;
 static bool _Base2ByteUnits = true;
+static bool _HideUnavailable = false;
 
 constexpr size_t MaxRunCount = 1024;
 static uint64_t _ClocksPerRun[MaxRunCount];
@@ -282,6 +283,9 @@ const char ArgumentRunsEncode[] = "--runs-enc";
 const char ArgumentRunsDecode[] = "--runs-dec";
 const char ArgumentTest[] = "--test";
 const char ArgumentBase10[] = "--no-iec";
+const char ArgumentBase10B[] = "--mb";
+const char ArgumentBase2[] = "--mib";
+const char ArgumentHideUnavailable[] = "--hide-unavailable";
 const char ArgumentMaxSimd[] = "--max-simd";
 const char ArgumentMaxSimdAVX512BW[] = "avx512bw";
 const char ArgumentMaxSimdAVX512F[] = "avx512f";
@@ -317,7 +321,7 @@ int32_t main(const int32_t argc, char **pArgv)
     printf("\t%s <uint>\tWhen Decoding: Run the benchmark for a specified amount of times (default: 16)\n", ArgumentRunsDecode);
     printf("\t%s\t\tPrevent sleeping between runs/codecs (may lead to thermal throttling)\n", ArgumentNoSleep);
     printf("\t%s\t\t\tRun as test scenario, fail on error, call codecs\n", ArgumentTest);
-    printf("\t%s\t\t\tSwitch the unit-format from base-2 to base-10 (i.e. display 'Megabytes' instead of 'Mebibytes')\n", ArgumentBase10);
+    printf("\t%s / %s\t\tSwitch the unit-format from base-2 to base-10 (i.e. display 'Megabytes' instead of 'Mebibytes'), opposite of '%s'\n", ArgumentBase10, ArgumentBase10B, ArgumentBase2);
     printf("\t%s <%s / %s / %s / %s / %s / %s / %s / %s / %s / %s>\n\t\t\t\tRestrict SIMD functions to specific instruction set\n", ArgumentMaxSimd, ArgumentMaxSimdAVX512BW, ArgumentMaxSimdAVX512F, ArgumentMaxSimdAVX2, ArgumentMaxSimdAVX, ArgumentMaxSimdSSE42, ArgumentMaxSimdSSE41, ArgumentMaxSimdSSSE3, ArgumentMaxSimdSSE3, ArgumentMaxSimdSSE2, ArgumentMaxSimdNone);
     return 1;
   }
@@ -386,11 +390,23 @@ int32_t main(const int32_t argc, char **pArgv)
         argsRemaining--;
         _DisableSleep = true;
       }
-      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentBase10, sizeof(ArgumentBase10)) == 0)
+      else if (argsRemaining >= 1 && (strncmp(pArgv[argIndex], ArgumentBase10, sizeof(ArgumentBase10)) == 0 || strncmp(pArgv[argIndex], ArgumentBase10B, sizeof(ArgumentBase10B)) == 0))
       {
         argIndex++;
         argsRemaining--;
         _Base2ByteUnits = false;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentBase2, sizeof(ArgumentBase2)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _Base2ByteUnits = true;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentHideUnavailable, sizeof(ArgumentHideUnavailable)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _HideUnavailable = true;
       }
       else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentTest, sizeof(ArgumentTest)) == 0)
       {
@@ -827,12 +843,16 @@ int32_t main(const int32_t argc, char **pArgv)
 
       if (strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx2 ") != nullptr && !avx2Supported)
       {
-        //printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        if (!_HideUnavailable)
+          printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        
         continue;
       }
       else if ((strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx512 ") != nullptr || strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx256 ") != nullptr) && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported || !avx512VLSupported))
       {
-        //printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW/VL available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        if (!_HideUnavailable)
+          printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW/VL available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        
         continue;
       }
 
@@ -901,12 +921,16 @@ int32_t main(const int32_t argc, char **pArgv)
 
       if (strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx2 ") != nullptr && !avx2Supported)
       {
-        //printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
+        if (!_HideUnavailable)
+          printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
+        
         continue;
       }
       else if ((strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx512 ") != nullptr || strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx256 ") != nullptr) && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported || !avx512VLSupported))
       {
-        //printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
+        if (!_HideUnavailable)
+          printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
+        
         continue;
       }
 
