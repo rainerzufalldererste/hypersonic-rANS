@@ -980,7 +980,7 @@ static size_t _block_rans32x64_decode_section_avx2_varC(_rans_decode_state64_t<h
 template <uint32_t TotalSymbolCountBits, bool WriteAligned32 = false>
 #if !defined(_MSC_VER) || defined(__llvm__)
 #ifdef __llvm__
-#if __clang_major__ >= 16
+#if __clang_major__ == 16
 __attribute__((target("arch=znver4")))
 #else
 __attribute__((target("avx512vl")))

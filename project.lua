@@ -75,7 +75,7 @@ filter { "configurations:Release" }
   symbols "On"
 
 filter { "system:linux", "configurations:ReleaseClang" }
-  buildoptions { "-O3" }
+  buildoptions { "-Ofast" }
 
 filter { "system:windows", "configurations:Release" }
 	flags { "NoIncrementalLink" }

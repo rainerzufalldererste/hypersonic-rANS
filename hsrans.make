@@ -66,8 +66,8 @@ TARGETDIR = builds/bin
 TARGET = $(TARGETDIR)/hsrans
 OBJDIR = intermediate/obj/x64/ReleaseClang
 DEFINES += -D_CRT_SECURE_NO_WARNINGS -DSSE2
-ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -Werror -ffast-math -Wall -Wextra -mxsave -O3
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -Werror -ffast-math -Wall -Wextra -std=c++20 -fno-exceptions -fno-rtti -mxsave -O3
+ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -Werror -ffast-math -Wall -Wextra -mxsave -Ofast
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -Werror -ffast-math -Wall -Wextra -std=c++20 -fno-exceptions -fno-rtti -mxsave -Ofast
 ALL_LDFLAGS += $(LDFLAGS) -L/usr/lib64 -m64 -pthread
 
 else ifeq ($(config),debugclang_x64)

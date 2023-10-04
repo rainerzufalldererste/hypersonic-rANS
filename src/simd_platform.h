@@ -36,6 +36,80 @@
 // Intel Downfall Mitigation: Simulated Gather to work around performance pitfalls...
 
 #ifdef __cplusplus
+
+#if 0
+#if !defined(_MSC_VER) || defined(__llvm__)
+__attribute__((target("avx2")))
+#endif
+inline __m256i _INLINE _mm256_i32gather_epi32_sim(const int32_t *pB, const __m256i idx, const size_t)
+{
+  volatile _ALIGN(32) int32_t i[8];
+  _mm256_store_si256((__m256i *)i, idx);
+
+  const int32_t x0 = pB[i[0]];
+  const __m128i x1 = _mm_set1_epi32(pB[i[1]]);
+
+  const __m128i r0 = _mm_insert_epi32(x1, x0, 0);
+
+  const int32_t x2 = pB[i[2]];
+  const __m128i x3 = _mm_set1_epi32(pB[i[3]]);
+
+  const __m128i r1 = _mm_insert_epi32(x3, x2, 0);
+  const __m128i r01 = _mm_unpacklo_epi64(r0, r1);
+
+  const int32_t x4 = pB[i[4]];
+  const __m128i x5 = _mm_set1_epi32(pB[i[5]]);
+
+  const __m128i r2 = _mm_insert_epi32(x5, x4, 0);
+
+  const int32_t x6 = pB[i[6]];
+  const __m128i x7 = _mm_set1_epi32(pB[i[7]]);
+
+  const __m128i r3 = _mm_insert_epi32(x7, x6, 0);
+
+  const __m128i r23 = _mm_unpacklo_epi64(r2, r3);
+
+  const __m256i y01 = _mm256_castsi128_si256(r01);
+
+  return _mm256_inserti128_si256(y01, r23, 1);
+}
+#elif 0
+#if !defined(_MSC_VER) || defined(__llvm__)
+__attribute__((target("avx2")))
+#endif
+inline __m256i _INLINE _mm256_i32gather_epi32_sim(const int32_t *pB, const __m256i idx, const size_t)
+{
+  volatile _ALIGN(32) int32_t i[8];
+  _mm256_store_si256((__m256i *)i, idx);
+
+  const __m128i x0 = _mm_cvtsi32_si128(pB[i[0]]);
+  const int32_t x1 = pB[i[1]];
+
+  const __m128i r0 = _mm_insert_epi32(x0, x1, 1);
+
+  const __m128i x2 = _mm_cvtsi32_si128(pB[i[2]]);
+  const int32_t x3 = pB[i[3]];
+
+  const __m128i r1 = _mm_insert_epi32(x2, x3, 1);
+  const __m128i r01 = _mm_unpacklo_epi64(r0, r1);
+
+  const __m128i x4 = _mm_cvtsi32_si128(pB[i[4]]);
+  const int32_t x5 = pB[i[5]];
+
+  const __m128i r2 = _mm_insert_epi32(x4, x5, 1);
+
+  const __m128i x6 = _mm_cvtsi32_si128(pB[i[6]]);
+  const int32_t x7 = pB[i[7]];
+
+  const __m128i r3 = _mm_insert_epi32(x6, x7, 1);
+
+  const __m128i r23 = _mm_unpacklo_epi64(r2, r3);
+
+  const __m256i y01 = _mm256_castsi128_si256(r01);
+
+  return _mm256_inserti128_si256(y01, r23, 1);
+}
+#else
 #ifndef _MSC_VER
 __attribute__((target("avx")))
 #endif
@@ -50,8 +124,9 @@ inline __m256i _INLINE _mm256_i32gather_epi32_sim(const int32_t *pB, const __m25
 
   return _mm256_set_epi32(pB[i[7]], pB[i[6]], pB[i[5]], pB[i[4]], pB[i[3]], pB[i[2]], pB[i[1]], pB[i[0]]);
 }
+#endif
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || defined(__llvm__)
 __attribute__((target("avx512f")))
 #endif
 inline __m512i _INLINE _mm512_i32gather_epi32_sim(const __m512i idx, const void *pV, const size_t)
@@ -67,6 +142,7 @@ inline __m512i _INLINE _mm512_i32gather_epi32_sim(const __m512i idx, const void 
 
   return _mm512_set_epi32(pB[i[15]], pB[i[14]], pB[i[13]], pB[i[12]], pB[i[11]], pB[i[10]], pB[i[9]], pB[i[8]], pB[i[7]], pB[i[6]], pB[i[5]], pB[i[4]], pB[i[3]], pB[i[2]], pB[i[1]], pB[i[0]]);
 }
+
 #endif
 
 //////////////////////////////////////////////////////////////////////////

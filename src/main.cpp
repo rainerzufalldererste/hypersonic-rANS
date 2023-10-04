@@ -827,12 +827,12 @@ int32_t main(const int32_t argc, char **pArgv)
 
       if (strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx2 ") != nullptr && !avx2Supported)
       {
-        printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        //printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
         continue;
       }
       else if ((strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx512 ") != nullptr || strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx256 ") != nullptr) && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported || !avx512VLSupported))
       {
-        printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW/VL available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        //printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW/VL available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
         continue;
       }
 
@@ -901,12 +901,12 @@ int32_t main(const int32_t argc, char **pArgv)
 
       if (strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx2 ") != nullptr && !avx2Supported)
       {
-        printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
+        //printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
         continue;
       }
       else if ((strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx512 ") != nullptr || strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx256 ") != nullptr) && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported || !avx512VLSupported))
       {
-        printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
+        //printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
         continue;
       }
 
@@ -1013,7 +1013,16 @@ void OfferSleep()
 void OfferLongSleep()
 {
   constexpr uint64_t MaxNoSleepNs = 1000ULL * 1000 * 1000;
-  OfferSleepInternal<MaxNoSleepNs, 3>();
+
+  if (_CpuVendor != cpu_vendor_AMD)
+  {
+    OfferSleepInternal<MaxNoSleepNs, 3>();
+  }
+  else
+  {
+    SleepNs(MaxNoSleepNs / 2);
+    _LastSleepTicks = GetCurrentTimeTicks();
+  }
 }
 
 void SleepNs(const uint64_t sleepNs)
