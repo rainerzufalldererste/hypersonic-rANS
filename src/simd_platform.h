@@ -38,6 +38,9 @@
 #ifdef __cplusplus
 
 #if 0
+// With clang-17:
+// Faster on Cascadelake, Cooperlake, SkylakeX, Skylake Server, Skylake Client, Ice Lake Client, Ice Lake Server, Rocket Lake, Tiger Lake
+// Technically marginally faster on Alder Lake, Raptor Lake, Meteor Lake
 #if !defined(_MSC_VER) || defined(__llvm__)
 __attribute__((target("avx2")))
 #endif
@@ -74,6 +77,7 @@ inline __m256i _INLINE _mm256_i32gather_epi32_sim(const int32_t *pB, const __m25
   return _mm256_inserti128_si256(y01, r23, 1);
 }
 #elif 0
+// same codegen on clang-17 as above, worse on gcc.
 #if !defined(_MSC_VER) || defined(__llvm__)
 __attribute__((target("avx2")))
 #endif
@@ -110,6 +114,7 @@ inline __m256i _INLINE _mm256_i32gather_epi32_sim(const int32_t *pB, const __m25
   return _mm256_inserti128_si256(y01, r23, 1);
 }
 #else
+// fast on pretty much everything else.
 #ifndef _MSC_VER
 __attribute__((target("avx")))
 #endif
