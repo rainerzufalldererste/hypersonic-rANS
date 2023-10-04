@@ -194,6 +194,8 @@ hypersonic-rANS includes a variant that's encodes blocks independently (at the e
 
 ## Building
 ### On Linux/WSL
+Please ensure that `clang`/`gcc` & `libstdc++-10-dev` are installed prior to the compilation.
+
 Clang:
 ```bash
 premake/premake5 gmake2

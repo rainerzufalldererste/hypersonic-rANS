@@ -37,6 +37,8 @@
 uint64_t GetCurrentTimeTicks();
 uint64_t TicksToNs(const uint64_t ticks);
 void SleepNs(const uint64_t sleepNs);
+void OfferSleep();
+void OfferLongSleep();
 bool Validate(const uint8_t *pUncompressedData, const uint8_t *pDecompressedData, const size_t size);
 
 template <typename T>
@@ -62,8 +64,10 @@ static bool _IsTest = false;
 static size_t _RunCount = 8;
 static size_t _EncodeRunCount = 2;
 static size_t _DecodeRunCount = 16;
+static bool _Base2ByteUnits = true;
+static bool _HideUnavailable = false;
 
-constexpr size_t MaxRunCount = 256;
+constexpr size_t MaxRunCount = 1024;
 static uint64_t _ClocksPerRun[MaxRunCount];
 static uint64_t _NsPerRun[MaxRunCount];
 
@@ -71,6 +75,9 @@ static uint64_t _NsPerRun[MaxRunCount];
 
 void print_perf_info(const size_t fileSize)
 {
+  const char *MBUnit = _Base2ByteUnits ? "MiB" : " MB";
+  const double MBBytes = _Base2ByteUnits ? (double)(1024 * 1024) : (double)(1000 * 1000);
+
   if (_RunCount > 1)
   {
     uint64_t completeNs = 0;
@@ -107,13 +114,35 @@ void print_perf_info(const size_t fileSize)
     stdDevNs = sqrt(stdDevNs / (double)(_RunCount - 1));
     stdDevClocks = sqrt(stdDevClocks / (double)(_RunCount - 1));
 
-    printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", minClocks / (double_t)fileSize, meanClocks / fileSize, (meanClocks - stdDevClocks) / fileSize, (meanClocks + stdDevClocks) / fileSize);
-    printf("| %8.2f MiB/s | %8.2f MiB/s (%8.2f ~ %8.2f)\n", (fileSize / (1024.0 * 1024.0)) / (minNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / (meanNs * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs + stdDevNs) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((meanNs - stdDevNs) * 1e-9));
+    printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", 
+      minClocks / (double_t)fileSize,
+      meanClocks / fileSize,
+      (meanClocks - stdDevClocks) / fileSize,
+      (meanClocks + stdDevClocks) / fileSize);
+
+    printf("| %8.2f %s/s | %8.2f %s/s (%8.2f ~ %8.2f)\n", 
+      (fileSize / MBBytes) / (minNs * 1e-9),
+      MBUnit,
+      (fileSize / MBBytes) / (meanNs * 1e-9),
+      MBUnit,
+      (fileSize / MBBytes) / ((meanNs + stdDevNs) * 1e-9),
+      (fileSize / MBBytes) / ((meanNs - stdDevNs) * 1e-9));
   }
   else
   {
-    printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", _ClocksPerRun[0] / (double_t)fileSize, _ClocksPerRun[0] / (double)fileSize, (_ClocksPerRun[0]) / (double)fileSize, (_ClocksPerRun[0]) / (double)fileSize);
-    printf("| %8.2f MiB/s | %8.2f MiB/s (%8.2f ~ %8.2f)\n", (fileSize / (1024.0 * 1024.0)) / (_NsPerRun[0] * 1e-9), (fileSize / (1024.0 * 1024.0)) / (_NsPerRun[0] * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((_NsPerRun[0]) * 1e-9), (fileSize / (1024.0 * 1024.0)) / ((_NsPerRun[0]) * 1e-9));
+    printf("| %7.2f clk/byte | %7.2f clk/byte (%7.2f ~ %7.2f) ", 
+      _ClocksPerRun[0] / (double_t)fileSize, 
+      _ClocksPerRun[0] / (double)fileSize, 
+      (_ClocksPerRun[0]) / (double)fileSize, 
+      (_ClocksPerRun[0]) / (double)fileSize);
+
+    printf("| %8.2f %s/s | %8.2f %s/s (%8.2f ~ %8.2f)\n", 
+      (fileSize / MBBytes) / (_NsPerRun[0] * 1e-9),
+      MBUnit,
+      (fileSize / MBBytes) / (_NsPerRun[0] * 1e-9),
+      MBUnit,
+      (fileSize / MBBytes) / ((_NsPerRun[0]) * 1e-9),
+      (fileSize / MBBytes) / ((_NsPerRun[0]) * 1e-9));
   }
 }
 
@@ -140,8 +169,8 @@ struct func_info_t
   bool candidateForFastest = false;
 };
 
-constexpr size_t MaxEncoderCount = 32; // if someone needs more than 32, simply increase this.
-constexpr size_t MaxDecoderCount = 32; // if someone needs more than 32, simply increase this.
+constexpr size_t MaxEncoderCount = 48; // if someone needs more than 48, simply increase this.
+constexpr size_t MaxDecoderCount = 48; // if someone needs more than 48, simply increase this.
 
 struct codec_info_t
 {
@@ -202,16 +231,16 @@ static const codec_info_t _Codecs[] =
   { "rANS32x32 16w (raw)", 15, {{ "enc scalar", rANS32x32_16w_encode_scalar_15, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_15 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_15 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_15 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_15, true }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_15 }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_15 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_15 }, {}}},
   { "rANS32x32 16w (raw)", 14, {{ "enc scalar", rANS32x32_16w_encode_scalar_14, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_14 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_14 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_14 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_14, true }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_14 }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_14 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_14 }, {}}},
   { "rANS32x32 16w (raw)", 13, {{ "enc scalar", rANS32x32_16w_encode_scalar_13, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_13 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_13 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_13 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_13, true }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_13 }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_13 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_13 }, {}}},
-  { "rANS32x32 16w (raw)", 12, {{ "enc scalar", rANS32x32_16w_encode_scalar_12, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_12 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_12 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_12 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_12 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_12 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_12 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varC_12, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_12 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_12 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varC_12 }, { "dec avx2 (xmm shfl, 1x pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_12 }, { "dec avx2 (xmm shfl2, 1x pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_12 }, { "dec avx2 (ymm perm, 1x pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_12 }, { "dec avx2 (xmm shfl, 1x s pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_scalarpregather_varC_12 }, { "dec avx2 (xmm shfl2, 1x s pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_scalarpregather_varC_12 }, { "dec avx2 (ymm perm, 1x s pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_scalarpregather_varC_12 }, { "dec avx2 (xmm shfl, 1x erly gthr)", rANS32x32_xmmShfl_16w_decode_avx2_earlygather_varC_12 }, { "dec avx2 (xmm shfl2, 1x erly gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_earlygather_varC_12 }, { "dec avx2 (ymm perm, 1x erly gthr)", rANS32x32_ymmPerm_16w_decode_avx2_earlygather_varC_12 }, { "dec avx2 (xmm shfl, 1x pref gthr)", rANS32x32_xmmShfl_16w_decode_avx2_prefetch_varC_12 }, { "dec avx2 (xmm shfl2, 1x pref gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_prefetch_varC_12 }, { "dec avx2 (ymm perm, 1x pref gthr)", rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_12 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx512_varC_12 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_varC_12 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x32_ymmShfl_16w_decode_avx512_varC_12 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_varC_12, true }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x32_zmmPerm_16w_decode_avx512_varC_12 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x32_xmmShfl_16w_decode_avx512_ymmGthr_varC_12 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_ymmGthr_varC_12, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x32_ymmShfl_16w_decode_avx512_ymmGthr_varC_12 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_ymmGthr_varC_12, true }, {}}},
-  { "rANS32x32 16w (raw)", 11, {{ "enc scalar", rANS32x32_16w_encode_scalar_11, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_11 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_11 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_11 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_11 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_11 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_11 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varC_11, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_11 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_11 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varC_11 }, { "dec avx2 (xmm shfl, 1x pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_11 }, { "dec avx2 (xmm shfl2, 1x pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_11 }, { "dec avx2 (ymm perm, 1x pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_11 }, { "dec avx2 (xmm shfl, 1x s pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_scalarpregather_varC_11 }, { "dec avx2 (xmm shfl2, 1x s pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_scalarpregather_varC_11 }, { "dec avx2 (ymm perm, 1x s pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_scalarpregather_varC_11 }, { "dec avx2 (xmm shfl, 1x erly gthr)", rANS32x32_xmmShfl_16w_decode_avx2_earlygather_varC_11 }, { "dec avx2 (xmm shfl2, 1x erly gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_earlygather_varC_11 }, { "dec avx2 (ymm perm, 1x erly gthr)", rANS32x32_ymmPerm_16w_decode_avx2_earlygather_varC_11 }, { "dec avx2 (xmm shfl, 1x pref gthr)", rANS32x32_xmmShfl_16w_decode_avx2_prefetch_varC_11 }, { "dec avx2 (xmm shfl2, 1x pref gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_prefetch_varC_11 }, { "dec avx2 (ymm perm, 1x pref gthr)", rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_11 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx512_varC_11 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_varC_11 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x32_ymmShfl_16w_decode_avx512_varC_11 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_varC_11, true }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x32_zmmPerm_16w_decode_avx512_varC_11 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x32_xmmShfl_16w_decode_avx512_ymmGthr_varC_11 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_ymmGthr_varC_11, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x32_ymmShfl_16w_decode_avx512_ymmGthr_varC_11 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_ymmGthr_varC_11, true }, {}}},
-  { "rANS32x32 16w (raw)", 10, {{ "enc scalar", rANS32x32_16w_encode_scalar_10, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_10 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_10 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_10 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_10 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_10 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_10 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varC_10, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_10 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_10 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varC_10 }, { "dec avx2 (xmm shfl, 1x pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_10 }, { "dec avx2 (xmm shfl2, 1x pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_10 }, { "dec avx2 (ymm perm, 1x pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_10 }, { "dec avx2 (xmm shfl, 1x s pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_scalarpregather_varC_10 }, { "dec avx2 (xmm shfl2, 1x s pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_scalarpregather_varC_10 }, { "dec avx2 (ymm perm, 1x s pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_scalarpregather_varC_10 }, { "dec avx2 (xmm shfl, 1x erly gthr)", rANS32x32_xmmShfl_16w_decode_avx2_earlygather_varC_10 }, { "dec avx2 (xmm shfl2, 1x erly gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_earlygather_varC_10 }, { "dec avx2 (ymm perm, 1x erly gthr)", rANS32x32_ymmPerm_16w_decode_avx2_earlygather_varC_10 }, { "dec avx2 (xmm shfl, 1x pref gthr)", rANS32x32_xmmShfl_16w_decode_avx2_prefetch_varC_10 }, { "dec avx2 (xmm shfl2, 1x pref gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_prefetch_varC_10 }, { "dec avx2 (ymm perm, 1x pref gthr)", rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_10 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx512_varC_10 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_varC_10 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x32_ymmShfl_16w_decode_avx512_varC_10 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_varC_10, true }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x32_zmmPerm_16w_decode_avx512_varC_10 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x32_xmmShfl_16w_decode_avx512_ymmGthr_varC_10 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_ymmGthr_varC_10, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x32_ymmShfl_16w_decode_avx512_ymmGthr_varC_10 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_ymmGthr_varC_10, true }, {}}},
+  { "rANS32x32 16w (raw)", 12, {{ "enc scalar", rANS32x32_16w_encode_scalar_12, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_12 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_12 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_12 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_12 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_12 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_12 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varC_12, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_12 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_12 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varC_12 }, { "dec avx2 (xmm shfl, 1x pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_12 }, { "dec avx2 (xmm shfl2, 1x pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_12 }, { "dec avx2 (ymm perm, 1x pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_12 }, { "dec avx2 (xmm shfl, 1x s pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_scalarpregather_varC_12 }, { "dec avx2 (xmm shfl2, 1x s pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_scalarpregather_varC_12 }, { "dec avx2 (ymm perm, 1x s pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_scalarpregather_varC_12 }, { "dec avx2 (xmm shfl, 1x erly gthr)", rANS32x32_xmmShfl_16w_decode_avx2_earlygather_varC_12 }, { "dec avx2 (xmm shfl2, 1x erly gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_earlygather_varC_12 }, { "dec avx2 (ymm perm, 1x erly gthr)", rANS32x32_ymmPerm_16w_decode_avx2_earlygather_varC_12 }, { "dec avx2 (xmm shfl, 1x pref gthr)", rANS32x32_xmmShfl_16w_decode_avx2_prefetch_varC_12 }, { "dec avx2 (xmm shfl2, 1x pref gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_prefetch_varC_12 }, { "dec avx2 (ymm perm, 1x pref gthr)", rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_12 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx512_varC_12 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_varC_12 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x32_ymmShfl_16w_decode_avx512_varC_12 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_varC_12, true }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x32_zmmPerm_16w_decode_avx512_varC_12 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x32_xmmShfl_16w_decode_avx512_ymmGthr_varC_12 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_ymmGthr_varC_12, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x32_ymmShfl_16w_decode_avx512_ymmGthr_varC_12 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_ymmGthr_varC_12, true }, { "dec avx256 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx256_varC_12 }, { "dec avx256 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx256_varC_12, true }, { "dec avx256 (ymm perm, 1x gthr)", rANS32x32_ymmPerm_16w_decode_avx256_varC_12 }, { "dec avx2 (xmm shfl, 1x sim gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_sim_gthr_12 }, { "dec avx2 (xmm shfl2, 1x sim gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varC_sim_gthr_12, true }, { "dec avx2 (ymm perm, 1x sim gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varC_sim_gthr_12 }, { "dec avx256 (xmm shfl, 1x sim gthr)", rANS32x32_xmmShfl_16w_decode_avx256_varC_sim_gthr_12 }, { "dec avx256 (xmm shfl2, 1x sim gthr)", rANS32x32_xmmShfl2_16w_decode_avx256_varC_sim_gthr_12, true }, { "dec avx256 (ymm perm, 1x sim gthr)", rANS32x32_ymmPerm_16w_decode_avx256_varC_sim_gthr_12 }, { "dec avx2 CJ (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varCJ_12 }, { "dec avx2 CJ (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varCJ_12 }, { "dec avx2 CJ (xmm shfl, 1x sim gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varCJ_sim_gthr_12 }, { "dec avx2 CJ (xmm shfl2, 1x sim gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varCJ_sim_gthr_12, true }, {}}},
+  { "rANS32x32 16w (raw)", 11, {{ "enc scalar", rANS32x32_16w_encode_scalar_11, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_11 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_11 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_11 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_11 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_11 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_11 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varC_11, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_11 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_11 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varC_11 }, { "dec avx2 (xmm shfl, 1x pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_11 }, { "dec avx2 (xmm shfl2, 1x pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_11 }, { "dec avx2 (ymm perm, 1x pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_11 }, { "dec avx2 (xmm shfl, 1x s pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_scalarpregather_varC_11 }, { "dec avx2 (xmm shfl2, 1x s pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_scalarpregather_varC_11 }, { "dec avx2 (ymm perm, 1x s pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_scalarpregather_varC_11 }, { "dec avx2 (xmm shfl, 1x erly gthr)", rANS32x32_xmmShfl_16w_decode_avx2_earlygather_varC_11 }, { "dec avx2 (xmm shfl2, 1x erly gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_earlygather_varC_11 }, { "dec avx2 (ymm perm, 1x erly gthr)", rANS32x32_ymmPerm_16w_decode_avx2_earlygather_varC_11 }, { "dec avx2 (xmm shfl, 1x pref gthr)", rANS32x32_xmmShfl_16w_decode_avx2_prefetch_varC_11 }, { "dec avx2 (xmm shfl2, 1x pref gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_prefetch_varC_11 }, { "dec avx2 (ymm perm, 1x pref gthr)", rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_11 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx512_varC_11 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_varC_11 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x32_ymmShfl_16w_decode_avx512_varC_11 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_varC_11, true }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x32_zmmPerm_16w_decode_avx512_varC_11 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x32_xmmShfl_16w_decode_avx512_ymmGthr_varC_11 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_ymmGthr_varC_11, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x32_ymmShfl_16w_decode_avx512_ymmGthr_varC_11 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_ymmGthr_varC_11, true }, { "dec avx256 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx256_varC_11 }, { "dec avx256 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx256_varC_11, true }, { "dec avx256 (ymm perm, 1x gthr)", rANS32x32_ymmPerm_16w_decode_avx256_varC_11 }, { "dec avx2 (xmm shfl, 1x sim gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_sim_gthr_11 }, { "dec avx2 (xmm shfl2, 1x sim gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varC_sim_gthr_11, true }, { "dec avx2 (ymm perm, 1x sim gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varC_sim_gthr_11 }, { "dec avx256 (xmm shfl, 1x sim gthr)", rANS32x32_xmmShfl_16w_decode_avx256_varC_sim_gthr_11 }, { "dec avx256 (xmm shfl2, 1x sim gthr)", rANS32x32_xmmShfl2_16w_decode_avx256_varC_sim_gthr_11, true }, { "dec avx256 (ymm perm, 1x sim gthr)", rANS32x32_ymmPerm_16w_decode_avx256_varC_sim_gthr_11 }, { "dec avx2 CJ (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varCJ_11 }, { "dec avx2 CJ (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varCJ_11 }, { "dec avx2 CJ (xmm shfl, 1x sim gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varCJ_sim_gthr_11 }, { "dec avx2 CJ (xmm shfl2, 1x sim gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varCJ_sim_gthr_11, true }, {}}},
+  { "rANS32x32 16w (raw)", 10, {{ "enc scalar", rANS32x32_16w_encode_scalar_10, true }, {}}, {{ "dec scalar", rANS32x32_16w_decode_scalar_10 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varA_10 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varB_10 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_10 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varA_10 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varB_10 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varC_10, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varA_10 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varB_10 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varC_10 }, { "dec avx2 (xmm shfl, 1x pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_pregather_varC_10 }, { "dec avx2 (xmm shfl2, 1x pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_pregather_varC_10 }, { "dec avx2 (ymm perm, 1x pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_pregather_varC_10 }, { "dec avx2 (xmm shfl, 1x s pre-gthr)", rANS32x32_xmmShfl_16w_decode_avx2_scalarpregather_varC_10 }, { "dec avx2 (xmm shfl2, 1x s pre-gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_scalarpregather_varC_10 }, { "dec avx2 (ymm perm, 1x s pre-gthr)", rANS32x32_ymmPerm_16w_decode_avx2_scalarpregather_varC_10 }, { "dec avx2 (xmm shfl, 1x erly gthr)", rANS32x32_xmmShfl_16w_decode_avx2_earlygather_varC_10 }, { "dec avx2 (xmm shfl2, 1x erly gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_earlygather_varC_10 }, { "dec avx2 (ymm perm, 1x erly gthr)", rANS32x32_ymmPerm_16w_decode_avx2_earlygather_varC_10 }, { "dec avx2 (xmm shfl, 1x pref gthr)", rANS32x32_xmmShfl_16w_decode_avx2_prefetch_varC_10 }, { "dec avx2 (xmm shfl2, 1x pref gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_prefetch_varC_10 }, { "dec avx2 (ymm perm, 1x pref gthr)", rANS32x32_ymmPerm_16w_decode_avx2_prefetch_varC_10 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx512_varC_10 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_varC_10 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x32_ymmShfl_16w_decode_avx512_varC_10 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_varC_10, true }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x32_zmmPerm_16w_decode_avx512_varC_10 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x32_xmmShfl_16w_decode_avx512_ymmGthr_varC_10 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x32_xmmShfl2_16w_decode_avx512_ymmGthr_varC_10, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x32_ymmShfl_16w_decode_avx512_ymmGthr_varC_10 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x32_ymmShfl2_16w_decode_avx512_ymmGthr_varC_10, true }, { "dec avx256 (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx256_varC_10 }, { "dec avx256 (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx256_varC_10, true }, { "dec avx256 (ymm perm, 1x gthr)", rANS32x32_ymmPerm_16w_decode_avx256_varC_10 }, { "dec avx2 (xmm shfl, 1x sim gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varC_sim_gthr_10 }, { "dec avx2 (xmm shfl2, 1x sim gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varC_sim_gthr_10, true }, { "dec avx2 (ymm perm, 1x sim gthr)", rANS32x32_ymmPerm_16w_decode_avx2_varC_sim_gthr_10 }, { "dec avx256 (xmm shfl, 1x sim gthr)", rANS32x32_xmmShfl_16w_decode_avx256_varC_sim_gthr_10 }, { "dec avx256 (xmm shfl2, 1x sim gthr)", rANS32x32_xmmShfl2_16w_decode_avx256_varC_sim_gthr_10, true }, { "dec avx256 (ymm perm, 1x sim gthr)", rANS32x32_ymmPerm_16w_decode_avx256_varC_sim_gthr_10 }, { "dec avx2 CJ (xmm shfl, 1x gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varCJ_10 }, { "dec avx2 CJ (xmm shfl2, 1x gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varCJ_10 }, { "dec avx2 CJ (xmm shfl, 1x sim gthr)", rANS32x32_xmmShfl_16w_decode_avx2_varCJ_sim_gthr_10 }, { "dec avx2 CJ (xmm shfl2, 1x sim gthr)", rANS32x32_xmmShfl2_16w_decode_avx2_varCJ_sim_gthr_10, true }, {}}},
 
   { "rANS32x64 16w (raw)", 15, {{ "enc scalar", rANS32x64_16w_encode_scalar_15, true }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_15 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varA_15 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varB_15 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varA_15, true }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varB_15 }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varA_15 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varB_15 }, { "dec avx512 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varA_15 }, { "dec avx512 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varB_15 }, { "dec avx512 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varA_15, true }, { "dec avx512 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varB_15 }, { "dec avx512 (ymm shfl, sym dep gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varA_15 }, { "dec avx512 (ymm shfl, sym idp gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varB_15 }, { "dec avx512 (ymm shfl2, sym dep gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varA_15, true }, { "dec avx512 (ymm shfl2, sym idp gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varB_15 }, { "dec avx512 (zmm perm, sym dep gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varA_15 }, { "dec avx512 (zmm perm, sym idp gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varB_15 }, {}}},
   { "rANS32x64 16w (raw)", 14, {{ "enc scalar", rANS32x64_16w_encode_scalar_14, true }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_14 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varA_14 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varB_14 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varA_14, true }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varB_14 }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varA_14 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varB_14 }, { "dec avx512 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varA_14 }, { "dec avx512 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varB_14 }, { "dec avx512 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varA_14, true }, { "dec avx512 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varB_14 }, { "dec avx512 (ymm shfl, sym dep gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varA_14 }, { "dec avx512 (ymm shfl, sym idp gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varB_14 }, { "dec avx512 (ymm shfl2, sym dep gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varA_14, true }, { "dec avx512 (ymm shfl2, sym idp gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varB_14 }, { "dec avx512 (zmm perm, sym dep gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varA_14 }, { "dec avx512 (zmm perm, sym idp gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varB_14 }, {}}},
   { "rANS32x64 16w (raw)", 13, {{ "enc scalar", rANS32x64_16w_encode_scalar_13, true }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_13 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varA_13 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varB_13 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varA_13, true }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varB_13 }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varA_13 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varB_13 }, { "dec avx512 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varA_13 }, { "dec avx512 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varB_13 }, { "dec avx512 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varA_13, true }, { "dec avx512 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varB_13 }, { "dec avx512 (ymm shfl, sym dep gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varA_13 }, { "dec avx512 (ymm shfl, sym idp gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varB_13 }, { "dec avx512 (ymm shfl2, sym dep gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varA_13, true }, { "dec avx512 (ymm shfl2, sym idp gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varB_13 }, { "dec avx512 (zmm perm, sym dep gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varA_13 }, { "dec avx512 (zmm perm, sym idp gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varB_13 }, {}}},
-  { "rANS32x64 16w (raw)", 12, {{ "enc scalar", rANS32x64_16w_encode_scalar_12, true }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_12 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varA_12 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varB_12 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_12 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varA_12 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varB_12 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varC_12, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varA_12 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varB_12 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_12 }, { "dec avx512 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varA_12 }, { "dec avx512 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varB_12 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varC_12 }, { "dec avx512 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varA_12 }, { "dec avx512 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varB_12 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varC_12, true }, { "dec avx512 (ymm shfl, sym dep gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varA_12 }, { "dec avx512 (ymm shfl, sym idp gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varB_12 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varC_12 }, { "dec avx512 (ymm shfl2, sym dep gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varA_12 }, { "dec avx512 (ymm shfl2, sym idp gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varB_12 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varC_12, true }, { "dec avx512 (zmm perm, sym dep gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varA_12 }, { "dec avx512 (zmm perm, sym idp gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varB_12 }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varC_12 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_12 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_12, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_12 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_12, true }, {}}},
-  { "rANS32x64 16w (raw)", 11, {{ "enc scalar", rANS32x64_16w_encode_scalar_11, true }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_11 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varA_11 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varB_11 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_11 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varA_11 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varB_11 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varC_11, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varA_11 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varB_11 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_11 }, { "dec avx512 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varA_11 }, { "dec avx512 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varB_11 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varC_11 }, { "dec avx512 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varA_11 }, { "dec avx512 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varB_11 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varC_11, true }, { "dec avx512 (ymm shfl, sym dep gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varA_11 }, { "dec avx512 (ymm shfl, sym idp gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varB_11 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varC_11 }, { "dec avx512 (ymm shfl2, sym dep gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varA_11 }, { "dec avx512 (ymm shfl2, sym idp gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varB_11 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varC_11, true }, { "dec avx512 (zmm perm, sym dep gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varA_11 }, { "dec avx512 (zmm perm, sym idp gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varB_11 }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varC_11 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_11 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_11, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_11 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_11, true }, {}}},
-  { "rANS32x64 16w (raw)", 10, {{ "enc scalar", rANS32x64_16w_encode_scalar_10, true }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_10 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varA_10 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varB_10 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_10 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varA_10 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varB_10 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varC_10, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varA_10 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varB_10 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_10 }, { "dec avx512 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varA_10 }, { "dec avx512 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varB_10 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varC_10 }, { "dec avx512 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varA_10 }, { "dec avx512 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varB_10 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varC_10, true }, { "dec avx512 (ymm shfl, sym dep gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varA_10 }, { "dec avx512 (ymm shfl, sym idp gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varB_10 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varC_10 }, { "dec avx512 (ymm shfl2, sym dep gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varA_10 }, { "dec avx512 (ymm shfl2, sym idp gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varB_10 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varC_10, true }, { "dec avx512 (zmm perm, sym dep gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varA_10 }, { "dec avx512 (zmm perm, sym idp gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varB_10 }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varC_10 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_10 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_10, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_10 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_10, true }, {}}},
+  { "rANS32x64 16w (raw)", 12, {{ "enc scalar", rANS32x64_16w_encode_scalar_12, true }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_12 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varA_12 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varB_12 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_12 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varA_12 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varB_12 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varC_12, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varA_12 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varB_12 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_12 }, { "dec avx512 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varA_12 }, { "dec avx512 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varB_12 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varC_12 }, { "dec avx512 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varA_12 }, { "dec avx512 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varB_12 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varC_12, true }, { "dec avx512 (ymm shfl, sym dep gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varA_12 }, { "dec avx512 (ymm shfl, sym idp gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varB_12 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varC_12 }, { "dec avx512 (ymm shfl2, sym dep gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varA_12 }, { "dec avx512 (ymm shfl2, sym idp gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varB_12 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varC_12, true }, { "dec avx512 (zmm perm, sym dep gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varA_12 }, { "dec avx512 (zmm perm, sym idp gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varB_12 }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varC_12 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_12 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_12, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_12 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_12, true }, { "dec avx256 (xmm shfl2)", rANS32x64_xmmShfl2_16w_decode_avx256_varC_12, true }, { "dec avx2 (xmm shfl, 1x sim gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_sim_gthr_12 }, { "dec avx2 (xmm shfl2, 1x sim gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varC_sim_gthr_12, true }, { "dec avx2 (ymm perm, 1x sim gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_sim_gthr_12 }, { "dec avx512 (xmm shfl, 1x sim gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varC_sim_gthr_12 }, { "dec avx512 (xmm shfl2, 1x sim gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varC_sim_gthr_12, true }, { "dec avx512 (zmm perm, 1x sim gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varC_sim_gthr_12 }, { "dec avx512 (xmm shfl, 1x ymm simg)", rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_12 }, { "dec avx512 (xmm shfl2, 1x ymm simg)", rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_12 }, { "dec avx512 (ymm shfl, 1x ymm simg)", rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_12 }, { "dec avx512 (ymm shfl2, 1x ymm simg)", rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_12, true }, { "dec avx256 (xmm shfl2, 1x sim gthr)", rANS32x64_xmmShfl2_16w_decode_avx256_varC_sim_gthr_12, true }, {}}},
+  { "rANS32x64 16w (raw)", 11, {{ "enc scalar", rANS32x64_16w_encode_scalar_11, true }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_11 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varA_11 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varB_11 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_11 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varA_11 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varB_11 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varC_11, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varA_11 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varB_11 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_11 }, { "dec avx512 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varA_11 }, { "dec avx512 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varB_11 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varC_11 }, { "dec avx512 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varA_11 }, { "dec avx512 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varB_11 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varC_11, true }, { "dec avx512 (ymm shfl, sym dep gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varA_11 }, { "dec avx512 (ymm shfl, sym idp gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varB_11 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varC_11 }, { "dec avx512 (ymm shfl2, sym dep gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varA_11 }, { "dec avx512 (ymm shfl2, sym idp gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varB_11 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varC_11, true }, { "dec avx512 (zmm perm, sym dep gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varA_11 }, { "dec avx512 (zmm perm, sym idp gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varB_11 }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varC_11 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_11 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_11, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_11 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_11, true }, { "dec avx256 (xmm shfl2)", rANS32x64_xmmShfl2_16w_decode_avx256_varC_11, true }, { "dec avx2 (xmm shfl, 1x sim gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_sim_gthr_11 }, { "dec avx2 (xmm shfl2, 1x sim gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varC_sim_gthr_11, true }, { "dec avx2 (ymm perm, 1x sim gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_sim_gthr_11 }, { "dec avx512 (xmm shfl, 1x sim gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varC_sim_gthr_11 }, { "dec avx512 (xmm shfl2, 1x sim gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varC_sim_gthr_11, true }, { "dec avx512 (zmm perm, 1x sim gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varC_sim_gthr_11 }, { "dec avx512 (xmm shfl, 1x ymm simg)", rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_11 }, { "dec avx512 (xmm shfl2, 1x ymm simg)", rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_11 }, { "dec avx512 (ymm shfl, 1x ymm simg)", rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_11 }, { "dec avx512 (ymm shfl2, 1x ymm simg)", rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_11, true }, { "dec avx256 (xmm shfl2, 1x sim gthr)", rANS32x64_xmmShfl2_16w_decode_avx256_varC_sim_gthr_11, true }, {}}},
+  { "rANS32x64 16w (raw)", 10, {{ "enc scalar", rANS32x64_16w_encode_scalar_10, true }, {}}, {{ "dec scalar", rANS32x64_16w_decode_scalar_10 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varA_10 }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varB_10 }, { "dec avx2 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_10 }, { "dec avx2 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varA_10 }, { "dec avx2 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varB_10 }, { "dec avx2 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varC_10, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varA_10 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varB_10 }, { "dec avx2 (ymm perm, 1x gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_10 }, { "dec avx512 (xmm shfl, sym dep gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varA_10 }, { "dec avx512 (xmm shfl, sym idp gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varB_10 }, { "dec avx512 (xmm shfl, 1x gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varC_10 }, { "dec avx512 (xmm shfl2, sym dep gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varA_10 }, { "dec avx512 (xmm shfl2, sym idp gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varB_10 }, { "dec avx512 (xmm shfl2, 1x gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varC_10, true }, { "dec avx512 (ymm shfl, sym dep gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varA_10 }, { "dec avx512 (ymm shfl, sym idp gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varB_10 }, { "dec avx512 (ymm shfl, 1x gthr)", rANS32x64_ymmShfl_16w_decode_avx512_varC_10 }, { "dec avx512 (ymm shfl2, sym dep gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varA_10 }, { "dec avx512 (ymm shfl2, sym idp gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varB_10 }, { "dec avx512 (ymm shfl2, 1x gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_varC_10, true }, { "dec avx512 (zmm perm, sym dep gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varA_10 }, { "dec avx512 (zmm perm, sym idp gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varB_10 }, { "dec avx512 (zmm perm, 1x gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varC_10 }, { "dec avx512 (xmm shfl, 1x ymm gthr)", rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_10 }, { "dec avx512 (xmm shfl2, 1x ymm gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_10, true }, { "dec avx512 (ymm shfl, 1x ymm gthr)", rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_10 }, { "dec avx512 (ymm shfl2, 1x ymm gthr)", rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_10, true }, { "dec avx256 (xmm shfl2)", rANS32x64_xmmShfl2_16w_decode_avx256_varC_10, true }, { "dec avx2 (xmm shfl, 1x sim gthr)", rANS32x64_xmmShfl_16w_decode_avx2_varC_sim_gthr_10 }, { "dec avx2 (xmm shfl2, 1x sim gthr)", rANS32x64_xmmShfl2_16w_decode_avx2_varC_sim_gthr_10, true }, { "dec avx2 (ymm perm, 1x sim gthr)", rANS32x64_ymmPerm_16w_decode_avx2_varC_sim_gthr_10 }, { "dec avx512 (xmm shfl, 1x sim gthr)", rANS32x64_xmmShfl_16w_decode_avx512_varC_sim_gthr_10 }, { "dec avx512 (xmm shfl2, 1x sim gthr)", rANS32x64_xmmShfl2_16w_decode_avx512_varC_sim_gthr_10, true }, { "dec avx512 (zmm perm, 1x sim gthr)", rANS32x64_zmmPerm_16w_decode_avx512_varC_sim_gthr_10 }, { "dec avx512 (xmm shfl, 1x ymm simg)", rANS32x64_xmmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_10 }, { "dec avx512 (xmm shfl2, 1x ymm simg)", rANS32x64_xmmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_10 }, { "dec avx512 (ymm shfl, 1x ymm simg)", rANS32x64_ymmShfl_16w_decode_avx512_ymmGthr_varC_sim_gthr_10 }, { "dec avx512 (ymm shfl2, 1x ymm simg)", rANS32x64_ymmShfl2_16w_decode_avx512_ymmGthr_varC_sim_gthr_10, true }, { "dec avx256 (xmm shfl2, 1x sim gthr)", rANS32x64_xmmShfl2_16w_decode_avx256_varC_sim_gthr_10, true }, {}}},
   
   { "rANS32x16 16w (raw)", 15, {{ "enc scalar", rANS32x16_16w_encode_scalar_15, true }, {}}, {{ "dec scalar", rANS32x16_16w_decode_scalar_15 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x16_xmmShfl_16w_decode_avx2_varA_15, true }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x16_xmmShfl_16w_decode_avx2_varB_15, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x16_ymmPerm_16w_decode_avx2_varA_15 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x16_ymmPerm_16w_decode_avx2_varB_15 }, {}}},
   { "rANS32x16 16w (raw)", 14, {{ "enc scalar", rANS32x16_16w_encode_scalar_14, true }, {}}, {{ "dec scalar", rANS32x16_16w_decode_scalar_14 }, { "dec avx2 (xmm shfl, sym dep gthr)", rANS32x16_xmmShfl_16w_decode_avx2_varA_14, true }, { "dec avx2 (xmm shfl, sym idp gthr)", rANS32x16_xmmShfl_16w_decode_avx2_varB_14, true }, { "dec avx2 (ymm perm, sym dep gthr)", rANS32x16_ymmPerm_16w_decode_avx2_varA_14 }, { "dec avx2 (ymm perm, sym idp gthr)", rANS32x16_ymmPerm_16w_decode_avx2_varB_14 }, {}}},
@@ -253,6 +282,10 @@ const char ArgumentRuns[] = "--runs";
 const char ArgumentRunsEncode[] = "--runs-enc";
 const char ArgumentRunsDecode[] = "--runs-dec";
 const char ArgumentTest[] = "--test";
+const char ArgumentBase10[] = "--no-iec";
+const char ArgumentBase10B[] = "--mb";
+const char ArgumentBase2[] = "--mib";
+const char ArgumentHideUnavailable[] = "--hide-unavailable";
 const char ArgumentMaxSimd[] = "--max-simd";
 const char ArgumentMaxSimdAVX512BW[] = "avx512bw";
 const char ArgumentMaxSimdAVX512F[] = "avx512f";
@@ -288,6 +321,7 @@ int32_t main(const int32_t argc, char **pArgv)
     printf("\t%s <uint>\tWhen Decoding: Run the benchmark for a specified amount of times (default: 16)\n", ArgumentRunsDecode);
     printf("\t%s\t\tPrevent sleeping between runs/codecs (may lead to thermal throttling)\n", ArgumentNoSleep);
     printf("\t%s\t\t\tRun as test scenario, fail on error, call codecs\n", ArgumentTest);
+    printf("\t%s / %s\t\tSwitch the unit-format from base-2 to base-10 (i.e. display 'Megabytes' instead of 'Mebibytes'), opposite of '%s'\n", ArgumentBase10, ArgumentBase10B, ArgumentBase2);
     printf("\t%s <%s / %s / %s / %s / %s / %s / %s / %s / %s / %s>\n\t\t\t\tRestrict SIMD functions to specific instruction set\n", ArgumentMaxSimd, ArgumentMaxSimdAVX512BW, ArgumentMaxSimdAVX512F, ArgumentMaxSimdAVX2, ArgumentMaxSimdAVX, ArgumentMaxSimdSSE42, ArgumentMaxSimdSSE41, ArgumentMaxSimdSSSE3, ArgumentMaxSimdSSE3, ArgumentMaxSimdSSE2, ArgumentMaxSimdNone);
     return 1;
   }
@@ -355,6 +389,24 @@ int32_t main(const int32_t argc, char **pArgv)
         argIndex++;
         argsRemaining--;
         _DisableSleep = true;
+      }
+      else if (argsRemaining >= 1 && (strncmp(pArgv[argIndex], ArgumentBase10, sizeof(ArgumentBase10)) == 0 || strncmp(pArgv[argIndex], ArgumentBase10B, sizeof(ArgumentBase10B)) == 0))
+      {
+        argIndex++;
+        argsRemaining--;
+        _Base2ByteUnits = false;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentBase2, sizeof(ArgumentBase2)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _Base2ByteUnits = true;
+      }
+      else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentHideUnavailable, sizeof(ArgumentHideUnavailable)) == 0)
+      {
+        argIndex++;
+        argsRemaining--;
+        _HideUnavailable = true;
       }
       else if (argsRemaining >= 1 && strncmp(pArgv[argIndex], ArgumentTest, sizeof(ArgumentTest)) == 0)
       {
@@ -681,10 +733,24 @@ int32_t main(const int32_t argc, char **pArgv)
 
   _DetectCPUFeatures();
 
+#define STRINGIFY(a) #a
+#define STRINGIFY_VALUE(a) STRINGIFY(a)
+
   // Print info. 
   {
-    printf("File: '%s' (%" PRIu64 " Bytes)\n", filename, fileSize);
+    printf("hypersonic-rANS v0.2b_dev (%s %s)\n", 
+#ifdef _MSC_VER
+      "MSVC", STRINGIFY_VALUE(_MSC_VER) " [" STRINGIFY_VALUE(_MSC_FULL_VER) "]"
+#elif defined(__llvm__)
+      "Clang", STRINGIFY_VALUE(__clang_major__) "." STRINGIFY_VALUE(__clang_minor__) "." STRINGIFY_VALUE(__clang_patchlevel__)
+#elif defined(__GNUC__)
+      "GCC", STRINGIFY_VALUE(__GNUC__) "." STRINGIFY_VALUE(__GNUC_MINOR__) "." STRINGIFY_VALUE(__GNUC_PATCHLEVEL__)
+#else
+      "Unknown Compiler", "???"
+#endif
+      );
 
+    printf("File: '%s' (%" PRIu64 " Bytes)\n", filename, fileSize);
     printf("CPU: '%s' [%s] (Family: 0x%" PRIX8 " / Model: 0x%" PRIX8 " (0x%" PRIX8 ") / Stepping: 0x%" PRIX8 ")\nFeatures:", _CpuName, _GetCPUArchitectureName(), _CpuFamily, _CpuModel, _CpuExtModel, _CpuStepping);
 
     bool anysse = false;
@@ -737,6 +803,9 @@ int32_t main(const int32_t argc, char **pArgv)
     puts("\n");
   }
 
+  const char *MBUnit = _Base2ByteUnits ? "MiB" : " MB";
+  const double MBBytes = _Base2ByteUnits ? (double)(1024 * 1024) : (double)(1000 * 1000);
+
   puts("Codec Type (Enc/Dec Impl)            Hist  Ratio      Minimum            Average          ( StdDev.         )   Maximum          Average        ( StdDev.           )");
   puts("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
@@ -774,12 +843,16 @@ int32_t main(const int32_t argc, char **pArgv)
 
       if (strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx2 ") != nullptr && !avx2Supported)
       {
-        printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        if (!_HideUnavailable)
+          printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        
         continue;
       }
-      else if (strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx512 ") != nullptr && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported))
+      else if ((strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx512 ") != nullptr || strstr(_Codecs[codecId].encoders[codecFuncIndex].name, " avx256 ") != nullptr) && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported || !avx512VLSupported))
       {
-        printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        if (!_HideUnavailable)
+          printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW/VL available)\n", _Codecs[codecId].encoders[codecFuncIndex].name);
+        
         continue;
       }
 
@@ -791,7 +864,7 @@ int32_t main(const int32_t argc, char **pArgv)
         encodedSize = _Codecs[codecId].encoders[codecFuncIndex].func(pUncompressedData, fileSize, pCompressedData, compressedDataCapacity, &hist);
       }
 
-      SleepNs(2500ULL * 1000 * 1000);
+      OfferLongSleep();
 
       for (size_t run = 0; run < _RunCount; run++)
       {
@@ -806,9 +879,9 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r  %-38s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].encoders[codecFuncIndex].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r  %-38s | %6.2f %% | compressed to %" PRIu64 " bytes (%6.3f clocks/byte, %5.2f %s/s)", _Codecs[codecId].encoders[codecFuncIndex].name, encodedSize / (double)fileSize * 100.0, encodedSize, (endClock - startClock) / (double)fileSize, (fileSize / MBBytes) / (TicksToNs(endTick - startTick) * 1e-9), MBUnit);
 
-        SleepNs(rans_min(_NsPerRun[run] * 2ULL, 500ULL * 1000 * 1000));
+        OfferSleep();
       }
 
       printf("\r  %-38s | %6.2f %% ", _Codecs[codecId].encoders[codecFuncIndex].name, encodedSize / (double)fileSize * 100.0);
@@ -848,12 +921,16 @@ int32_t main(const int32_t argc, char **pArgv)
 
       if (strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx2 ") != nullptr && !avx2Supported)
       {
-        printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
+        if (!_HideUnavailable)
+          printf("  %-38s |          | (Skipped; No AVX2 available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
+        
         continue;
       }
-      else if (strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx512 ") != nullptr && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported))
+      else if ((strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx512 ") != nullptr || strstr(_Codecs[codecId].decoders[codecFuncIndex].name, " avx256 ") != nullptr) && (!avx512FSupported || !avx512DQSupported || !avx512BWSupported || !avx512VLSupported))
       {
-        printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
+        if (!_HideUnavailable)
+          printf("  %-38s |          | (Skipped, No AVX-512 F/DQ/BW available)\n", _Codecs[codecId].decoders[codecFuncIndex].name);
+        
         continue;
       }
 
@@ -865,7 +942,7 @@ int32_t main(const int32_t argc, char **pArgv)
         decodedSize = _Codecs[codecId].decoders[codecFuncIndex].func(pCompressedData, encodedSize, pDecompressedData, fileSize);
       }
 
-      SleepNs(2500ULL * 1000 * 1000);
+      OfferLongSleep();
 
       for (size_t run = 0; run < _RunCount; run++)
       {
@@ -880,9 +957,9 @@ int32_t main(const int32_t argc, char **pArgv)
         _NsPerRun[run] = TicksToNs(endTick - startTick);
         _ClocksPerRun[run] = endClock - startClock;
 
-        printf("\r  %-38s |          | decompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f MiB/s)", _Codecs[codecId].decoders[codecFuncIndex].name, decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / (1024.0 * 1024.0)) / (TicksToNs(endTick - startTick) * 1e-9));
+        printf("\r  %-38s |          | decompressed to %" PRIu64 " bytes. (%6.3f clocks/byte, %5.2f %s/s)", _Codecs[codecId].decoders[codecFuncIndex].name, decodedSize, (endClock - startClock) / (double)fileSize, (fileSize / MBBytes) / (TicksToNs(endTick - startTick) * 1e-9), MBUnit);
 
-        SleepNs(rans_min(_NsPerRun[run] * 2ULL, 500ULL * 1000 * 1000));
+        OfferSleep();
       }
 
       printf("\r  %-38s |          ", _Codecs[codecId].decoders[codecFuncIndex].name);
@@ -934,16 +1011,51 @@ uint64_t TicksToNs(const uint64_t ticks)
 #endif
 }
 
-void SleepNs(const uint64_t sleepNs)
+static int64_t _LastSleepTicks = GetCurrentTimeTicks();
+
+template <uint64_t MaxNoSleepNs, uint64_t SleepTimeDiv>
+void OfferSleepInternal()
 {
   if (!_DisableSleep && _RunCount > 1)
   {
-#ifdef _WIN32
-    Sleep((DWORD)((sleepNs + 500 * 1000) / (1000 * 1000)));
-#else
-    usleep((uint32_t)((sleepNs + 500) / (1000)));
-#endif
+    const uint64_t diffNs = TicksToNs(GetCurrentTimeTicks() - _LastSleepTicks);
+
+    if (diffNs > MaxNoSleepNs)
+    {
+      SleepNs(diffNs / SleepTimeDiv);
+      _LastSleepTicks = GetCurrentTimeTicks();
+    }
   }
+}
+
+void OfferSleep()
+{
+  constexpr uint64_t MaxNoSleepNs = 2500ULL * 1000 * 1000;
+  OfferSleepInternal<MaxNoSleepNs, 5>();
+}
+
+void OfferLongSleep()
+{
+  constexpr uint64_t MaxNoSleepNs = 1000ULL * 1000 * 1000;
+
+  if (_CpuVendor != cpu_vendor_AMD)
+  {
+    OfferSleepInternal<MaxNoSleepNs, 3>();
+  }
+  else
+  {
+    SleepNs(MaxNoSleepNs / 2);
+    _LastSleepTicks = GetCurrentTimeTicks();
+  }
+}
+
+void SleepNs(const uint64_t sleepNs)
+{
+#ifdef _WIN32
+  Sleep((DWORD)((sleepNs + 500 * 1000) / (1000 * 1000)));
+#else
+  usleep((uint32_t)((sleepNs + 500) / (1000)));
+#endif
 }
 
 bool Validate(const uint8_t *pReceived, const uint8_t *pExpected, const size_t size)

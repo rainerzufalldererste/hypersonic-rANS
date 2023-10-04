@@ -96,3 +96,15 @@ jobs:
     - name: Test sample2 No-SIMD
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: ./hsrans rle_samples/sample2.bin --test --max-simd none
+
+    - name: Test sample6 AVX2
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample6.bin --test --max-simd avx2
+      
+    - name: Test sample6 SSE4.2
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample6.bin --test --max-simd sse4.2
+      
+    - name: Test sample6 No-SIMD
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: ./hsrans rle_samples/sample6.bin --test --max-simd none

@@ -269,7 +269,7 @@ Makefile
 *.make
 
 # Additional Files
-mediaLib/lib/*.lib
-enc_temp_folder/*
+*.o
+*.h.gch
 builds/*
 * Advisor Results */
